@@ -1,59 +1,93 @@
-import { useEffect, useRef, useState } from 'react';
 import Container from '../shared/Container';
 import Eyebrow from '../shared/Eyebrow';
 import Reveal from '../shared/Reveal';
+import useReveal from '../../hooks/useReveal';
+
+/*
+  HowItWorks
+  ----------
+  Three numbered steps down the right hand side, with a thin line running
+  through the numbers. Each number turns green as you scroll down to it.
+*/
 
 const steps = [
   {
-    title: 'Describe your household',
-    body: 'Income, and who it carries. Dependents, a sibling in college, family debt. Ranges are fine — nobody remembers their exact grocery spend, and the model does not need it.',
     aside: 'Ranges, not receipts',
+    title: 'Describe your household',
+    text:
+      'Income, and who it carries. Dependents, a sibling in college, family debt. '
+      + 'Ranges are fine, nobody remembers their exact grocery spend, and the model does not need it.',
   },
   {
-    title: 'Get a plan with its reasoning',
-    body: 'A spend, save and invest split built from what is genuinely left after your household. Every number arrives with the sentence that produced it, and you can ask why on any of them.',
     aside: 'No black box',
+    title: 'Get a plan with its reasoning',
+    text:
+      'A spend, save and invest split built from what is genuinely left after your household. '
+      + 'Every number arrives with the sentence that produced it, and you can ask why on any of them.',
   },
   {
-    title: 'Watch it compound',
-    body: 'Progress against the plan, a nudge when a priority changes, and a projection of what today’s decision is worth in fifteen years. Built to keep you consistent, not impressed.',
     aside: 'Motivation by design',
+    title: 'Watch it compound',
+    text:
+      'Progress against the plan, a nudge when a priority changes, and a projection of what '
+      + 'today’s decision is worth in fifteen years. Built to keep you consistent, not impressed.',
   },
 ];
 
+/*
+  One step. This is its own small component purely so that each step can have its
+  own useReveal, letting its number light up independently of the other two.
+*/
+function Step({ step, number, isLast }) {
+  const [stepRef, isVisible] = useReveal();
+
+  // The circle is empty until the step is on screen, then it fills with green.
+  let circleClasses =
+    'absolute -left-12 top-1 grid h-8 w-8 place-items-center rounded-full border '
+    + 'text-[12px] font-semibold transition-all duration-500 ease-smooth ';
+
+  if (isVisible === true) {
+    circleClasses = circleClasses + 'border-accent bg-accent text-white';
+  } else {
+    circleClasses = circleClasses + 'border-line bg-paper text-muted';
+  }
+
+  // The last step needs no gap underneath it.
+  let wrapperClasses = 'reveal relative pb-16';
+  if (isLast === true) {
+    wrapperClasses = 'reveal relative pb-0';
+  }
+  if (isVisible === true) {
+    wrapperClasses = wrapperClasses + ' is-in';
+  }
+
+  return (
+    <div ref={stepRef} className={wrapperClasses}>
+      <span className={circleClasses}>{number}</span>
+
+      <p className="text-2xs font-semibold uppercase tracking-widest2 text-brass">{step.aside}</p>
+      <h3 className="mt-3 font-display text-[26px] leading-tight tracking-[-0.01em]">{step.title}</h3>
+      <p className="mt-3.5 max-w-lg text-[15.5px] leading-relaxed text-ink2">{step.text}</p>
+    </div>
+  );
+}
+
 export default function HowItWorks() {
-  const sectionRef = useRef(null);
-  const [progress, setProgress] = useState(0);
-
-  useEffect(() => {
-    const onScroll = () => {
-      const node = sectionRef.current;
-      if (!node) return;
-      const rect = node.getBoundingClientRect();
-      const span = rect.height - window.innerHeight * 0.5;
-      const scrolled = window.innerHeight * 0.5 - rect.top;
-      setProgress(Math.min(Math.max(scrolled / Math.max(span, 1), 0), 1));
-    };
-    onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onScroll);
-    return () => {
-      window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onScroll);
-    };
-  }, []);
-
   return (
     <section id="how" className="bg-paper">
       <Container className="py-24 lg:py-32">
         <div className="grid gap-14 lg:grid-cols-[0.8fr_1.2fr] lg:gap-20">
+
+          {/* ---------- Left: the heading, which stays put while you scroll ---------- */}
           <div className="lg:sticky lg:top-28 lg:self-start">
             <Reveal><Eyebrow>How it works</Eyebrow></Reveal>
+
             <Reveal delay={80}>
               <h2 className="mt-6 font-display text-[clamp(2.1rem,4vw,3.1rem)] leading-[1.06] tracking-[-0.02em]">
                 Three steps to an answer you can argue with.
               </h2>
             </Reveal>
+
             <Reveal delay={150}>
               <p className="mt-6 max-w-sm text-[16px] leading-relaxed text-ink2">
                 Not a rule of thumb borrowed from another country. A recommendation shaped by
@@ -62,29 +96,22 @@ export default function HowItWorks() {
             </Reveal>
           </div>
 
-          <div ref={sectionRef} className="relative pl-12">
+          {/* ---------- Right: the steps ---------- */}
+          {/* The left padding makes room for the numbered circles, which are
+              positioned just outside this column. */}
+          <div className="relative pl-12">
+
+            {/* The thin line the circles sit on. */}
             <div className="absolute left-[15px] top-2 h-[calc(100%-2rem)] w-px bg-line" aria-hidden="true" />
-            <div
-              className="absolute left-[15px] top-2 w-px origin-top bg-accent transition-[height] duration-200 ease-out"
-              style={{ height: `calc(${progress * 100}% - ${progress * 2}rem)` }}
-              aria-hidden="true"
-            />
 
             {steps.map((step, index) => {
-              const reached = progress >= index / steps.length;
               return (
-                <Reveal key={step.title} delay={index * 90} className="relative pb-16 last:pb-0">
-                  <span
-                    className={`absolute -left-12 top-1 grid h-8 w-8 place-items-center rounded-full border text-[12px] font-semibold transition-all duration-500 ease-smooth ${
-                      reached ? 'border-accent bg-accent text-white' : 'border-line bg-paper text-muted'
-                    }`}
-                  >
-                    {index + 1}
-                  </span>
-                  <p className="text-2xs font-semibold uppercase tracking-widest2 text-brass">{step.aside}</p>
-                  <h3 className="mt-3 font-display text-[26px] leading-tight tracking-[-0.01em]">{step.title}</h3>
-                  <p className="mt-3.5 max-w-lg text-[15.5px] leading-relaxed text-ink2">{step.body}</p>
-                </Reveal>
+                <Step
+                  key={step.title}
+                  step={step}
+                  number={index + 1}
+                  isLast={index === steps.length - 1}
+                />
               );
             })}
           </div>
