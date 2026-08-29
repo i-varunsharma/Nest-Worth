@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import AuthLayout from '../components/auth/AuthLayout';
 import AuthDivider from '../components/auth/AuthDivider';
 import GoogleButton from '../components/auth/GoogleButton';
@@ -8,6 +8,7 @@ import PhoneOtpForm from '../components/auth/PhoneOtpForm';
 import Button from '../components/shared/Button';
 import TextField from '../components/shared/TextField';
 import { checkEmail, checkName, checkPassword } from '../lib/validation';
+import { loadHousehold, saveHousehold } from '../lib/household';
 
 /*
   SignupPage
@@ -20,6 +21,10 @@ import { checkEmail, checkName, checkPassword } from '../lib/validation';
 
   The only rule that differs from the login page is that a brand new password
   has to be at least 8 characters long.
+
+  Where it goes next: /onboarding, not the dashboard. Somebody who has just
+  signed up has not told us anything about their household yet, so there is no
+  plan to show them. The three questions come first.
 */
 
 const sellingPoints = [
@@ -29,6 +34,9 @@ const sellingPoints = [
 ];
 
 export default function SignupPage() {
+  // useNavigate moves to another page from inside our own code.
+  const navigate = useNavigate();
+
   const [method, setMethod] = useState('email');
 
   const [name, setName] = useState('');
@@ -37,7 +45,6 @@ export default function SignupPage() {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const [errors, setErrors] = useState({});
-  const [successText, setSuccessText] = useState(null);
 
   const handleEmailSubmit = (event) => {
     // Stop the browser from reloading the page when the form is sent.
@@ -74,37 +81,27 @@ export default function SignupPage() {
     }
 
     // ----- CREATE THE ACCOUNT -----
-    // A real app would call POST /api/auth/signup here.
-    setSuccessText('Welcome, ' + name + '. We would create the account for ' + email + ' now.');
+    // A real app would call POST /api/auth/signup here, and only continue once
+    // the server confirmed the account was made.
+
+    // Remember the name so the dashboard can say hello properly. The rest of
+    // the household gets filled in by the onboarding questions next.
+    saveHousehold({ ...loadHousehold(), name: name.trim() });
+    navigate('/onboarding');
   };
 
   const handleGoogleClick = () => {
     // ----- SIGN UP WITH GOOGLE -----
-    // See SETUP.md for what has to exist before this can do anything real.
-    setSuccessText('We would open the Google sign-in window now.');
+    // Google would give us the person's name here, which is why nothing is
+    // saved yet. See SETUP.md for what has to exist before this works.
+    navigate('/onboarding');
   };
 
-  const handlePhoneVerified = (phoneNumber) => {
-    setSuccessText('We would create the account for +91 ' + phoneNumber + ' now.');
+  const handlePhoneVerified = () => {
+    // Signing up by phone gives us no name, so the dashboard greets them
+    // without one until they add it.
+    navigate('/onboarding');
   };
-
-  if (successText !== null) {
-    return (
-      <AuthLayout
-        title="Account ready."
-        subtitle="Next we would ask about your household and build your first plan."
-        points={sellingPoints}
-        footer={<Link to="/" className="sweep font-medium text-ink">Back to the home page</Link>}
-      >
-        <div className="rounded-2xl border border-accent/25 bg-accentSoft p-5">
-          <p className="text-2xs font-semibold uppercase tracking-widest2 text-accentDeep">
-            Form accepted
-          </p>
-          <p className="mt-2 text-[14px] leading-relaxed text-ink2">{successText}</p>
-        </div>
-      </AuthLayout>
-    );
-  }
 
   // Choose which form to show under the tabs.
   let chosenForm = null;

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import AuthLayout from '../components/auth/AuthLayout';
 import AuthDivider from '../components/auth/AuthDivider';
 import GoogleButton from '../components/auth/GoogleButton';
@@ -18,10 +18,12 @@ import { checkEmail, checkPassword } from '../lib/validation';
     2. Email and password
     3. Mobile number and a code sent by text
 
+  All three end in the same place: the dashboard at /dashboard.
+
   Google and the text message both need accounts set up with outside services,
-  which SETUP.md walks through. Until then every route ends at the same friendly
-  confirmation panel, so the whole screen can still be clicked through and shown
-  to somebody.
+  which SETUP.md walks through. Until those exist, nothing here actually proves
+  who anybody is. The forms check that what was typed makes sense, and then move
+  on, so the whole journey can be clicked through and shown to somebody.
 */
 
 // Shown on the dark panel on the left. Kept outside the component because it
@@ -33,6 +35,10 @@ const sellingPoints = [
 ];
 
 export default function LoginPage() {
+  // useNavigate gives us a function that moves to another page from inside our
+  // own code, rather than waiting for somebody to click a link.
+  const navigate = useNavigate();
+
   // Which of the two forms is showing: 'email' or 'phone'.
   const [method, setMethod] = useState('email');
 
@@ -43,9 +49,6 @@ export default function LoginPage() {
 
   // Error messages, stored by field name. An empty object means no errors yet.
   const [errors, setErrors] = useState({});
-
-  // Null until something succeeds. Then it holds the line to show the person.
-  const [successText, setSuccessText] = useState(null);
 
   const handleEmailSubmit = (event) => {
     // A form normally reloads the whole page when it is sent.
@@ -76,39 +79,21 @@ export default function LoginPage() {
     }
 
     // ----- SIGN IN -----
-    // A real app would call POST /api/auth/login here.
-    setSuccessText('We would sign in ' + email + ' now.');
+    // A real app would call POST /api/auth/login here and only continue once
+    // the server said the password was right. Until then we go straight on.
+    navigate('/dashboard');
   };
 
   const handleGoogleClick = () => {
     // ----- SIGN IN WITH GOOGLE -----
     // Once a Client ID exists this opens Google's own sign-in window, and the
     // token it returns goes to our backend to be checked. See SETUP.md.
-    setSuccessText('We would open the Google sign-in window now.');
+    navigate('/dashboard');
   };
 
-  const handlePhoneVerified = (phoneNumber) => {
-    setSuccessText('We would sign in the account for +91 ' + phoneNumber + ' now.');
+  const handlePhoneVerified = () => {
+    navigate('/dashboard');
   };
-
-  // Once something has succeeded we swap the whole form for a short message.
-  if (successText !== null) {
-    return (
-      <AuthLayout
-        title="You are all set."
-        subtitle="This is where we would sign you in and open your plan. The backend is not connected yet."
-        points={sellingPoints}
-        footer={<Link to="/" className="sweep font-medium text-ink">Back to the home page</Link>}
-      >
-        <div className="rounded-2xl border border-accent/25 bg-accentSoft p-5">
-          <p className="text-2xs font-semibold uppercase tracking-widest2 text-accentDeep">
-            Form accepted
-          </p>
-          <p className="mt-2 text-[14px] leading-relaxed text-ink2">{successText}</p>
-        </div>
-      </AuthLayout>
-    );
-  }
 
   // Choose which form to show under the tabs.
   let chosenForm = null;
