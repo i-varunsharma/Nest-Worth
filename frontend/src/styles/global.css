@@ -1,57 +1,132 @@
+/*
+  global.css
+  ----------
+  Three things live in this file:
+
+  1. The font imports.
+  2. Base rules that apply to the whole document.
+  3. A handful of reusable classes that were easier to write here than in Tailwind,
+     usually because they need a pseudo-element like ::before or ::after.
+
+  Everything else, all the colours and spacing, is in tailwind.config.js.
+*/
+
+/* Instrument Serif is the elegant font used for headings, Inter is for everything else. */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700&family=Instrument+Serif:ital@0;1&display=swap');
+
+/* These three lines pull in Tailwind. Do not remove them. */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+
 @layer base {
-  html { scroll-behavior: smooth; -webkit-tap-highlight-color: transparent; }
+  html {
+    /* Makes clicking a "#section" link glide down instead of jumping. */
+    scroll-behavior: smooth;
+
+    /* Removes the grey flash when tapping something on a phone. */
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
     @apply bg-paper text-ink font-sans antialiased;
-    font-feature-settings: 'ss01' 1, 'cv05' 1;
   }
-  ::selection { background: #1F5340; color: #F7F4EF; }
-  :focus-visible { outline: 2px solid #1F5340; outline-offset: 3px; border-radius: 4px; }
+
+  /* The colour of highlighted text when someone selects it with the mouse. */
+  ::selection {
+    background: #1F5340;
+    color: #F7F4EF;
+  }
+
+  /* The green ring around whatever is focused. It only shows for keyboard users,
+     which is what :focus-visible means, so mouse clicks stay clean. */
+  :focus-visible {
+    outline: 2px solid #1F5340;
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
 }
 
-@layer components {
-  /* Money and metrics always align in a column */
-  .tnum { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1; }
 
-  /* Small caps label with a leading hairline */
+@layer components {
+  /*
+    tnum
+    Makes every digit take the same width. Without it, numbers jump sideways
+    while they change, because a 1 is narrower than an 8 in most fonts.
+  */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1;
+  }
+
+  /*
+    eyebrow
+    The small grey label above a heading. The ::before rule draws the short
+    line to its left, which saves putting an empty span in every section.
+  */
   .eyebrow {
     @apply inline-flex items-center gap-2.5 text-2xs font-semibold uppercase tracking-widest2 text-muted;
   }
+
   .eyebrow::before {
     content: '';
     @apply block h-px w-6 bg-line;
   }
 
-  /* Scroll reveal — the element starts displaced, the observer adds .is-in */
+  /*
+    reveal / is-in
+    Used by the Reveal component. An element starts slightly lower down and
+    see-through, then the "is-in" class is added once it scrolls into view and
+    it glides up into place.
+  */
   .reveal {
     opacity: 0;
     transform: translateY(22px);
-    transition: opacity 800ms cubic-bezier(0.22, 1, 0.36, 1), transform 800ms cubic-bezier(0.22, 1, 0.36, 1);
-    transition-delay: var(--reveal-delay, 0ms);
-    will-change: opacity, transform;
+    transition:
+      opacity 800ms cubic-bezier(0.22, 1, 0.36, 1),
+      transform 800ms cubic-bezier(0.22, 1, 0.36, 1);
   }
-  .reveal.is-in { opacity: 1; transform: none; }
 
-  /* Link with an underline that sweeps in from the left */
-  .sweep { @apply relative; }
+  .reveal.is-in {
+    opacity: 1;
+    transform: none;
+  }
+
+  /*
+    sweep
+    An underline that sweeps in from the left when you hover a link.
+    scale-x-0 means "squashed to nothing", and scale-x-100 is full width.
+    Swapping the origin from right to left is what makes it wipe rather than grow
+    from the middle.
+  */
+  .sweep {
+    @apply relative;
+  }
+
   .sweep::after {
     content: '';
     @apply absolute -bottom-0.5 left-0 h-px w-full origin-right scale-x-0 bg-current;
     transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
   }
-  .sweep:hover::after { @apply origin-left scale-x-100; }
 
-  /* Warm paper texture — a barely-there grid that keeps flat areas from reading as dead */
+  .sweep:hover::after {
+    @apply origin-left scale-x-100;
+  }
+
+  /*
+    grid-texture
+    A barely visible grid, made from two sets of thin lines crossing each other.
+    Large flat areas look dead without something like this.
+  */
   .grid-texture {
     background-image:
       linear-gradient(to right, rgba(18, 16, 13, 0.035) 1px, transparent 1px),
       linear-gradient(to bottom, rgba(18, 16, 13, 0.035) 1px, transparent 1px);
     background-size: 76px 76px;
   }
+
+  /* The same idea, but pale lines for use on the dark sections. */
   .grid-texture-dark {
     background-image:
       linear-gradient(to right, rgba(247, 244, 239, 0.05) 1px, transparent 1px),
@@ -59,28 +134,67 @@
     background-size: 76px 76px;
   }
 
+  /*
+    range-track
+    The income slider. Browsers style sliders very differently from each other,
+    so we switch off the default look with appearance-none and draw our own.
+    The -webkit- and -moz- rules below are Chrome/Safari and Firefox respectively;
+    both are needed, and neither browser understands the other's version.
+  */
   .range-track {
     @apply h-1 w-full cursor-pointer appearance-none rounded-full bg-line;
+
+    /* The filled green part. Its width is set from JavaScript, in Planner.jsx. */
     background-image: linear-gradient(#1F5340, #1F5340);
     background-repeat: no-repeat;
   }
+
+  /* The round handle, in Chrome, Edge and Safari. */
   .range-track::-webkit-slider-thumb {
     @apply h-5 w-5 cursor-grab appearance-none rounded-full border-2 border-accent bg-white;
     box-shadow: 0 2px 8px rgba(18, 16, 13, 0.22);
     transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
   }
-  .range-track::-webkit-slider-thumb:hover { transform: scale(1.14); }
-  .range-track::-webkit-slider-thumb:active { @apply cursor-grabbing; transform: scale(1.02); }
+
+  .range-track::-webkit-slider-thumb:hover {
+    transform: scale(1.14);
+  }
+
+  .range-track::-webkit-slider-thumb:active {
+    @apply cursor-grabbing;
+    transform: scale(1.02);
+  }
+
+  /* The same handle, in Firefox. */
   .range-track::-moz-range-thumb {
     @apply h-5 w-5 cursor-grab rounded-full border-2 border-accent bg-white;
     box-shadow: 0 2px 8px rgba(18, 16, 13, 0.22);
   }
 }
 
+
+/*
+  Some people turn animations off in their operating system, usually because
+  motion makes them feel unwell. This block honours that by switching every
+  animation and transition on the site down to almost nothing.
+
+  Note that the delays are flattened too. If we only shortened the durations,
+  a bar with a 400ms delay would still sit invisible for 400ms.
+*/
 @media (prefers-reduced-motion: reduce) {
-  html { scroll-behavior: auto; }
-  .reveal { opacity: 1; transform: none; transition: none; }
-  *, *::before, *::after {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     animation-delay: 0.01ms !important;
     animation-iteration-count: 1 !important;

@@ -10,27 +10,52 @@ import Projection from '../components/landing/Projection';
 import FAQ from '../components/landing/FAQ';
 import FinalCTA from '../components/landing/FinalCTA';
 
-/**
- * One household is shared by every section: change the slider in the hero and
- * the problem statement and the projection re-read from the same plan. The page
- * behaves like the product rather than describing it.
- */
+/*
+  LandingPage
+  -----------
+  The home page. It does two jobs.
+
+  1. It lists the sections in the order the reader meets them.
+
+  2. It owns the household numbers. Three sections need them: the planner card in
+     the hero, the "where the money goes" section, and the projection chart. If
+     each of those kept its own copy they would drift apart, so instead this page
+     holds the single copy and hands it down. Move the slider in the hero and the
+     sections further down change with it.
+
+     React people call this "lifting state up": whichever component sits above
+     everyone who needs the data is the one that should hold it.
+*/
 export default function LandingPage() {
-  const [household, setHousehold] = useState({ income: 62000, dependents: 2, hasLoan: true });
+  // The household we start with: a fairly typical first job with two people to
+  // support and an education loan still running.
+  const [household, setHousehold] = useState({
+    income: 62000,
+    dependents: 2,
+    hasLoan: true,
+  });
 
   return (
     <div className="min-h-screen bg-paper">
       <Navbar />
+
       <main>
-        <Hero state={household} onChange={setHousehold} />
-        <HouseholdFlow state={household} />
+        {/* Only the hero can edit the household, so only it gets onHouseholdChange. */}
+        <Hero household={household} onHouseholdChange={setHousehold} />
+
+        {/* These two read the household but never change it. */}
+        <HouseholdFlow household={household} />
+
         <HowItWorks />
         <CompareStrip />
         <ValueGrid />
-        <Projection state={household} />
+
+        <Projection household={household} />
+
         <FAQ />
         <FinalCTA />
       </main>
+
       <Footer />
     </div>
   );
