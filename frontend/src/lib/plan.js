@@ -94,14 +94,28 @@ export function buildPlan(household) {
   }
   const support = roundToNearest500(income * supportPercent);
 
-  // A typical education loan EMI is around 15% of income, capped at 24,000.
+  /*
+    The EMI.
+
+    If the caller knows the real figure, it passes it in and we use it. That is
+    what happens once somebody has entered their actual debts, and it makes the
+    whole plan real rather than illustrative.
+
+    If not, we estimate: a typical education loan EMI is around 15% of income,
+    capped at 24,000. The landing page demo uses this, because a visitor has not
+    told us anything real yet.
+  */
   let emi = 0;
   if (hasLoan === true) {
-    let emiAmount = income * 0.15;
-    if (emiAmount > 24000) {
-      emiAmount = 24000;
+    if (Number.isFinite(household.emi) && household.emi > 0) {
+      emi = Math.round(household.emi);
+    } else {
+      let emiAmount = income * 0.15;
+      if (emiAmount > 24000) {
+        emiAmount = 24000;
+      }
+      emi = roundToNearest500(emiAmount);
     }
-    emi = roundToNearest500(emiAmount);
   }
 
   // Whatever survives those two is the money the person can actually decide about.
@@ -191,6 +205,12 @@ export function buildPlan(household) {
     emi: emi,
     free: free,
     investPercent: investPercent,
+
+    // The most expensive debt, when the caller knows it. The dashboard passes
+    // these in from the real debts list; the landing page demo does not have
+    // them, so the sentence falls back to a general one.
+    topRate: household.topRate,
+    topDebtName: household.topDebtName,
   });
 
   return {
@@ -214,11 +234,30 @@ export function buildPlan(household) {
 */
 function writeReasoning(facts) {
   if (facts.hasLoan === true) {
+    /*
+      Name the real debt when we know it.
+
+      This matters more than it looks. "Your education loan charges 11%" is
+      wrong and unhelpful for somebody whose worst debt is a card at 42%, and
+      being confidently wrong about the thing costing them the most is the
+      fastest way to lose their trust.
+    */
+    if (facts.topDebtName && Number.isFinite(facts.topRate)) {
+      return {
+        tone: 'clay',
+        label: 'First priority',
+        text:
+          'Your ' + facts.topDebtName + ' charges ' + facts.topRate + '%, more than the market '
+          + 'reliably pays. We hold investing at ' + facts.investPercent + '% and send '
+          + formatRupees(facts.emi) + ' a month at your debts, clearing that one first.',
+      };
+    }
+
     return {
       tone: 'clay',
       label: 'First priority',
       text:
-        'Your education loan compounds at roughly 11%, faster than the market pays you. '
+        'An education loan compounds at roughly 11%, faster than the market pays you. '
         + 'We hold investing at ' + facts.investPercent + '% and route '
         + formatRupees(facts.emi) + ' a month at the loan until it is gone.',
     };

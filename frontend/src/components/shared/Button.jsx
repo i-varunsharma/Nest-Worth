@@ -36,7 +36,7 @@ const buttonStyles = {
   ghostOnDark: 'border border-white/15 text-paper px-6 py-3.5 hover:border-white/40 hover:bg-white/5 hover:-translate-y-0.5',
 };
 
-export default function Button({ children, to, href, onClick, variant, arrow, type, className }) {
+export default function Button({ children, to, href, onClick, variant, arrow, type, className, disabled }) {
   // Pick the colour scheme. If nobody chose one, use the primary style.
   let variantStyles = buttonStyles.primary;
   if (variant && buttonStyles[variant]) {
@@ -46,6 +46,11 @@ export default function Button({ children, to, href, onClick, variant, arrow, ty
   let allClasses = sharedStyles + ' ' + variantStyles;
   if (className) {
     allClasses = allClasses + ' ' + className;
+  }
+
+  // A button that is busy or unusable should look it, and should ignore clicks.
+  if (disabled === true) {
+    allClasses = allClasses + ' cursor-not-allowed opacity-50';
   }
 
   // Some buttons show a small arrow that slides right when you hover them.
@@ -89,7 +94,7 @@ export default function Button({ children, to, href, onClick, variant, arrow, ty
   }
 
   return (
-    <button type={buttonType} onClick={onClick} className={allClasses}>
+    <button type={buttonType} onClick={onClick} disabled={disabled} className={allClasses}>
       {children}
       {arrowElement}
     </button>
