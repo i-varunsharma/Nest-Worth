@@ -1,46 +1,92 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Container from '../components/shared/Container';
 import Button from '../components/shared/Button';
+import TextField from '../components/shared/TextField';
+import * as api from '../lib/api';
 import { buildPlan, formatRupees } from '../lib/plan';
-import { loadHousehold, saveHousehold } from '../lib/household';
+import { DEFAULT_HOUSEHOLD } from '../lib/household';
 
 /*
   OnboardingPage
   --------------
-  The screen at /onboarding. Someone lands here straight after signing up, and
-  comes back to it whenever they press "Edit household" on the dashboard.
+  The screen at /onboarding. People arrive here straight after signing up, and
+  come back whenever they press "Edit household" on the dashboard.
 
-  It asks the three questions the model needs, one at a time:
+  It asks one question per screen. That is deliberate: a short screen feels
+  answerable, a form with everything on it makes people close the tab, and one
+  question at a time leaves room to explain WHY it is being asked, which matters
+  when the subject is family money.
 
-      Step 1  how much you earn
-      Step 2  how many people that has to cover
-      Step 3  whether an education loan is running
+  Somebody who signed up with a phone number has no name yet, so for them there
+  is an extra question at the front. That is why the list of steps is built at
+  the top rather than written out: the flow is four screens for some people and
+  three for others.
 
-  Asking one thing per screen rather than all three at once is a deliberate
-  choice. A short screen feels answerable, and a form with everything on it makes
-  people close the tab. It also means each step gets room to explain WHY it is
-  being asked, which matters for questions about family money.
-
-  A preview panel on the right updates as the answers change, so the plan is
-  never a surprise at the end.
+  Props:
+    user - the signed-in person, handed down by RequireAuth
 */
 
-// The slider runs between these two salaries.
 const LOWEST_INCOME = 20000;
 const HIGHEST_INCOME = 250000;
 
-const TOTAL_STEPS = 3;
-
-export default function OnboardingPage() {
+export default function OnboardingPage({ user }) {
   const navigate = useNavigate();
 
-  // Start from whatever was saved before, so returning to edit shows the
-  // current answers rather than blank ones.
-  const [household, setHousehold] = useState(loadHousehold());
+  // Which question is showing, counting from 0 so it matches the steps array.
+  const [stepIndex, setStepIndex] = useState(0);
 
-  // Which question is showing, counting from 1 so it matches "Step 1 of 3".
-  const [step, setStep] = useState(1);
+  const [name, setName] = useState(user.name || '');
+  const [household, setHousehold] = useState(DEFAULT_HOUSEHOLD);
+
+  const [nameError, setNameError] = useState('');
+  const [formError, setFormError] = useState('');
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+
+  /*
+    Load whatever was saved before, so coming back to edit shows the current
+    answers rather than blank ones.
+
+    The stillMounted flag guards against the answer arriving after this page has
+    already been left, which would otherwise try to update state that is gone.
+  */
+  useEffect(() => {
+    let stillMounted = true;
+
+    api.getHousehold().then((result) => {
+      if (!stillMounted) {
+        return;
+      }
+
+      if (result.ok) {
+        setHousehold({
+          income: result.data.household.income,
+          dependents: result.data.household.dependents,
+          hasLoan: result.data.household.hasLoan,
+        });
+      }
+
+      setIsLoading(false);
+    });
+
+    return () => {
+      stillMounted = false;
+    };
+  }, []);
+
+  // Build the list of questions. Only ask for a name if we do not have one.
+  const steps = [];
+  if (!user.name) {
+    steps.push('name');
+  }
+  steps.push('income');
+  steps.push('dependents');
+  steps.push('loan');
+
+  const currentStep = steps[stepIndex];
+  const isLastStep = stepIndex === steps.length - 1;
 
   // The live preview beside the questions.
   const plan = buildPlan(household);
@@ -52,7 +98,7 @@ export default function OnboardingPage() {
     would not tell it anything happened and the screen would not update.
 
     The three dots are the spread operator: "copy everything from household,
-    then replace the one field named after it".
+    then replace the field named after it".
   */
   const handleIncomeChange = (event) => {
     setHousehold({ ...household, income: Number(event.target.value) });
@@ -67,26 +113,68 @@ export default function OnboardingPage() {
   };
 
   const handleBack = () => {
-    if (step > 1) {
-      setStep(step - 1);
+    if (stepIndex > 0) {
+      setStepIndex(stepIndex - 1);
     }
   };
 
-  const handleNext = () => {
-    if (step < TOTAL_STEPS) {
-      setStep(step + 1);
+  const handleNext = async () => {
+    setFormError('');
+
+    // The name step will not let you past it empty.
+    if (currentStep === 'name') {
+      if (name.trim().length < 2) {
+        setNameError('Please enter your name.');
+        return;
+      }
+      setNameError('');
+    }
+
+    if (!isLastStep) {
+      setStepIndex(stepIndex + 1);
       return;
     }
 
-    // Last step: write the answers down and move to the dashboard.
-    saveHousehold(household);
+    // Last step: save everything, then go to the plan.
+    setIsSaving(true);
+
+    // A new name only needs saving if one was actually asked for.
+    if (steps.includes('name')) {
+      const nameResult = await api.saveName(name);
+
+      if (!nameResult.ok) {
+        setIsSaving(false);
+        setFormError(nameResult.error);
+        return;
+      }
+    }
+
+    const result = await api.saveHousehold(household);
+
+    setIsSaving(false);
+
+    if (!result.ok) {
+      setFormError(result.error);
+      return;
+    }
+
     navigate('/dashboard');
   };
 
-  // The label on the forward button changes on the last step.
+  if (isLoading === true) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-paper">
+        <p className="text-[14px] text-muted">Loading…</p>
+      </div>
+    );
+  }
+
   let nextLabel = 'Continue';
-  if (step === TOTAL_STEPS) {
+  if (isLastStep === true) {
     nextLabel = 'Build my plan';
+  }
+  if (isSaving === true) {
+    nextLabel = 'Saving…';
   }
 
   // ---------------------------------------------------------------
@@ -94,7 +182,33 @@ export default function OnboardingPage() {
   // ---------------------------------------------------------------
   let question = null;
 
-  if (step === 1) {
+  if (currentStep === 'name') {
+    question = (
+      <div>
+        <h2 className="font-display text-[clamp(1.9rem,3.5vw,2.6rem)] leading-[1.08] tracking-[-0.02em]">
+          First, what should we call you?
+        </h2>
+        <p className="mt-4 max-w-md text-[15.5px] leading-relaxed text-ink2">
+          You signed in with your number, so we do not have a name yet.
+        </p>
+
+        <div className="mt-10 max-w-sm">
+          <TextField
+            id="name"
+            label="Your name"
+            type="text"
+            value={name}
+            onChange={setName}
+            error={nameError}
+            placeholder="Varun Sharma"
+            autoComplete="name"
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (currentStep === 'income') {
     question = (
       <div>
         <h2 className="font-display text-[clamp(1.9rem,3.5vw,2.6rem)] leading-[1.08] tracking-[-0.02em]">
@@ -105,7 +219,7 @@ export default function OnboardingPage() {
           fine. You can change it whenever it changes.
         </p>
 
-        <div className="mt-10">
+        <div className="mt-10 max-w-lg">
           <div className="flex items-baseline justify-between">
             <label htmlFor="income" className="text-[13px] font-medium text-ink2">
               Monthly take-home
@@ -136,7 +250,7 @@ export default function OnboardingPage() {
     );
   }
 
-  if (step === 2) {
+  if (currentStep === 'dependents') {
     question = (
       <div>
         <h2 className="font-display text-[clamp(1.9rem,3.5vw,2.6rem)] leading-[1.08] tracking-[-0.02em]">
@@ -182,7 +296,12 @@ export default function OnboardingPage() {
     );
   }
 
-  if (step === 3) {
+  if (currentStep === 'loan') {
+    const loanOptions = [
+      { value: true, label: 'Yes, still paying', note: 'We will prioritise clearing it' },
+      { value: false, label: 'No loan', note: 'More room to invest early' },
+    ];
+
     question = (
       <div>
         <h2 className="font-display text-[clamp(1.9rem,3.5vw,2.6rem)] leading-[1.08] tracking-[-0.02em]">
@@ -194,15 +313,11 @@ export default function OnboardingPage() {
           money into investments.
         </p>
 
-        <div className="mt-10 grid gap-3 sm:grid-cols-2">
-          {[
-            { value: true, label: 'Yes, still paying', note: 'We will prioritise clearing it' },
-            { value: false, label: 'No loan', note: 'More room to invest early' },
-          ].map((option) => {
+        <div className="mt-10 grid max-w-lg gap-3 sm:grid-cols-2">
+          {loanOptions.map((option) => {
             const isChosen = household.hasLoan === option.value;
 
             let optionClasses = 'rounded-2xl border p-5 text-left transition-all duration-300 ease-smooth ';
-
             if (isChosen === true) {
               optionClasses = optionClasses + 'border-ink bg-ink text-paper';
             } else {
@@ -217,7 +332,7 @@ export default function OnboardingPage() {
               noteClasses = noteClasses + 'text-muted';
             }
 
-            // React keys have to be text, and a true/false value is not.
+            // React keys have to be text, and true or false is not.
             return (
               <button
                 key={String(option.value)}
@@ -244,13 +359,13 @@ export default function OnboardingPage() {
         <div className="flex items-center justify-between">
           <span className="font-display text-[21px] leading-none tracking-tight">Nestworth</span>
           <span className="text-2xs font-semibold uppercase tracking-widest2 text-muted">
-            Step {step} of {TOTAL_STEPS}
+            Step {stepIndex + 1} of {steps.length}
           </span>
         </div>
 
         <div className="mt-4 flex gap-2">
-          {[1, 2, 3].map((number) => {
-            const isDone = number <= step;
+          {steps.map((stepName, index) => {
+            const isDone = index <= stepIndex;
 
             let segmentClasses = 'h-1 flex-1 rounded-full transition-colors duration-500 ';
             if (isDone === true) {
@@ -259,7 +374,7 @@ export default function OnboardingPage() {
               segmentClasses = segmentClasses + 'bg-line';
             }
 
-            return <span key={number} className={segmentClasses} />;
+            return <span key={stepName} className={segmentClasses} />;
           })}
         </div>
 
@@ -269,8 +384,14 @@ export default function OnboardingPage() {
           <div>
             {question}
 
+            {formError ? (
+              <p className="mt-8 rounded-xl border border-clay/25 bg-claySoft px-4 py-3 text-[13.5px] text-clay">
+                {formError}
+              </p>
+            ) : null}
+
             <div className="mt-12 flex items-center gap-3">
-              {step > 1 ? (
+              {stepIndex > 0 ? (
                 <button
                   type="button"
                   onClick={handleBack}
@@ -280,13 +401,13 @@ export default function OnboardingPage() {
                 </button>
               ) : null}
 
-              <Button onClick={handleNext} variant="accent" arrow>
+              <Button onClick={handleNext} variant="accent" arrow disabled={isSaving}>
                 {nextLabel}
               </Button>
             </div>
           </div>
 
-          {/* The preview. It is hidden on small screens, where it would push the
+          {/* The preview. Hidden on small screens, where it would push the
               question itself off the top of the display. */}
           <div className="hidden lg:block">
             <div className="sticky top-16 rounded-[26px] border border-line bg-surface p-7 shadow-card">

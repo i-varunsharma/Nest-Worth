@@ -7,56 +7,57 @@ import MethodTabs from '../components/auth/MethodTabs';
 import PhoneOtpForm from '../components/auth/PhoneOtpForm';
 import Button from '../components/shared/Button';
 import TextField from '../components/shared/TextField';
+import * as api from '../lib/api';
 import { checkEmail, checkPassword } from '../lib/validation';
 
 /*
   LoginPage
   ---------
-  The screen at /login. It offers three ways in:
+  The screen at /login. Three ways in:
 
     1. Continue with Google
     2. Email and password
     3. Mobile number and a code sent by text
 
-  All three end in the same place: the dashboard at /dashboard.
+  All three end at /dashboard.
 
-  Google and the text message both need accounts set up with outside services,
-  which SETUP.md walks through. Until those exist, nothing here actually proves
-  who anybody is. The forms check that what was typed makes sense, and then move
-  on, so the whole journey can be clicked through and shown to somebody.
+  There are two rounds of checking on this page, and the difference is worth
+  understanding. The functions from lib/validation catch obvious mistakes
+  without troubling the network, so somebody who forgets the @ in their email
+  gets told instantly. The server then checks everything again, properly, and
+  its answer is the one that decides anything.
+
+  Only the server can know whether a password is right, so "Email or password is
+  incorrect" always arrives from there, never from here.
 */
 
-// Shown on the dark panel on the left. Kept outside the component because it
-// never changes, so there is no reason to rebuild the list on every render.
-const sellingPoints = [
-  'Your plan, recalculated from your real household',
-  'Every number comes with the reasoning behind it',
-  'No bank login, ever',
-];
-
 export default function LoginPage() {
-  // useNavigate gives us a function that moves to another page from inside our
-  // own code, rather than waiting for somebody to click a link.
   const navigate = useNavigate();
 
-  // Which of the two forms is showing: 'email' or 'phone'.
+  // Which form is showing: 'email' or 'phone'.
   const [method, setMethod] = useState('email');
 
-  // One piece of state per input box. Each starts as an empty string.
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
 
-  // Error messages, stored by field name. An empty object means no errors yet.
+  // Messages attached to a particular input box.
   const [errors, setErrors] = useState({});
 
-  const handleEmailSubmit = (event) => {
-    // A form normally reloads the whole page when it is sent.
-    // This line stops that, so React can handle it instead.
+  // A message about the whole form, such as a wrong password or the server
+  // being unreachable. It does not belong under any one box.
+  const [formError, setFormError] = useState('');
+
+  const [isBusy, setIsBusy] = useState(false);
+
+
+  const handleEmailSubmit = async (event) => {
+    // A form normally reloads the whole page when it is sent. This stops that,
+    // so React can handle it instead.
     event.preventDefault();
 
-    // Collect every problem first, so the person sees all of them at once
-    // rather than fixing one, pressing the button, and finding another.
+    // Round one: the obvious mistakes, checked here. Collect them all at once
+    // so the person can fix everything in one go.
     const foundErrors = {};
 
     const emailError = checkEmail(email);
@@ -65,45 +66,85 @@ export default function LoginPage() {
     }
 
     // "false" means: do not demand a strong password on the login screen.
+    // Telling someone their existing password is too short helps nobody.
     const passwordError = checkPassword(password, false);
     if (passwordError) {
       foundErrors.password = passwordError;
     }
 
     setErrors(foundErrors);
+    setFormError('');
 
-    // Object.keys turns { email: '...' } into [ 'email' ], so its length tells
-    // us how many problems were found. Stop here if there were any.
     if (Object.keys(foundErrors).length > 0) {
       return;
     }
 
-    // ----- SIGN IN -----
-    // A real app would call POST /api/auth/login here and only continue once
-    // the server said the password was right. Until then we go straight on.
+    // Round two: ask the server.
+    setIsBusy(true);
+    const result = await api.login(email, password);
+    setIsBusy(false);
+
+    if (!result.ok) {
+      // When the server names a field, put the message under that box.
+      // Otherwise show it above the form.
+      if (result.field) {
+        setErrors({ [result.field]: result.error });
+      } else {
+        setFormError(result.error);
+      }
+      return;
+    }
+
     navigate('/dashboard');
   };
 
-  const handleGoogleClick = () => {
-    // ----- SIGN IN WITH GOOGLE -----
-    // Once a Client ID exists this opens Google's own sign-in window, and the
-    // token it returns goes to our backend to be checked. See SETUP.md.
+
+  const handleGoogleClick = async () => {
+    setFormError('');
+    setIsBusy(true);
+
+    // There is no Google Client ID yet, so there is no token to send. The
+    // server answers with a clear explanation rather than pretending.
+    // SETUP.md has the steps to switch this on.
+    const result = await api.google('');
+
+    setIsBusy(false);
+
+    if (!result.ok) {
+      setFormError(result.error);
+      return;
+    }
+
     navigate('/dashboard');
   };
 
-  const handlePhoneVerified = () => {
+
+  const handlePhoneVerified = (user) => {
+    // Somebody signing in by phone for the first time has no name and no
+    // household yet, so send them through onboarding instead.
+    if (!user.name) {
+      navigate('/onboarding');
+      return;
+    }
+
     navigate('/dashboard');
   };
 
-  // Choose which form to show under the tabs.
+
+  let signInLabel = 'Sign in';
+  if (isBusy === true) {
+    signInLabel = 'Signing in…';
+  }
+
+  // Choose which form sits under the tabs.
   let chosenForm = null;
 
   if (method === 'phone') {
     chosenForm = <PhoneOtpForm onVerified={handlePhoneVerified} />;
   } else {
     chosenForm = (
-      // noValidate turns off the browser's own pop-up messages, so that our
-      // error text below each field is the only thing people see.
+      // noValidate switches off the browser's own pop-up messages, so our text
+      // under each box is the only thing people see.
       <form onSubmit={handleEmailSubmit} noValidate className="space-y-5">
         <TextField
           id="email"
@@ -145,8 +186,8 @@ export default function LoginPage() {
         </div>
 
         {/* type="submit" is what connects this button to the form's onSubmit. */}
-        <Button type="submit" variant="accent" arrow className="w-full">
-          Sign in
+        <Button type="submit" variant="accent" arrow disabled={isBusy} className="w-full">
+          {signInLabel}
         </Button>
       </form>
     );
@@ -156,7 +197,6 @@ export default function LoginPage() {
     <AuthLayout
       title="Welcome back."
       subtitle="Sign in to pick up your plan where you left it."
-      points={sellingPoints}
       footer={
         <span>
           New here?{' '}
@@ -165,6 +205,14 @@ export default function LoginPage() {
       }
     >
       <div className="space-y-6">
+
+        {/* Problems with the whole attempt, rather than one box. */}
+        {formError ? (
+          <p className="rounded-xl border border-clay/25 bg-claySoft px-4 py-3 text-[13.5px] text-clay">
+            {formError}
+          </p>
+        ) : null}
+
         <GoogleButton onClick={handleGoogleClick} />
 
         <AuthDivider />
