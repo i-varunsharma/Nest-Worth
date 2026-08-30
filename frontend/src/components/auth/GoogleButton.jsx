@@ -1,54 +1,172 @@
+import { useEffect, useRef, useState } from 'react';
+
 /*
   GoogleButton
   ------------
-  The "Continue with Google" button, used on both the login and signup pages.
+  "Continue with Google", for real.
 
-  RIGHT NOW this button only calls whatever function you pass as onClick.
-  It does not talk to Google yet, because that needs two things this project
-  does not have: a Client ID from the Google Cloud Console, and a backend that
-  can check the token Google hands back.
+  How the whole thing works, end to end:
 
-  See SETUP.md in the project root for the exact steps to switch it on.
+    1. index.html loads Google's script, which puts a "google" object on window.
+    2. We tell it our client id and give it a function to call when somebody
+       signs in.
+    3. It draws its own button. When pressed, Google opens its window, the
+       person picks an account, and Google calls our function with a token.
+    4. We hand that token to our server, which asks Google whether it is
+       genuine before believing a word of it.
 
-  Why the button looks the way it does: Google publishes branding rules for this
-  button. The important ones are that the logo keeps its four colours, that the
-  text says "Continue with Google" or "Sign in with Google", and that the logo is
-  not stretched or recoloured. Following them keeps the app allowed to use it.
+  Step 4 is the one that matters. The token is just text arriving from a
+  browser, and anybody can send our server made-up text. Only Google can say
+  whether a token is really theirs, which is why the server checks rather than
+  trusting what it was handed.
+
+  Why Google's own button rather than ours: this flow only hands out a token
+  through a button Google itself draws. Faking a click on a hidden one is
+  against their terms and breaks without warning. Their button is configurable
+  enough to sit comfortably in our design.
+
+  Props:
+    onCredential - called with the token string once Google returns one
 */
-export default function GoogleButton({ onClick, label }) {
-  // Default the text, so the caller only has to pass it when it differs.
-  let buttonText = 'Continue with Google';
-  if (label) {
-    buttonText = label;
-  }
+
+// Read at build time from frontend/.env.local. Vite replaces this with the
+// real text when it builds, so there is nothing to look up at runtime.
+const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+
+// How long to wait for Google's script before giving up, in tenths of a second.
+const MAX_TRIES = 40;
+
+export default function GoogleButton({ onCredential }) {
+  const containerRef = useRef(null);
+
+  /*
+    'loading' while we wait for Google's script, then 'ready' or 'unavailable'.
+
+    With no client id there is nothing to wait for, so it starts as unavailable
+    rather than showing a spinner that will never finish.
+  */
+  const [status, setStatus] = useState(() => {
+    if (CLIENT_ID) {
+      return 'loading';
+    }
+    return 'unavailable';
+  });
+
+  /*
+    Keep the newest onCredential in a box.
+
+    The effect below runs once, but the function it was given could be replaced
+    on any later render. Reading it out of a ref means Google always calls the
+    current one, without having to tear down and rebuild the button every time
+    the page re-renders.
+  */
+  const callbackRef = useRef(onCredential);
+
+  // Updating the box has to happen in an effect, not while rendering. React
+  // treats rendering as something it may run more than once or throw away, so
+  // changing anything outside the component during it is a bug waiting to
+  // happen. This effect has no dependency list, so it runs after every render.
+  useEffect(() => {
+    callbackRef.current = onCredential;
+  });
+
+  useEffect(() => {
+    // No client id means Google was never set up, and the status already says
+    // so. Nothing to wait for. See SETUP.md.
+    if (!CLIENT_ID) {
+      return;
+    }
+
+    let cancelled = false;
+    let tries = 0;
+
+    /*
+      Google's script is loaded with "async", so it may not have arrived yet
+      when this component first appears. We look every tenth of a second until
+      it turns up, and give up after four seconds.
+
+      Waiting like this is not elegant, but it is honest: we do not control when
+      an outside script finishes loading, and the alternatives are worse.
+    */
+    const setUpButton = () => {
+      if (cancelled === true) {
+        return;
+      }
+
+      const hasLoaded = window.google && window.google.accounts && window.google.accounts.id;
+
+      if (!hasLoaded) {
+        tries = tries + 1;
+
+        if (tries > MAX_TRIES) {
+          // Usually an ad blocker, or no internet.
+          setStatus('unavailable');
+          return;
+        }
+
+        setTimeout(setUpButton, 100);
+        return;
+      }
+
+      window.google.accounts.id.initialize({
+        client_id: CLIENT_ID,
+
+        // Google calls this with { credential }, where credential is the token.
+        callback: (response) => {
+          callbackRef.current(response.credential);
+        },
+      });
+
+      // Match the button to the width of the column it sits in, so it lines up
+      // with the form below it on a phone as well as on a monitor.
+      let width = 380;
+      if (containerRef.current && containerRef.current.offsetWidth > 0) {
+        width = Math.round(containerRef.current.offsetWidth);
+      }
+
+      window.google.accounts.id.renderButton(containerRef.current, {
+        type: 'standard',
+        theme: 'outline',
+        size: 'large',
+        shape: 'pill',
+        text: 'continue_with',
+        logo_alignment: 'center',
+        width: width,
+      });
+
+      setStatus('ready');
+    };
+
+    setUpButton();
+
+    // Stops the polling if this component leaves the screen mid-wait.
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex w-full items-center justify-center gap-3 rounded-full border border-line bg-surface px-6 py-3.5 text-[14.5px] font-semibold text-ink transition-all duration-300 ease-smooth hover:border-ink hover:shadow-card"
-    >
-      {/* The Google "G". Four paths, one for each coloured section of the logo. */}
-      <svg viewBox="0 0 18 18" className="h-[18px] w-[18px]" aria-hidden="true">
-        <path
-          fill="#4285F4"
-          d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z"
-        />
-        <path
-          fill="#34A853"
-          d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z"
-        />
-        <path
-          fill="#FBBC05"
-          d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1l3.01-2.33z"
-        />
-        <path
-          fill="#EA4335"
-          d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.9 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z"
-        />
-      </svg>
+    <div>
+      {/* Google draws its button inside this box. It has to exist before the
+          library is told to render, which is why it is always here. */}
+      <div ref={containerRef} className="flex min-h-[44px] justify-center" />
 
-      {buttonText}
-    </button>
+      {status === 'loading' ? (
+        <p className="text-center text-2xs text-muted">Loading Google sign-in…</p>
+      ) : null}
+
+      {status === 'unavailable' ? (
+        <div className="rounded-xl border border-line bg-paperDeep px-4 py-3 text-center">
+          <p className="text-[13px] text-ink2">
+            Google sign-in is unavailable.
+          </p>
+          <p className="mt-1 text-2xs text-muted">
+            {CLIENT_ID
+              ? 'The script did not load. An ad blocker or a dropped connection is the usual cause.'
+              : 'No client id is set. See SETUP.md.'}
+          </p>
+        </div>
+      ) : null}
+    </div>
   );
 }

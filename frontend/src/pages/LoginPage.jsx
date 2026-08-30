@@ -99,19 +99,29 @@ export default function LoginPage() {
   };
 
 
-  const handleGoogleClick = async () => {
+  /*
+    Google hands us a token once somebody picks an account. We send it straight
+    to our server, which asks Google whether it is genuine before trusting it.
+
+    A person signing in with Google for the first time has an account but no
+    household yet, so the server tells us with "isNew" and we send them through
+    onboarding rather than to an empty dashboard.
+  */
+  const handleGoogleCredential = async (credential) => {
     setFormError('');
     setIsBusy(true);
 
-    // There is no Google Client ID yet, so there is no token to send. The
-    // server answers with a clear explanation rather than pretending.
-    // SETUP.md has the steps to switch this on.
-    const result = await api.google('');
+    const result = await api.google(credential);
 
     setIsBusy(false);
 
     if (!result.ok) {
       setFormError(result.error);
+      return;
+    }
+
+    if (result.data.isNew === true) {
+      navigate('/onboarding');
       return;
     }
 
@@ -213,7 +223,7 @@ export default function LoginPage() {
           </p>
         ) : null}
 
-        <GoogleButton onClick={handleGoogleClick} />
+        <GoogleButton onCredential={handleGoogleCredential} />
 
         <AuthDivider />
 

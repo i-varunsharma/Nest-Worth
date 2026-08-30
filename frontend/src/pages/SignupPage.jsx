@@ -93,13 +93,19 @@ export default function SignupPage() {
   };
 
 
-  const handleGoogleClick = async () => {
+  /*
+    Google gives us a token, and also the person's name and email, so signing up
+    this way needs no form at all. The server checks the token with Google,
+    makes the account, and signs them in.
+
+    Somebody who already has an account and presses this by mistake is simply
+    signed in and sent to their dashboard, rather than told off.
+  */
+  const handleGoogleCredential = async (credential) => {
     setFormError('');
     setIsBusy(true);
 
-    // No Google Client ID yet, so there is no token to send and the server
-    // says so plainly. SETUP.md has the steps to switch this on.
-    const result = await api.google('');
+    const result = await api.google(credential);
 
     setIsBusy(false);
 
@@ -108,7 +114,12 @@ export default function SignupPage() {
       return;
     }
 
-    navigate('/onboarding');
+    if (result.data.isNew === true) {
+      navigate('/onboarding');
+      return;
+    }
+
+    navigate('/dashboard');
   };
 
 
@@ -205,7 +216,7 @@ export default function SignupPage() {
           </p>
         ) : null}
 
-        <GoogleButton onClick={handleGoogleClick} label="Sign up with Google" />
+        <GoogleButton onCredential={handleGoogleCredential} />
 
         <AuthDivider />
 
