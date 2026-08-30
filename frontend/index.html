@@ -12,6 +12,19 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <title>Nestworth — your net worth was never just yours</title>
+
+    <!--
+      Google's sign-in library.
+
+      It has to be a plain script tag here rather than an npm package, because
+      Google only publishes it from their own address and expects to load it
+      from there. Once it arrives it puts a "google" object on the window, which
+      GoogleButton.jsx waits for and then uses.
+
+      async  fetch it alongside the page instead of blocking it
+      defer  run it after the page has been parsed
+    -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
   </head>
   <body>
     <div id="root"></div>
