@@ -1,10 +1,8 @@
 import useReveal from '../../hooks/useReveal';
 
 /*
-  Reveal
-  ------
-  Wrap anything in this component and it will fade upwards into place the first
-  time the reader scrolls down to it.
+  Wrap anything in this and it fades upwards into place the first time the
+  reader scrolls down to it.
 
     <Reveal>
       <h2>This heading fades in</h2>
@@ -18,12 +16,12 @@ import useReveal from '../../hooks/useReveal';
     <Reveal delay={200}>...</Reveal>
 */
 export default function Reveal({ children, delay, className }) {
-  // useReveal gives us a ref to attach, and a true/false for "is it on screen".
+  // A ref to attach, and a true/false for "is it on screen".
   const [elementRef, isVisible] = useReveal();
 
-  // Work out the classes before the JSX below, so the JSX stays easy to read.
-  // "reveal" holds the starting position and the transition, and "is-in" is the
-  // finished position. Both are written in src/styles/global.css.
+  // Worked out before the JSX so the markup stays readable. "reveal" is the
+  // starting position and transition, "is-in" the finished position. Both are
+  // in src/styles/global.css.
   let classes = 'reveal';
   if (isVisible === true) {
     classes = 'reveal is-in';

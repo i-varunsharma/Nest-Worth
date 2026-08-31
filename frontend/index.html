@@ -9,8 +9,25 @@
       name="description"
       content="Nestworth reads your whole household before it tells you what to spend, save and invest. Built for how Indian families actually share money."
     />
+    <!--
+      The fonts.
+
+      These used to be pulled in with an @import at the top of global.css, which
+      works but is the slowest way to do it. A CSS @import is only discovered
+      after the stylesheet itself has downloaded and been parsed, so the browser
+      waits for our CSS, then asks Google for more CSS, then asks for the font
+      files: three trips, one after another, before any heading can be drawn.
+
+      Asking for it here means the browser sees the request while it is still
+      reading the HTML and fetches it alongside everything else. The two
+      preconnect lines warm up the connection before the request is even made.
+    -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700&family=Instrument+Serif:ital@0;1&display=swap"
+    />
     <title>Nestworth — your net worth was never just yours</title>
 
     <!--

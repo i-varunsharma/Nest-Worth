@@ -1,6 +1,4 @@
 /*
-  debt.js
-  -------
   Everything to do with paying off a loan. No React, no styling, just numbers.
 
   The one idea behind this whole file:
@@ -32,9 +30,18 @@ const MAX_MONTHS = 600;
   Returns:
     { clears, months, totalInterest, totalPaid, payoffDate }
 
-  "clears" is false when the EMI is too small to make progress. That is a real
-  situation, not an error: if a credit card charges more interest each month
-  than you pay, the balance grows forever no matter how long you keep paying.
+  "clears" is false when the loan never finishes, and "reason" says which of the
+  two ways it failed:
+
+    'interest'  the payment is smaller than the interest, so the balance grows
+                every month. Real for anybody paying a credit card minimum.
+    'tooSlow'   the payment is larger than the interest, but only just, so the
+                balance falls so slowly that it is still there after MAX_MONTHS.
+
+  The second one is easy to miss. The balance does go down, so a naive loop
+  looks like it is working, and it is only the fifty-year cap that stops it.
+  Reporting it as cleared would print a confident payoff date for a loan
+  somebody would still be paying in their eighties.
 */
 export function payoff(principal, annualRate, emi, extra) {
   let extraPayment = 0;
@@ -59,10 +66,13 @@ export function payoff(principal, annualRate, emi, extra) {
   if (monthlyPayment <= firstMonthInterest) {
     return {
       clears: false,
+      reason: 'interest',
       months: 0,
       totalInterest: 0,
       totalPaid: 0,
       payoffDate: null,
+
+      // How much more per month it would take just to stand still.
       shortfall: firstMonthInterest - monthlyPayment,
     };
   }
@@ -89,6 +99,26 @@ export function payoff(principal, annualRate, emi, extra) {
     totalInterest = totalInterest + interestThisMonth;
     totalPaid = totalPaid + payment;
     months = months + 1;
+  }
+
+  /*
+    The loop can stop for two reasons: the balance reached zero, or we hit the
+    cap. Only the first one is a loan that clears.
+
+    Without this check the function would return months: 600 and a payoff date
+    fifty years out, for a balance that has barely moved. It looks like an
+    answer, which is what makes it worse than an error.
+  */
+  if (balance > 0) {
+    return {
+      clears: false,
+      reason: 'tooSlow',
+      months: 0,
+      totalInterest: 0,
+      totalPaid: 0,
+      payoffDate: null,
+      remainingAfterCap: balance,
+    };
   }
 
   return {
@@ -204,14 +234,23 @@ export function summariseDebts(debts) {
 
 
 /*
-  A date this many months from today.
+  A date this many months from today. Only the month and year are ever shown.
 
-  setMonth handles rolling over the year on its own, so month 14 from now
-  becomes next year without any arithmetic here.
+  The setDate(1) is not decoration. Adding one month to the 31st of May asks
+  for the 31st of June, which does not exist, so JavaScript rolls it forward to
+  the 1st of July and the answer is a month late. Run the app on the 31st and
+  every payoff date on the page is wrong.
+
+  Moving to the 1st of the month first means there is no day to roll over.
+  setMonth still handles the year on its own, so month 14 from now becomes next
+  year without any arithmetic here.
 */
 export function monthsFromNow(months) {
   const date = new Date();
+
+  date.setDate(1);
   date.setMonth(date.getMonth() + months);
+
   return date;
 }
 

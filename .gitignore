@@ -1,0 +1,44 @@
+# Files git should never track, anywhere in this project.
+#
+# Two rules worth knowing:
+#   1. Installed packages are never committed. Anyone can rebuild them from
+#      package-lock.json with "npm install", and committing them adds tens of
+#      thousands of files nobody wrote.
+#   2. Secrets and real data are never committed. .env holds API keys, and the
+#      SQLite file holds real people's details.
+
+# Installed packages
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
+build/
+
+# Secrets. .env.example IS committed, because it is only a blank template.
+.env
+.env.local
+.env.*.local
+
+# The SQLite database and its temporary write-ahead files.
+# It is rebuilt automatically the first time the server starts.
+*.db
+*.db-shm
+*.db-wal
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor and operating system clutter
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+
+# Test coverage output
+coverage/
+
+# Vite cache
+.vite/

@@ -5,8 +5,6 @@ import * as api from '../../lib/api';
 import { checkOtp, checkPhone, keepOnlyDigits } from '../../lib/validation';
 
 /*
-  PhoneOtpForm
-  ------------
   Signing in with a mobile number, in two steps.
 
     Step 1  "number"  ->  type your number, press Send code

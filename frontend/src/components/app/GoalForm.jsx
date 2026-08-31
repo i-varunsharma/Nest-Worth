@@ -5,8 +5,6 @@ import { describeGoal } from '../../lib/goals';
 import { formatRupees } from '../../lib/plan';
 
 /*
-  GoalForm
-  --------
   Adding a savings goal, and editing one. One form for both: when "goal" is
   given it starts filled in, otherwise it starts blank.
 

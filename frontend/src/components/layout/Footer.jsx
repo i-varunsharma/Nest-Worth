@@ -2,12 +2,20 @@ import { Link } from 'react-router-dom';
 import Container from '../shared/Container';
 
 /*
-  Footer
-  ------
   Three columns of links plus the small print.
 
-  The links live in this array rather than being typed out one by one in the
-  JSX, so adding a new one is a single line of editing.
+  The links live in this array rather than being typed out one by one, so
+  adding one is a single line of editing.
+
+  Two kinds of link appear here and they are not interchangeable:
+
+    href  jumps to a section further down this same page
+    to    moves to a different page, and has to use the router's Link so the
+          app does not do a full browser reload
+
+  Every entry below goes somewhere real. An earlier version had About, Notes,
+  Contact, Privacy and Terms all pointing at "#", which looks finished until
+  somebody clicks one and the page just scrolls to the top.
 */
 const linkColumns = [
   {
@@ -20,22 +28,26 @@ const linkColumns = [
     ],
   },
   {
-    title: 'Company',
+    title: 'The app',
     links: [
-      { label: 'About', href: '#' },
-      { label: 'Notes', href: '#' },
-      { label: 'Contact', href: '#' },
+      { label: 'Dashboard', to: '/dashboard' },
+      { label: 'Debts', to: '/debts' },
+      { label: 'Goals', to: '/goals' },
+      { label: 'Net worth', to: '/net-worth' },
     ],
   },
   {
-    title: 'Legal',
+    title: 'Account',
     links: [
-      { label: 'Privacy', href: '#' },
-      { label: 'Terms', href: '#' },
-      { label: 'Disclosure', href: '#questions' },
+      { label: 'Create an account', to: '/signup' },
+      { label: 'Sign in', to: '/login' },
+      { label: 'What we do with your data', href: '#questions' },
     ],
   },
 ];
+
+// The same styling for both kinds of link, so they cannot drift apart.
+const linkClasses = 'sweep text-[13.5px] text-ink2 transition-colors hover:text-ink';
 
 export default function Footer() {
   // Shows the current year, so nobody has to remember to update it in January.
@@ -70,13 +82,28 @@ export default function Footer() {
 
                 <ul className="mt-4 space-y-2.5">
                   {column.links.map((link) => {
-                    return (
-                      <li key={link.label}>
-                        <a href={link.href} className="sweep text-[13.5px] text-ink2 transition-colors hover:text-ink">
+                    /*
+                      A link to another page has to use Link, or the browser
+                      reloads the whole app instead of switching pages. A link
+                      to a section on this page is an ordinary anchor.
+                    */
+                    let element = null;
+
+                    if (link.to) {
+                      element = (
+                        <Link to={link.to} className={linkClasses}>
+                          {link.label}
+                        </Link>
+                      );
+                    } else {
+                      element = (
+                        <a href={link.href} className={linkClasses}>
                           {link.label}
                         </a>
-                      </li>
-                    );
+                      );
+                    }
+
+                    return <li key={link.label}>{element}</li>;
                   })}
                 </ul>
               </div>

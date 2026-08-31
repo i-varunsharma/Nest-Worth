@@ -1,6 +1,4 @@
 /*
-  SelectField
-  -----------
   A labelled dropdown, styled to match TextField so forms look consistent.
 
     <SelectField

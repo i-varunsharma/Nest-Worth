@@ -5,8 +5,6 @@ import SelectField from '../shared/SelectField';
 import { ASSET_KINDS } from '../../lib/networth';
 
 /*
-  AssetForm
-  ---------
   Adding something you own, and editing it. The same form for both, like
   DebtForm and GoalForm, so all three behave the same way.
 

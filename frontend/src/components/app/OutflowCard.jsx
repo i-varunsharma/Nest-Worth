@@ -1,8 +1,6 @@
 import { formatRupees } from '../../lib/plan';
 
 /*
-  OutflowCard
-  -----------
   Where the salary actually goes, as four rows with a bar under each.
 
   It is the same idea as the "where it actually goes" section on the landing
@@ -36,12 +34,31 @@ export default function OutflowCard({ plan, dependents, hasLoan }) {
     emiNote = 'Clearing this beats investing right now';
   }
 
+  /*
+    Living costs only get a row once they have been answered. A zero row would
+    read as "you spend nothing on rent", which is worse than saying nothing.
+  */
   const rows = [
     { label: 'Take-home income', amount: plan.income, colour: 'ink', note: 'What lands in your account' },
     { label: 'Household support', amount: plan.support, colour: 'brass', note: supportNote },
     { label: 'Education loan EMI', amount: plan.emi, colour: 'clay', note: emiNote },
-    { label: 'Left for you', amount: plan.free, colour: 'accent', note: 'The only number worth planning with' },
   ];
+
+  if (plan.essentialCosts > 0) {
+    rows.push({
+      label: 'Rent, food, bills',
+      amount: plan.essentialCosts,
+      colour: 'ink',
+      note: 'Paid before any choice is made',
+    });
+  }
+
+  rows.push({
+    label: 'Left for you',
+    amount: plan.free,
+    colour: 'accent',
+    note: 'The only number worth planning with',
+  });
 
   return (
     <div id="outflow" className="rounded-[26px] border border-line bg-surface p-6 shadow-card sm:p-8">

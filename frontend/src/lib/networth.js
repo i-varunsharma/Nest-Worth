@@ -1,11 +1,9 @@
 /*
-  networth.js
-  -----------
   Net worth is one subtraction:
 
       what you own  minus  what you owe
 
-  That is the whole idea. Everything below is bookkeeping around it.
+  Everything below is bookkeeping around that one line.
 
   Worth saying plainly: a negative net worth early in a career is normal, not a
   failure. Somebody with an education loan and a first job usually owes more

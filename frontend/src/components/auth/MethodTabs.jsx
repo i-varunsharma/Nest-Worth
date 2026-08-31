@@ -1,6 +1,4 @@
 /*
-  MethodTabs
-  ----------
   The little two-way switch that chooses between signing in with an email
   address and signing in with a mobile number.
 

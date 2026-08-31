@@ -1,12 +1,46 @@
 /*
-  plan.js
-  --------
   This file holds all the MATH for Nestworth. No React, no styling, just numbers.
 
   Keeping the maths in its own file means you can read and change the rules here
   without touching any of the page layout, and the same rules can be reused by
   every part of the site.
 */
+
+
+/*
+  The long-run return we assume the market pays, used in two places:
+
+    the projection, to work out what a monthly investment grows into
+    buildPlan, to decide whether a debt is worth clearing before investing
+
+  Keeping it as one number means those two can never quietly disagree, which
+  they would if the projection assumed 11% while the advice assumed 12%.
+*/
+export const ASSUMED_YEARLY_RETURN = 0.11;
+
+
+/*
+  Reads one bucket's rupee amount out of a plan.
+
+    bucketAmount(plan, 'save')  ->  8500
+
+  The dashboard and the check-in page both need this, and both used to walk the
+  bucket list themselves. Returns 0 when there is no plan yet, which is what
+  those pages want while they are still loading.
+*/
+export function bucketAmount(plan, key) {
+  if (!plan) {
+    return 0;
+  }
+
+  for (const bucket of plan.buckets) {
+    if (bucket.key === key) {
+      return bucket.amount;
+    }
+  }
+
+  return 0;
+}
 
 
 /*
@@ -36,14 +70,36 @@ function roundToNearest500(value) {
 /*
   Turns a plain number into a rupee string.
 
-  formatRupees(62000)                    ->  "₹62,000"
-  formatRupees(1380000, { short: true }) ->  "₹13.8 L"
+  formatRupees(62000)                     ->  "₹62,000"
+  formatRupees(1380000, { short: true })  ->  "₹13.8 L"
+  formatRupees(-850000, { short: true })  ->  "-₹8.5 L"
 
-  The "short" option is for big numbers, where lakhs and crores are easier
-  to read than a long row of digits.
+  The "short" option is for big numbers, where lakhs and crores are easier to
+  read than a long row of digits.
+
+  Negative amounts matter here more than they look. Net worth is often negative
+  early on, when somebody has an education loan and has not saved yet, and the
+  dashboard shows that number in a large display font sized for "₹8.5 L". The
+  size test below therefore works on the size of the number, ignoring its sign,
+  and the minus is added back at the end. Testing the signed value instead would
+  quietly skip the short form for every negative amount and overflow the card.
 */
 export function formatRupees(value, options) {
+  // Nothing sensible can be printed for these. Showing "₹NaN" on a page looks
+  // broken, so a dash says "no number" without pretending to have one.
+  if (!Number.isFinite(value)) {
+    return '₹—';
+  }
+
   const amount = Math.round(value);
+
+  // The size of the number, without its sign.
+  const size = Math.abs(amount);
+
+  let sign = '';
+  if (amount < 0) {
+    sign = '-';
+  }
 
   // "options" is optional, so it may be undefined. Check carefully before using it.
   let useShortForm = false;
@@ -51,18 +107,18 @@ export function formatRupees(value, options) {
     useShortForm = true;
   }
 
-  if (useShortForm === true && amount >= 10000000) {
-    const crores = amount / 10000000;
-    return '₹' + crores.toFixed(2) + ' Cr';
+  if (useShortForm === true && size >= 10000000) {
+    const crores = size / 10000000;
+    return sign + '₹' + crores.toFixed(2) + ' Cr';
   }
 
-  if (useShortForm === true && amount >= 100000) {
-    const lakhs = amount / 100000;
-    return '₹' + lakhs.toFixed(1) + ' L';
+  if (useShortForm === true && size >= 100000) {
+    const lakhs = size / 100000;
+    return sign + '₹' + lakhs.toFixed(1) + ' L';
   }
 
   // toLocaleString('en-IN') adds Indian-style commas: 6200000 becomes 62,00,000
-  return '₹' + amount.toLocaleString('en-IN');
+  return sign + '₹' + size.toLocaleString('en-IN');
 }
 
 
@@ -81,6 +137,23 @@ export function buildPlan(household) {
   const income = household.income;
   const dependents = household.dependents;
   const hasLoan = household.hasLoan;
+
+  // Missing counts as steady, so a caller written before this existed still
+  // gets a sensible plan rather than an undefined creeping into the maths.
+  const incomeVaries = household.incomeVaries === true;
+
+  /*
+    Rent, food, transport and bills. Zero when the question has not been
+    answered, which is how this behaved before it was asked at all.
+
+    This matters more than any other adjustment in the file. Without it the
+    model treats a Mumbai rent and a small town rent as the same, and asks a
+    household paying 35,000 to live on the same share as one paying 8,000.
+  */
+  let essentialCosts = 0;
+  if (Number.isFinite(household.essentialCosts) && household.essentialCosts > 0) {
+    essentialCosts = Math.round(household.essentialCosts);
+  }
 
   // ---------------------------------------------------------------
   // Step 1: work out the money that leaves before it is really yours.
@@ -118,8 +191,21 @@ export function buildPlan(household) {
     }
   }
 
-  // Whatever survives those two is the money the person can actually decide about.
-  let free = income - support - emi;
+  /*
+    Whatever survives is the money the person can actually decide about.
+
+    Essential costs come out here, alongside the household support and the EMI,
+    because they are the same kind of money: it is gone before any choice is
+    made. That changes what the "spend" bucket below means. It is no longer all
+    spending, it is the discretionary part, the eating out and the trips and the
+    things that could stop next month if they had to.
+
+    Splitting a percentage off income without doing this is what makes budget
+    apps feel written for somebody else. A plan that tells you to keep 48% when
+    your rent alone is 30% is not ambitious, it is arithmetic that has not met
+    you.
+  */
+  let free = income - support - emi - essentialCosts;
   if (free < 0) {
     free = 0;
   }
@@ -148,6 +234,24 @@ export function buildPlan(household) {
     investPercent = investPercent - 3;
   }
 
+  /*
+    An income that changes month to month needs a wider buffer.
+
+    The money comes out of investing rather than spending, and it goes to
+    saving. That is deliberate: a freelancer's problem is not that they spend
+    too much in a good month, it is that a thin month arrives with nothing set
+    aside and the shortfall goes on a credit card at 40%. Cash that is sitting
+    there when that happens is worth far more than the few percent it would
+    have earned invested.
+
+    It is a smaller shift than the one a loan causes, because a variable income
+    is a reason to hold more cash, not a reason to stop building anything.
+  */
+  if (incomeVaries === true) {
+    savePercent = savePercent + 6;
+    investPercent = investPercent - 6;
+  }
+
   // Supporting several people leaves less room to take risk.
   if (dependents >= 2) {
     spendPercent = spendPercent + 4;
@@ -155,8 +259,31 @@ export function buildPlan(household) {
     investPercent = investPercent - 3;
   }
 
-  // While a loan is running, money moves out of investing and towards clearing it.
-  if (hasLoan === true) {
+  /*
+    While a loan is running, money usually moves out of investing and towards
+    clearing it. Paying off a loan at 11% is a guaranteed 11% return, and no
+    fund guarantees anything.
+
+    That stops being true once the loan is cheap. A home loan at 8.4% costs less
+    than the market has paid over long periods, so rushing to clear it while
+    skipping the investing years is the more expensive mistake. When we know the
+    real rate and it is below what we assume the market pays, we leave the
+    investing share alone.
+
+    When the rate is unknown, which is the case on the landing page before
+    anybody has entered a real debt, we assume the expensive case. Guessing
+    wrong in that direction only costs somebody a little growth; guessing wrong
+    the other way tells them to invest through a credit card at 42%.
+  */
+  const marketReturnPercent = ASSUMED_YEARLY_RETURN * 100;
+
+  let debtCostsMoreThanMarket = true;
+
+  if (Number.isFinite(household.topRate)) {
+    debtCostsMoreThanMarket = household.topRate >= marketReturnPercent;
+  }
+
+  if (hasLoan === true && debtCostsMoreThanMarket === true) {
     savePercent = savePercent + 7;
     investPercent = investPercent - 7;
   }
@@ -211,12 +338,20 @@ export function buildPlan(household) {
     // them, so the sentence falls back to a general one.
     topRate: household.topRate,
     topDebtName: household.topDebtName,
+
+    // Which side of the market return this person's worst debt sits on.
+    debtCostsMoreThanMarket: debtCostsMoreThanMarket,
+    marketReturnPercent: marketReturnPercent,
+
+    incomeVaries: incomeVaries,
+    savePercent: savePercent,
   });
 
   return {
     income: income,
     support: support,
     emi: emi,
+    essentialCosts: essentialCosts,
     free: free,
     buckets: buckets,
     reasoning: reasoning,
@@ -233,6 +368,26 @@ export function buildPlan(household) {
   'brass' is a note, 'accent' is good news.
 */
 function writeReasoning(facts) {
+  /*
+    A loan that costs less than the market pays does not get cleared first.
+
+    This is the one place the usual advice flips, so it is worth saying out
+    loud rather than quietly producing different percentages. Somebody with a
+    home loan at 8.4% who has been told all their life to clear debt first
+    deserves to know why we are telling them something else.
+  */
+  if (facts.hasLoan === true && facts.debtCostsMoreThanMarket === false) {
+    return {
+      tone: 'accent',
+      label: 'Worth knowing',
+      text:
+        'Your ' + facts.topDebtName + ' charges ' + facts.topRate + '%, which is less than the '
+        + facts.marketReturnPercent + '% the market has paid over long periods. Clearing it early '
+        + 'is not the cheapest move, so we keep investing at ' + facts.investPercent
+        + '% and let the EMI run its course.',
+    };
+  }
+
   if (facts.hasLoan === true) {
     /*
       Name the real debt when we know it.
@@ -260,6 +415,23 @@ function writeReasoning(facts) {
         'An education loan compounds at roughly 11%, faster than the market pays you. '
         + 'We hold investing at ' + facts.investPercent + '% and route '
         + formatRupees(facts.emi) + ' a month at the loan until it is gone.',
+    };
+  }
+
+  /*
+    Said only when there is no debt competing for the same sentence. Somebody
+    with a credit card at 42% and a variable income needs to hear about the
+    card first, and the wider buffer is already in their numbers either way.
+  */
+  if (facts.incomeVaries === true) {
+    return {
+      tone: 'brass',
+      label: 'Built for a bumpy month',
+      text:
+        'Your income moves, so this plan holds more in cash than it otherwise would: '
+        + facts.savePercent + '% to saving rather than investing. A thin month is a normal '
+        + 'event on a variable income, and money you can reach is what stops it becoming a '
+        + 'credit card balance.',
     };
   }
 
@@ -303,10 +475,6 @@ function writeReasoning(facts) {
       + ' you keep is yours to aim, and starting now is worth more than starting bigger later.',
   };
 }
-
-
-/* The return rate we assume everywhere, kept in one place so it is easy to change. */
-export const ASSUMED_YEARLY_RETURN = 0.11;
 
 
 /*

@@ -2,6 +2,8 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import OnboardingPage from './pages/OnboardingPage';
 import DashboardPage from './pages/DashboardPage';
 import DebtsPage from './pages/DebtsPage';
@@ -12,14 +14,18 @@ import SettingsPage from './pages/SettingsPage';
 import RequireAuth from './components/auth/RequireAuth';
 
 /*
-  App
-  ---
-  This file decides which page to show for which address in the browser bar.
+  Decides which page to show for which address in the browser bar.
 
   Open to anybody:
-    /             the landing page
-    /login        sign in
-    /signup       create an account
+    /                 the landing page
+    /login            sign in
+    /signup           create an account
+    /forgot-password  ask for a password reset link
+    /reset-password   choose a new password, using the token in that link
+
+  The two password pages are open to anybody, because somebody who cannot sign
+  in is exactly who needs them. What protects /reset-password is the one-time
+  token in its address, which only the account's own inbox receives.
 
   Only when signed in:
     /onboarding   the questions everything else is built from
@@ -33,27 +39,21 @@ import RequireAuth from './components/auth/RequireAuth';
   Anything else falls through to the landing page, so a bad link is never a
   dead end.
 
-  The journey through them is:
+  The journey is:
 
     signup  ->  onboarding  ->  dashboard
     login   ->  dashboard
 
-  Somebody signing up has not answered the questions yet, so they go through
-  onboarding first. Somebody signing in already has, so they go straight to
-  their plan.
+  Somebody signing up has not answered the questions yet. Somebody signing in
+  has, so they go straight to their plan.
 
   Every private page is wrapped in RequireAuth, which asks the server who is
-  signed in and sends anybody else to the login page. That wrapper decides what
-  to SHOW. What actually protects the data is the same check on the server,
-  which refuses to answer without a valid session cookie.
+  signed in. That decides what to show; what protects the data is the same
+  check on the server.
 */
 
-/*
-  A small helper so the private routes below stay readable.
-
-  Without it every one of those seven lines would carry the same wrapper and the
-  same arrow function, and the shape of the list would be lost in the noise.
-*/
+// Keeps the private routes below readable. Without it, each of those seven
+// lines carries the same wrapper and the same arrow function.
 function privateRoute(Page) {
   return <RequireAuth>{(user) => <Page user={user} />}</RequireAuth>;
 }
@@ -65,6 +65,8 @@ export default function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
 
         <Route path="/onboarding" element={privateRoute(OnboardingPage)} />
         <Route path="/dashboard" element={privateRoute(DashboardPage)} />

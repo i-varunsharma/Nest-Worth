@@ -2,8 +2,6 @@ import { useState } from 'react';
 import { buildPlan, formatRupees } from '../../lib/plan';
 
 /*
-  Planner
-  -------
   The white card in the hero. This is the real product in miniature: move the
   slider, pick how many people you support, flick the loan switch, and the whole
   card recalculates.
@@ -49,33 +47,70 @@ export default function Planner({ household, onChange }) {
   // How far along the slider the handle sits, as a percentage.
   const sliderPercent = ((household.income - LOWEST_INCOME) / (HIGHEST_INCOME - LOWEST_INCOME)) * 100;
 
+  // The living-costs slider stops at 70% of income, the same ceiling the server
+  // enforces, so the demo cannot be dragged into a household that spends more
+  // than it earns.
+  const highestCosts = Math.round(household.income * 0.7);
+
+  let costsSliderPercent = 0;
+  if (highestCosts > 0) {
+    costsSliderPercent = (household.essentialCosts / highestCosts) * 100;
+  }
+
+  // The varying-income switch, worked out here rather than as ternaries inside
+  // the markup. Brass rather than clay, because a variable income is a fact to
+  // plan around and not a problem the way an expensive debt is.
+  let variesSwitchClasses = 'border-line bg-paperDeep';
+  let variesKnobClasses = 'translate-x-0';
+
+  if (household.incomeVaries === true) {
+    variesSwitchClasses = 'border-brass bg-brass';
+    variesKnobClasses = 'translate-x-[20px]';
+  }
+
   /*
     Each handler builds a brand new household object rather than editing the old
     one. React compares objects by identity, so changing a property in place
     would not tell it that anything happened, and the screen would not update.
   */
   const handleIncomeChange = (event) => {
-    onChange({
-      income: Number(event.target.value), // input values arrive as text, so convert
-      dependents: household.dependents,
-      hasLoan: household.hasLoan,
-    });
+    // input values arrive as text, so convert
+    const income = Number(event.target.value);
+
+    /*
+      Spread the existing household rather than listing the fields by hand.
+
+      Listing them meant every new answer had to be remembered here as well, and
+      forgetting one silently wiped it the moment somebody touched this slider.
+
+      The living costs are then pulled back under the new ceiling, because
+      dropping the income can leave them above what the slider below allows.
+    */
+    const highest = Math.round(income * 0.7);
+
+    let essentialCosts = household.essentialCosts;
+    if (essentialCosts > highest) {
+      essentialCosts = highest;
+    }
+
+    onChange({ ...household, income: income, essentialCosts: essentialCosts });
+  };
+
+  const handleCostsChange = (event) => {
+    onChange({ ...household, essentialCosts: Number(event.target.value) });
   };
 
   const handleDependentsChange = (newCount) => {
-    onChange({
-      income: household.income,
-      dependents: newCount,
-      hasLoan: household.hasLoan,
-    });
+    onChange({ ...household, dependents: newCount });
   };
 
   const handleLoanToggle = () => {
-    onChange({
-      income: household.income,
-      dependents: household.dependents,
-      hasLoan: !household.hasLoan, // the ! flips true to false and false to true
-    });
+    // The ! flips true to false and false to true.
+    onChange({ ...household, hasLoan: !household.hasLoan });
+  };
+
+  const handleIncomeVariesToggle = () => {
+    onChange({ ...household, incomeVaries: !household.incomeVaries });
   };
 
   // The line under the "actually yours" bar changes depending on the situation.
@@ -153,6 +188,30 @@ export default function Planner({ household, onChange }) {
             </div>
           </div>
 
+          {/* Rent, food and bills */}
+          <div className="border-t border-lineSoft pt-4">
+            <div className="flex items-baseline justify-between">
+              <label htmlFor="costs" className="text-[13px] font-medium text-ink2">
+                Rent, food and bills
+              </label>
+              <span className="tnum font-display text-[20px] leading-none">
+                {formatRupees(household.essentialCosts)}
+              </span>
+            </div>
+
+            <input
+              id="costs"
+              type="range"
+              min={0}
+              max={highestCosts}
+              step={500}
+              value={household.essentialCosts}
+              onChange={handleCostsChange}
+              style={{ backgroundSize: costsSliderPercent + '% 100%' }}
+              className="range-track mt-3"
+            />
+          </div>
+
           {/* Dependents: four round buttons, 0 to 3 */}
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-lineSoft pt-4">
             <span className="text-[13px] font-medium text-ink2">People you support</span>
@@ -212,6 +271,32 @@ export default function Planner({ household, onChange }) {
                   'absolute left-[3px] top-[3px] h-5 w-5 rounded-full bg-white shadow-sm '
                   + 'transition-transform duration-300 ease-smooth '
                   + (household.hasLoan ? 'translate-x-[20px]' : 'translate-x-0')
+                }
+              />
+            </button>
+          </div>
+
+          {/* Does the income move about? */}
+          <div className="flex items-center justify-between border-t border-lineSoft pt-4">
+            <span className="text-[13px] font-medium text-ink2">Income varies each month</span>
+
+            <button
+              type="button"
+              role="switch"
+              aria-checked={household.incomeVaries}
+              onClick={handleIncomeVariesToggle}
+              className={
+                'relative h-7 w-12 rounded-full border transition-colors duration-300 '
+                + variesSwitchClasses
+              }
+            >
+              <span className="sr-only">Toggle varying income</span>
+
+              <span
+                className={
+                  'absolute left-[3px] top-[3px] h-5 w-5 rounded-full bg-white shadow-sm '
+                  + 'transition-transform duration-300 ease-smooth '
+                  + variesKnobClasses
                 }
               />
             </button>

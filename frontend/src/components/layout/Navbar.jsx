@@ -3,8 +3,6 @@ import { Link } from 'react-router-dom';
 import Container from '../shared/Container';
 
 /*
-  Navbar
-  ------
   The bar across the top of the landing page.
 
   Two things make it feel alive:

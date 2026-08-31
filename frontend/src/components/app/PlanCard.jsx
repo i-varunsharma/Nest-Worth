@@ -1,8 +1,6 @@
 import { formatRupees } from '../../lib/plan';
 
 /*
-  PlanCard
-  --------
   The main card on the dashboard: how much of this month's income is genuinely
   yours to direct, and how the plan splits it three ways.
 

@@ -1,29 +1,23 @@
 import crypto from 'node:crypto';
 import bcrypt from 'bcryptjs';
-import db from '../db.js';
+import db from '../database/db.js';
 
 /*
-  otp.js
-  ------
   Making, sending and checking the six digit code.
 
-  Four rules are built into this file, and every one of them exists because
-  leaving it out has burned somebody:
+  Four rules, each one there because leaving it out has burned somebody:
 
-    1. The code is generated HERE, on the server, and never sent back in the
-       response. If the browser could see the code, the whole thing would be
-       theatre.
+    The code is generated here and never sent back in the response. If the
+    browser could see it, the whole thing would be theatre.
 
-    2. Only the HASH of the code is stored. If the database file leaked, the
-       codes in it would still be useless.
+    Only a hash of it is stored, so a leaked database file gives up nothing.
 
-    3. Codes expire, and wrong guesses are counted. Six digits is only a million
-       combinations, which a script gets through in minutes. Five attempts and
-       the code is destroyed.
+    Codes expire and wrong guesses are counted. Six digits is a million
+    combinations, which a script gets through in minutes. Five wrong tries and
+    the code is destroyed.
 
-    4. Sending is rate limited. Without this, somebody can loop the endpoint
-       overnight and every message costs you real money. This is the single most
-       common way a hobby project ends up with an unpleasant bill.
+    Sending is rate limited. Without it somebody can loop the endpoint overnight
+    and every message costs real money.
 */
 
 // A code is good for ten minutes.
@@ -35,17 +29,16 @@ const MAX_ATTEMPTS = 5;
 // The gap before a new code can be requested for the same number.
 const RESEND_WAIT_SECONDS = 30;
 
-// How strongly to hash. bcrypt deliberately takes time, which is what makes
-// guessing slow. 10 is a sensible middle for a short lived code.
+// bcrypt takes time on purpose, which is what makes guessing slow. 10 is a
+// reasonable middle for a short lived code.
 const HASH_ROUNDS = 10;
 
 
 /*
   Makes a random six digit code as text, keeping any leading zeros.
 
-  randomInt comes from the crypto module, so the numbers are genuinely
-  unpredictable. Math.random is not, and an attacker who can predict your codes
-  does not need to guess them.
+  randomInt comes from the crypto module, so the numbers are unpredictable.
+  An attacker who can predict your codes does not need to guess them.
 */
 function makeCode() {
   const number = crypto.randomInt(0, 1000000);
@@ -64,7 +57,7 @@ export function sendCode(phone) {
 
   const existing = db.prepare('SELECT * FROM otp_codes WHERE phone = ?').get(phone);
 
-  // Rule 4: refuse to send again too quickly.
+  // Refuse to send again too quickly.
   if (existing) {
     const secondsSinceLastSend = (now - new Date(existing.sent_at)) / 1000;
 
@@ -101,19 +94,15 @@ export function sendCode(phone) {
 
 
 /*
-  Where the text message would actually be sent.
+  Where the text message would be sent. There is no SMS provider connected, so
+  the code is printed in the terminal running this server, which is enough to
+  use the sign-in flow while building.
 
-  There is no SMS provider connected yet, so for now the code is printed in the
-  terminal running this server. That is enough to use the whole sign-in flow
-  while building.
-
-  Note what this function does NOT do: it does not return the code to whoever
-  called it. Printing to the server's own terminal is private. Putting the code
-  in an HTTP response would hand it to anyone who asked.
+  It does not return the code to its caller. The server's terminal is private;
+  an HTTP response would hand the code to anyone who asked.
 
   To send real messages, replace the body of this function with a call to your
-  provider. SETUP.md explains which providers work in India and what has to be
-  registered first.
+  provider. See SETUP.md.
 */
 function deliver(phone, code) {
   console.log('');
@@ -138,13 +127,13 @@ export function verifyCode(phone, code) {
     return { ok: false, error: 'Ask for a code first.' };
   }
 
-  // Rule 3, part one: has it expired?
+  // Expired?
   if (new Date(record.expires_at) < new Date()) {
     db.prepare('DELETE FROM otp_codes WHERE phone = ?').run(phone);
     return { ok: false, error: 'That code has expired. Ask for a new one.' };
   }
 
-  // Rule 3, part two: too many wrong guesses.
+  // Too many wrong guesses.
   if (record.attempts >= MAX_ATTEMPTS) {
     db.prepare('DELETE FROM otp_codes WHERE phone = ?').run(phone);
     return { ok: false, error: 'Too many wrong tries. Ask for a new code.' };

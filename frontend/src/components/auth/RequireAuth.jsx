@@ -3,33 +3,23 @@ import { Navigate } from 'react-router-dom';
 import * as api from '../../lib/api';
 
 /*
-  RequireAuth
-  -----------
   Wraps any page that only makes sense when somebody is signed in.
 
     <RequireAuth>
       {(user) => <DashboardPage user={user} />}
     </RequireAuth>
 
-  Writing a function between the tags rather than a plain tag looks unusual the
-  first time. It is a normal React pattern with a name, a "render prop", and the
-  reason for it is simple: this component is the one that finds out who is
-  signed in, and a function is how it hands that answer down to the page. The
-  page then never has to ask the server a second time.
+  Writing a function between the tags is a React pattern called a render prop.
+  It is here because this component is the one that finds out who is signed in,
+  and a function is how it passes that user down, so the page does not have to
+  ask the server again.
 
-  It asks the server "who am I?" when it loads, and then does one of three
-  things. The three states matter: without the "checking" one, the page would
-  flash the login screen for a moment before the answer came back, which looks
-  broken even when it is working.
+  There are three states, and the "checking" one matters: without it the page
+  flashes the login screen for a moment before the answer arrives.
 
-  Worth being clear about what this does and does not do. This is a CONVENIENCE,
-  not a security measure. It decides what to show, and anyone can edit their own
-  browser to skip it. The thing that actually protects data is requireUser on the
-  server, which refuses to answer without a valid session cookie. A guard in the
-  browser is a signpost, not a lock.
-
-  The signed-in user is handed to the page as a prop, so the page does not have
-  to ask for it a second time.
+  This decides what to show. It is not security. Anyone can edit their own
+  browser to skip it, and what actually protects the data is requireUser on the
+  server, which refuses to answer without a valid session cookie.
 */
 export default function RequireAuth({ children }) {
   // 'checking' while we wait, then 'in' or 'out'.
@@ -38,8 +28,8 @@ export default function RequireAuth({ children }) {
 
   useEffect(() => {
     // React 18 and later run effects twice in development to help spot bugs.
-    // This flag makes sure a slow answer that arrives after the component has
-    // gone does not try to update state that no longer exists.
+    // This flag stops a slow answer arriving after the component has gone and
+    // trying to update state that no longer exists.
     let stillMounted = true;
 
     api.me().then((result) => {
@@ -69,12 +59,11 @@ export default function RequireAuth({ children }) {
   }
 
   if (status === 'out') {
-    // "replace" swaps this entry in the browser history rather than adding one,
-    // so pressing Back does not bounce between the two pages.
+    // replace swaps this history entry rather than adding one, so Back does not
+    // bounce between the two pages.
     return <Navigate to="/login" replace />;
   }
 
-  // Signed in. Call the function that was written between the tags, handing it
-  // the user, and show whatever it gives back.
+  // Signed in. Call the function written between the tags, passing the user.
   return children(user);
 }

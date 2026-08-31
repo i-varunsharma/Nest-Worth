@@ -49,26 +49,38 @@ back to the browser, because a code the browser can read proves nothing.
 | Sign up with name, email, password | Working |
 | Sign in with email and password | Working |
 | Sign in or sign up with a phone code | Working, code printed to the API terminal |
+| Forgot password | Working, link printed to the API terminal |
 | Stay signed in after a refresh | Working |
 | Sign out | Working |
 | Onboarding questions saved to the database | Working |
-| Dashboard reads the saved household | Working |
-| Continue with Google | Needs section 3 |
+| Plan adapts to a variable (freelance) income | Working |
+| Debts, goals, assets and monthly check-ins | Working |
+| Rate limiting on sign-in and sign-up | Working |
+| Change your password while signed in | Working, on the settings page |
+| Delete your account and everything in it | Working, on the settings page |
+| Progress against the plan, from your check-ins | Working, on the dashboard |
+| Plan subtracts real rent and bills before splitting | Working |
+| Backend tests (`npm test` in `backend/`) | Working, 54 of them |
+| Frontend tests (`npm test` in `frontend/`) | Working, 51 of them |
+| Continue with Google | Code is finished, needs a client id: section 3 |
 | Real text messages | Needs section 4 |
+| Real password reset emails | Needs section 5 |
 
 Passwords are hashed with bcrypt at cost 12 and never stored or logged in plain
 text. The session is a random 256-bit token in an `httpOnly` cookie, so page
-JavaScript cannot read it. One-time codes are stored hashed, expire after ten
-minutes, and are destroyed after five wrong guesses.
+JavaScript cannot read it. One-time codes and reset links are stored hashed,
+expire, and are destroyed the moment they are used.
+
+**To try the forgot-password flow**, press "Forgot password?" on the login
+screen and enter the email you signed up with. As with the phone code, there is
+no email provider connected, so the reset link is **printed in the terminal
+running the API**. Copy it into your browser.
 
 ---
 
 ## 3. Continue with Google
 
-**Where the code is waiting:** `handleGoogleClick` in
-`frontend/src/pages/LoginPage.jsx` and `SignupPage.jsx`, and the
-`POST /api/auth/google` route in `backend/src/routes/auth.js`. The server side is
-already written, including the token check. It only needs a client id.
+The code for this is finished on both sides. All it needs is a client id.
 
 1. Go to `console.cloud.google.com` and create a project. Call it Nestworth.
 2. Open **APIs and Services → OAuth consent screen**.
@@ -96,11 +108,14 @@ already written, including the token check. It only needs a client id.
    secret** is a secret, is not needed for this flow, and must never go in
    `frontend/`.
 6. Restart both servers so they pick up the new files.
-7. Add Google's sign-in script to `frontend/index.html` and call it from
-   `handleGoogleClick`, passing the token it returns to `api.google(token)`.
-   This is the one piece of code still to write, and it is about fifteen lines.
-8. When you are ready for real users, go back to the consent screen and press
+7. When you are ready for real users, go back to the consent screen and press
    **Publish app**.
+
+No code changes are needed. The `GoogleButton` component already loads Google's
+script, draws their button and passes the token back, and `POST /api/auth/google`
+already verifies that token with Google and checks it was issued for this app.
+Until a client id is set, the button renders a short message explaining that,
+rather than failing silently.
 
 ---
 
@@ -152,45 +167,114 @@ attempt limit and the resend wait, already works and does not change.
 
 ---
 
-## 5. Before this goes on the internet
+## 5. Real password reset emails
 
-1. **Fix the repository.** `backend/node_modules` is currently committed, which
-   it should never be:
+Right now the reset link is printed in your terminal. Sending it for real is the
+easier of the two providers, because email has no equivalent of India's DLT
+paperwork: you can be sending within an hour.
 
-   ```bash
-   printf 'node_modules/\ndist/\n.DS_Store\n*.log\n.env\n.env.local\n' > .gitignore
-   git rm -r --cached backend/node_modules -q
-   ```
+### Pick who sends them
 
-2. **Rate limit the login route.** The OTP routes are limited, but
-   `POST /api/auth/login` is not, so passwords can be guessed as fast as the
-   network allows. `express-rate-limit` fixes this in about five lines.
+| Provider | Good for | Watch out for |
+|---|---|---|
+| **Resend** | Simplest to start, generous free tier | Newer company |
+| **Postmark** | Best delivery record for this kind of mail | Paid from the start |
+| **Amazon SES** | Cheapest at volume | Fiddly setup, starts in a sandbox |
 
-3. **HTTPS.** The session cookie already switches to `secure` when
-   `NODE_ENV=production`, which means it will only be sent over HTTPS. Set that
-   variable when you deploy, or people will silently fail to stay signed in.
+For a project this size, **Resend** is usually the right choice.
 
-4. **Set `CLIENT_ORIGIN`** in `backend/.env` to your real domain. It is the list
-   of sites allowed to call the API, and leaving it as localhost will block your
-   own site.
+1. Create the account and add your domain.
+2. Add the **DNS records** they give you: SPF, DKIM and DMARC. This step is not
+   optional. Mail sent without them lands in spam, and a password reset that
+   lands in spam is the same as a password reset that never arrives.
+3. Copy the **API key** into `backend/.env`. It stays on the server, for the
+   same reason the SMS key does.
 
-5. **Add a password reset.** "Forgot password?" on the login page is currently a
-   link to nowhere. The pattern is the same as the OTP flow: a random token,
-   hashed and stored, emailed as a link, expiring in an hour.
+### The code change
+
+One function, exactly as with SMS. Open `backend/src/lib/passwordReset.js` and
+replace the body of `deliver()` with a call to your provider. Everything else —
+the hashing, the one hour expiry, the resend wait, destroying the token after
+use and signing out every other browser — already works and does not change.
+
+Two things worth getting right in the email itself:
+
+- **Say how long the link lasts**, so somebody who opens it the next morning
+  understands why it failed rather than assuming your site is broken.
+- **Do not put anything secret in it besides the link.** The link is the secret,
+  and it is already enough.
+
+---
+
+## 6. Before this goes on the internet
+
+Three of the items that used to be on this list are now done: the repository is
+clean, sign-in is rate limited, and the password reset exists. What is left is
+about deployment.
+
+1. **Set `NODE_ENV=production`.** This is what switches the session cookie to
+   `secure`, meaning the browser only ever sends it over HTTPS. Forget it and
+   people will silently fail to stay signed in.
+
+2. **Set `CLIENT_ORIGIN`** in `backend/.env` to your real domain. It is the list
+   of sites allowed to call the API, and it is also what password reset links
+   are built from. Leaving it as localhost blocks your own site and produces
+   reset links that go nowhere.
+
+3. **Never set `DISABLE_RATE_LIMIT`.** It exists only so the test suite can make
+   thirty accounts in two seconds. On a real server it is the one thing standing
+   between your users' passwords and a script.
+
+4. **Move the database off the disk that gets replaced.** Many hosts give you a
+   filesystem that is wiped on every deploy, which would take `nestworth.db`
+   with it. Either mount a persistent volume and point `NESTWORTH_DB_FILE` at
+   it, or move to a hosted Postgres. Every query in this project is ordinary
+   SQL, so the second is a smaller job than it sounds.
+
+5. **Back the database up.** One file makes this easy: copy it somewhere else on
+   a schedule. Easy is not the same as done.
+
+6. **Read your own logs once.** The phone code and the reset link are printed to
+   the terminal by design while there is no provider connected. The moment real
+   people are using this, those printouts have to become real messages, or every
+   code your users receive is sitting in a log file.
 
 ---
 
 ## Checklist
 
+**To run it**
+
 - [ ] `cd backend && npm install && cp .env.example .env && npm run dev`
 - [ ] `cd frontend && npm install && npm run dev`
 - [ ] Create an account and check the dashboard appears
 - [ ] Try the Phone tab and read the code from the API terminal
-- [ ] `.gitignore` written, `backend/node_modules` untracked
+- [ ] Try "Forgot password?" and read the link from the API terminal
+- [ ] `cd backend && npm test` and see 54 passing
+- [ ] `cd frontend && npm test` and see 51 passing
+
+**Google sign-in (section 3)**
+
 - [ ] Google Cloud project and OAuth Client ID created
 - [ ] Client ID added to both `backend/.env` and `frontend/.env.local`
-- [ ] Google sign-in script wired into `handleGoogleClick`
+- [ ] Both servers restarted
+
+**Text messages (section 4)**
+
 - [ ] DLT entity, header and template registered
 - [ ] SMS provider account created, API key in `backend/.env`
 - [ ] `deliver()` in `backend/src/lib/otp.js` calls the provider
-- [ ] Rate limit added to the login route
+
+**Email (section 5)**
+
+- [ ] Email provider account created, domain added
+- [ ] SPF, DKIM and DMARC records added to your DNS
+- [ ] API key in `backend/.env`
+- [ ] `deliver()` in `backend/src/lib/passwordReset.js` calls the provider
+
+**Deploying (section 6)**
+
+- [ ] `NODE_ENV=production` set
+- [ ] `CLIENT_ORIGIN` set to the real domain
+- [ ] `DISABLE_RATE_LIMIT` not set anywhere
+- [ ] Database on storage that survives a deploy, and backed up

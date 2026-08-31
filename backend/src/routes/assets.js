@@ -1,18 +1,15 @@
 import express from 'express';
-import db from '../db.js';
+import db from '../database/db.js';
 import { requireUser } from '../lib/sessions.js';
 
 /*
-  routes/assets.js
-  ----------------
     GET    /api/assets      list mine
     POST   /api/assets      add one
     PUT    /api/assets/:id  change one
     DELETE /api/assets/:id  remove one
 
-  An asset is anything owned that has a rupee value: a savings account, a
-  mutual fund, gold, a flat. Together with the debts, these are the two halves
-  of net worth.
+  An asset is anything owned that has a rupee value: a savings account, a mutual
+  fund, gold, a flat. Assets and debts are the two halves of net worth.
 */
 
 const router = express.Router();
@@ -43,8 +40,7 @@ function checkAsset(body) {
 
   const value = Number(body.value);
 
-  // Zero is allowed. Somebody may want to list an account they have opened but
-  // not put anything into yet, and refusing that is just annoying.
+  // Zero is allowed, for an account somebody has opened but not funded yet.
   if (!Number.isFinite(value) || value < 0 || value > 1000000000) {
     return 'That value does not look right.';
   }

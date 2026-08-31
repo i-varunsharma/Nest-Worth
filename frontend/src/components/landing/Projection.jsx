@@ -6,8 +6,6 @@ import ProjectionChart from './ProjectionChart';
 import { buildPlan, buildProjectionRows, formatRupees } from '../../lib/plan';
 
 /*
-  Projection
-  ----------
   The "future you" section. It takes the Invest slice of the plan and shows what
   it grows into if it is left alone.
 

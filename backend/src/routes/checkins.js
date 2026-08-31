@@ -1,21 +1,18 @@
 import express from 'express';
-import db from '../db.js';
+import db from '../database/db.js';
 import { requireUser } from '../lib/sessions.js';
 
 /*
-  routes/checkins.js
-  ------------------
     GET  /api/checkins   the last two years, newest first
     POST /api/checkins   record or update one month
 
-  A check-in is what ACTUALLY happened in a month, as opposed to what the plan
-  said should happen. Recording it is what turns the app from a calculator into
-  something with a memory: after a few months there is a real history to compare
-  the plan against.
+  A check-in is what actually happened in a month, as opposed to what the plan
+  said should happen. After a few months there is a real history to compare the
+  plan against.
 
-  There is one check-in per person per month. Saving the same month again
-  updates it rather than adding a second, which is what the UNIQUE line on the
-  table and the ON CONFLICT clause below arrange between them.
+  One check-in per person per month. Saving the same month again updates it,
+  which the UNIQUE line on the table and the ON CONFLICT clause below arrange
+  between them.
 */
 
 const router = express.Router();
@@ -38,8 +35,8 @@ function publicCheckin(row) {
 
 
 function checkCheckin(body) {
-  // 'YYYY-MM'. Checking the shape by hand rather than with a regular
-  // expression, because this is easier to read and just as reliable here.
+  // 'YYYY-MM'. Checked by hand rather than with a regular expression, because
+  // it is easier to read and just as reliable.
   if (typeof body.month !== 'string' || body.month.length !== 7 || body.month[4] !== '-') {
     return 'That month is not in the right form.';
   }
@@ -76,8 +73,8 @@ function checkCheckin(body) {
 // GET /api/checkins
 // ---------------------------------------------------------------
 router.get('/', requireUser, (req, res) => {
-  // Because the month is stored as 'YYYY-MM', sorting it as text puts it in
-  // date order. That is the whole reason for storing it that way round.
+  // Stored as 'YYYY-MM', so sorting it as text puts it in date order. That is
+  // the reason for storing it that way round.
   const rows = db.prepare(`
     SELECT * FROM checkins WHERE user_id = ? ORDER BY month DESC LIMIT ?
   `).all(req.user.id, MONTHS_TO_RETURN);

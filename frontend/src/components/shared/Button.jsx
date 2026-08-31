@@ -1,8 +1,6 @@
 import { Link } from 'react-router-dom';
 
 /*
-  Button
-  ------
   One component for every button on the site, so they all look like family.
 
   It can render three different things depending on what you pass in:

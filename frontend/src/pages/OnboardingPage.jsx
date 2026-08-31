@@ -8,8 +8,6 @@ import { buildPlan, formatRupees } from '../lib/plan';
 import { DEFAULT_HOUSEHOLD } from '../lib/household';
 
 /*
-  OnboardingPage
-  --------------
   The screen at /onboarding. People arrive here straight after signing up, and
   come back whenever they press "Edit household" on the dashboard.
 
@@ -65,6 +63,8 @@ export default function OnboardingPage({ user }) {
           income: result.data.household.income,
           dependents: result.data.household.dependents,
           hasLoan: result.data.household.hasLoan,
+          incomeVaries: result.data.household.incomeVaries,
+          essentialCosts: result.data.household.essentialCosts,
         });
       }
 
@@ -82,6 +82,8 @@ export default function OnboardingPage({ user }) {
     steps.push('name');
   }
   steps.push('income');
+  steps.push('costs');
+  steps.push('steady');
   steps.push('dependents');
   steps.push('loan');
 
@@ -101,11 +103,32 @@ export default function OnboardingPage({ user }) {
     then replace the field named after it".
   */
   const handleIncomeChange = (event) => {
-    setHousehold({ ...household, income: Number(event.target.value) });
+    const income = Number(event.target.value);
+
+    // The living-costs slider on the next step is capped at 70% of income, so
+    // lowering the income here has to bring the stored figure back under it.
+    const highest = Math.round(income * 0.7);
+
+    let essentialCosts = household.essentialCosts;
+    if (essentialCosts > highest) {
+      essentialCosts = highest;
+    }
+
+    setHousehold({ ...household, income: income, essentialCosts: essentialCosts });
   };
 
   const handleDependentsChange = (count) => {
     setHousehold({ ...household, dependents: count });
+  };
+
+  const handleEssentialCostsChange = (event) => {
+    setHousehold({ ...household, essentialCosts: Number(event.target.value) });
+  };
+
+  const handleIncomeVariesChange = (incomeVaries) => {
+    // A new object rather than editing the old one, because React compares by
+    // identity and will not re-render if you change the object it already has.
+    setHousehold({ ...household, incomeVaries: incomeVaries });
   };
 
   const handleLoanChange = (hasLoan) => {
@@ -291,6 +314,143 @@ export default function OnboardingPage({ user }) {
 
         <p className="mt-5 text-[13px] text-muted">
           Not sure? Count the people who would struggle if your salary stopped.
+        </p>
+      </div>
+    );
+  }
+
+  if (currentStep === 'costs') {
+    /*
+      The slider stops at 70% of income. Living costs at or above the whole
+      salary is a data entry mistake rather than a household, and the server
+      refuses it, so there is no reason to let the slider reach it.
+    */
+    const highestCosts = Math.round(household.income * 0.7);
+
+    let costsPercent = 0;
+    if (highestCosts > 0) {
+      costsPercent = (household.essentialCosts / highestCosts) * 100;
+    }
+
+    // What is left once these are paid, shown live so the trade-off is visible
+    // while the slider is being dragged.
+    const leftOver = household.income - household.essentialCosts;
+
+    question = (
+      <div>
+        <h2 className="font-display text-[clamp(1.9rem,3.5vw,2.6rem)] leading-[1.08] tracking-[-0.02em]">
+          What has to be paid every month?
+        </h2>
+        <p className="mt-4 max-w-md text-[15.5px] leading-relaxed text-ink2">
+          Rent, food, transport, bills and anything else that arrives whether you
+          want it to or not. A rough figure is fine. This is the difference between
+          a plan built for you and one built for an average that does not exist.
+        </p>
+
+        <div className="mt-10 max-w-lg">
+          <div className="flex items-baseline justify-between">
+            <label htmlFor="costs" className="text-[13px] font-medium text-ink2">
+              Rent, food and bills
+            </label>
+            <span className="tnum font-display text-[30px] leading-none">
+              {formatRupees(household.essentialCosts)}
+            </span>
+          </div>
+
+          <input
+            id="costs"
+            type="range"
+            min={0}
+            max={highestCosts}
+            step={500}
+            value={household.essentialCosts}
+            onChange={handleEssentialCostsChange}
+            style={{ backgroundSize: costsPercent + '% 100%' }}
+            className="range-track mt-4"
+          />
+
+          <div className="mt-2 flex justify-between text-2xs text-muted">
+            <span>Nothing fixed</span>
+            <span>{formatRupees(highestCosts)}</span>
+          </div>
+
+          <p className="mt-6 rounded-xl border border-line bg-paperDeep px-4 py-3.5 text-[13.5px] text-ink2">
+            That leaves{' '}
+            <span className="tnum font-semibold text-ink">{formatRupees(leftOver)}</span>{' '}
+            before your household support and any loan.
+          </p>
+        </div>
+
+        <p className="mt-5 text-[13px] text-muted">
+          Guessing high is safer than guessing low. A plan you can actually keep to
+          beats one that looks impressive for a fortnight.
+        </p>
+      </div>
+    );
+  }
+
+  if (currentStep === 'steady') {
+    const steadyOptions = [
+      {
+        value: false,
+        label: 'About the same',
+        note: 'A salary that arrives on a date',
+      },
+      {
+        value: true,
+        label: 'It moves around',
+        note: 'Freelance, commission, or a business',
+      },
+    ];
+
+    question = (
+      <div>
+        <h2 className="font-display text-[clamp(1.9rem,3.5vw,2.6rem)] leading-[1.08] tracking-[-0.02em]">
+          Is that roughly the same every month?
+        </h2>
+        <p className="mt-4 max-w-md text-[15.5px] leading-relaxed text-ink2">
+          Most advice quietly assumes a salary that either arrives or stops. If yours
+          moves around, a thin month is a normal event rather than an emergency, so we
+          hold more of your money in cash you can reach and raise the emergency fund
+          we aim for.
+        </p>
+
+        <div className="mt-10 grid max-w-lg gap-3 sm:grid-cols-2">
+          {steadyOptions.map((option) => {
+            const isChosen = household.incomeVaries === option.value;
+
+            let optionClasses = 'rounded-2xl border p-5 text-left transition-all duration-300 ease-smooth ';
+            if (isChosen === true) {
+              optionClasses = optionClasses + 'border-ink bg-ink text-paper';
+            } else {
+              optionClasses = optionClasses + 'border-line bg-surface text-ink hover:border-ink';
+            }
+
+            let noteClasses = 'mt-2 block text-[13px] ';
+            if (isChosen === true) {
+              noteClasses = noteClasses + 'text-paper/60';
+            } else {
+              noteClasses = noteClasses + 'text-muted';
+            }
+
+            // React keys have to be text, and true or false is not.
+            return (
+              <button
+                key={String(option.value)}
+                type="button"
+                onClick={() => handleIncomeVariesChange(option.value)}
+                aria-pressed={isChosen}
+                className={optionClasses}
+              >
+                <span className="block text-[15.5px] font-semibold">{option.label}</span>
+                <span className={noteClasses}>{option.note}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <p className="mt-5 text-[13px] text-muted">
+          Pick &ldquo;it moves around&rdquo; if a bad month is more than about a fifth off a good one.
         </p>
       </div>
     );

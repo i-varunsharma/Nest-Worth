@@ -4,22 +4,22 @@ import AppShell from '../components/app/AppShell';
 import PlanCard from '../components/app/PlanCard';
 import PriorityCard from '../components/app/PriorityCard';
 import OutflowCard from '../components/app/OutflowCard';
+import ConsistencyCard from '../components/app/ConsistencyCard';
 import ProjectionChart from '../components/landing/ProjectionChart';
 import Eyebrow from '../components/shared/Eyebrow';
 import * as api from '../lib/api';
-import { buildPlan, buildProjectionRows, formatRupees } from '../lib/plan';
+import { buildPlan, buildProjectionRows, bucketAmount, formatRupees } from '../lib/plan';
 import { formatDuration, formatMonthYear, orderByRate, summariseDebts } from '../lib/debt';
 import { safetyNet, summariseGoals } from '../lib/goals';
 import { summariseNetWorth } from '../lib/networth';
 import { greetingForNow } from '../lib/household';
+import { currentMonth, hasCheckinFor, summariseCheckins } from '../lib/checkins';
 
 /*
-  DashboardPage
-  -------------
   The screen at /dashboard: the overview everything else hangs off.
 
   It does no editing. Every number here is a summary of a page that owns it, and
-  every summary links to that page. That is the whole idea of an overview: it
+  every summary links to that page. An overview is meant to be a way in: it
   answers "how am I doing" in one screen, and every answer is a door to the
   detail.
 
@@ -108,13 +108,11 @@ export default function DashboardPage({ user }) {
 
   const debtSummary = summariseDebts(data.debts);
 
-  /*
-    The plan now uses the REAL total EMI rather than an estimate, because the
-    debts page knows the actual figures. This is the moment the whole app stops
-    being illustrative: what is left each month is worked out from money that
-    genuinely leaves the account.
-  */
-  // The most expensive debt, so the reasoning can name it rather than guess.
+  // The plan uses the real total EMI from the debts page rather than an
+  // estimate, so what is left each month comes from money that genuinely
+  // leaves the account.
+  //
+  // The most expensive debt is passed in too, so the reasoning can name it.
   const orderedDebts = orderByRate(data.debts);
   const worstDebt = orderedDebts[0];
 
@@ -122,20 +120,16 @@ export default function DashboardPage({ user }) {
     income: data.household.income,
     dependents: data.household.dependents,
     hasLoan: data.debts.length > 0,
+    incomeVaries: data.household.incomeVaries,
+    essentialCosts: data.household.essentialCosts,
     emi: debtSummary.totalEmi,
     topRate: worstDebt ? worstDebt.annualRate : undefined,
     topDebtName: worstDebt ? worstDebt.name.toLowerCase() : undefined,
   });
 
-  let monthlyInvestment = 0;
-  let monthlySaving = 0;
-  let monthlySpend = 0;
-
-  plan.buckets.forEach((bucket) => {
-    if (bucket.key === 'invest') monthlyInvestment = bucket.amount;
-    if (bucket.key === 'save') monthlySaving = bucket.amount;
-    if (bucket.key === 'spend') monthlySpend = bucket.amount;
-  });
+  const monthlyInvestment = bucketAmount(plan, 'invest');
+  const monthlySaving = bucketAmount(plan, 'save');
+  const monthlySpend = bucketAmount(plan, 'spend');
 
   const netWorth = summariseNetWorth(data.assets, data.debts);
   const goalSummary = summariseGoals(data.goals, monthlySaving);
@@ -143,12 +137,58 @@ export default function DashboardPage({ user }) {
   // The emergency fund compares cash you can actually reach against what one
   // month costs you: living costs plus everything that leaves before that.
   const monthlyOutgoings = monthlySpend + plan.support + plan.emi;
-  const safety = safetyNet(netWorth.liquidAssets, monthlyOutgoings, data.household.dependents);
+  const safety = safetyNet(
+    netWorth.liquidAssets,
+    monthlyOutgoings,
+    data.household.dependents,
+    data.household.incomeVaries,
+  );
 
   const projectionRows = buildProjectionRows(monthlyInvestment, PROJECTION_YEARS);
   const finalValue = projectionRows[projectionRows.length - 1].value;
 
   const thisMonth = new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+
+  // Has this month already been checked in? Both helpers live in lib/checkins.js
+  // so this page and the check-in page cannot disagree about what a month is.
+  const hasCheckedIn = hasCheckinFor(data.checkins, currentMonth());
+
+  /*
+    How the plan is actually going.
+
+    The comparison has to be made against income, not against the plan's
+    percentages. Those percentages are shares of what is left after the
+    household and the EMI, whereas a check-in records real income and real
+    amounts, so the two only line up once the plan is expressed the same way.
+  */
+  const plannedKept = monthlySaving + monthlyInvestment;
+
+  let plannedKeptShare = 0;
+  if (plan.income > 0) {
+    plannedKeptShare = (plannedKept / plan.income) * 100;
+  }
+
+  const checkinSummary = summariseCheckins(data.checkins, plannedKeptShare);
+
+  // The safety net bar and its caption, both built here so the markup below
+  // stays free of ternaries.
+  let safetyBarColour = 'bg-brass';
+  let safetyNote = formatRupees(safety.amountTarget - netWorth.liquidAssets)
+    + ' more would get you to ' + safety.monthsTarget + ' months.';
+
+  if (safety.isEnough === true) {
+    safetyBarColour = 'bg-accent';
+    safetyNote = 'Comfortably past the ' + safety.monthsTarget + ' months we suggest.';
+  }
+
+  // The button in the corner says which of the two jobs is left.
+  let checkInLabel = 'Check in for this month';
+  let checkInClasses = 'border-line bg-surface text-ink hover:border-ink hover:shadow-card';
+
+  if (hasCheckedIn === true) {
+    checkInLabel = 'This month is recorded';
+    checkInClasses = 'border-accent/30 bg-accentSoft text-accentDeep hover:border-accent';
+  }
 
   let greeting = greetingForNow() + '.';
   if (user.name) {
@@ -158,6 +198,40 @@ export default function DashboardPage({ user }) {
   // ---------------------------------------------------------------
   // The four headline numbers across the top.
   // ---------------------------------------------------------------
+
+  // Worked out with plain ifs before the list, rather than as ternaries inside
+  // it, so each card below is one readable line per field.
+  const hasDebts = data.debts.length > 0;
+  const hasGoals = data.goals.length > 0;
+
+  let debtValue = 'Now';
+  let debtNote = 'Nothing owed';
+
+  if (hasDebts === true) {
+    debtValue = formatMonthYear(debtSummary.debtFreeDate);
+    debtNote = formatDuration(debtSummary.longestMonths) + ' away';
+
+    // A debt whose EMI never clears it has no date, and longestMonths ignores
+    // it, so without this the card would read "— / now away".
+    if (debtSummary.everythingClears === false) {
+      debtValue = 'Not yet';
+      debtNote = 'one debt never clears';
+    }
+  }
+
+  let goalValue = 'None yet';
+  let goalNote = 'Add your first';
+
+  if (hasGoals === true) {
+    goalValue = String(data.goals.length);
+
+    if (goalSummary.isAffordable === true) {
+      goalNote = 'all affordable';
+    } else {
+      goalNote = 'over budget';
+    }
+  }
+
   const headlines = [
     {
       to: '/net-worth',
@@ -170,11 +244,9 @@ export default function DashboardPage({ user }) {
     {
       to: '/debts',
       label: 'Debt free',
-      value: data.debts.length === 0 ? 'Now' : formatMonthYear(debtSummary.debtFreeDate),
-      note: data.debts.length === 0
-        ? 'Nothing owed'
-        : formatDuration(debtSummary.longestMonths) + ' away',
-      isNegative: false,
+      value: debtValue,
+      note: debtNote,
+      isNegative: hasDebts === true && debtSummary.everythingClears === false,
     },
     {
       to: '/net-worth',
@@ -186,11 +258,9 @@ export default function DashboardPage({ user }) {
     {
       to: '/goals',
       label: 'Goals',
-      value: data.goals.length === 0 ? 'None yet' : String(data.goals.length),
-      note: data.goals.length === 0
-        ? 'Add your first'
-        : (goalSummary.isAffordable ? 'all affordable' : 'over budget'),
-      isNegative: data.goals.length > 0 && !goalSummary.isAffordable,
+      value: goalValue,
+      note: goalNote,
+      isNegative: hasGoals === true && goalSummary.isAffordable === false,
     },
   ];
 
@@ -202,9 +272,13 @@ export default function DashboardPage({ user }) {
       action={
         <Link
           to="/check-in"
-          className="group inline-flex items-center gap-2 rounded-full border border-line bg-surface px-5 py-2.5 text-[13.5px] font-semibold text-ink transition-all duration-300 ease-smooth hover:border-ink hover:shadow-card"
+          className={
+            'group inline-flex items-center gap-2 rounded-full border px-5 py-2.5 '
+            + 'text-[13.5px] font-semibold transition-all duration-300 ease-smooth '
+            + checkInClasses
+          }
         >
-          Check in for this month
+          {checkInLabel}
           <span aria-hidden="true" className="transition-transform duration-300 group-hover:translate-x-0.5">
             &#8594;
           </span>
@@ -215,6 +289,12 @@ export default function DashboardPage({ user }) {
       {/* ---------- Four numbers, each a door to its own page ---------- */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {headlines.map((item) => {
+          // A number that needs attention is clay, everything else accent.
+          let valueColour = 'text-accent';
+          if (item.isNegative === true) {
+            valueColour = 'text-clay';
+          }
+
           return (
             <Link
               key={item.label}
@@ -224,12 +304,7 @@ export default function DashboardPage({ user }) {
               <p className="text-2xs font-semibold uppercase tracking-widest2 text-muted">
                 {item.label}
               </p>
-              <p
-                className={
-                  'tnum mt-2.5 font-display text-[28px] leading-none '
-                  + (item.isNegative ? 'text-clay' : 'text-accent')
-                }
-              >
+              <p className={'tnum mt-2.5 font-display text-[28px] leading-none ' + valueColour}>
                 {item.value}
               </p>
               <p className="mt-2 text-2xs text-muted">{item.note}</p>
@@ -262,20 +337,12 @@ export default function DashboardPage({ user }) {
 
             <div className="mt-5 h-2 overflow-hidden rounded-full bg-paperDeep">
               <div
-                className={
-                  'h-full rounded-full transition-[width] duration-700 ease-smooth '
-                  + (safety.isEnough ? 'bg-accent' : 'bg-brass')
-                }
+                className={'h-full rounded-full transition-[width] duration-700 ease-smooth ' + safetyBarColour}
                 style={{ width: safety.percentDone + '%' }}
               />
             </div>
 
-            <p className="mt-3 text-2xs text-muted">
-              {safety.isEnough === true
-                ? 'Comfortably past the ' + safety.monthsTarget + ' months we suggest.'
-                : formatRupees(safety.amountTarget - netWorth.liquidAssets)
-                  + ' more would get you to ' + safety.monthsTarget + ' months.'}
-            </p>
+            <p className="mt-3 text-2xs text-muted">{safetyNote}</p>
           </div>
         </div>
       </div>
@@ -287,6 +354,11 @@ export default function DashboardPage({ user }) {
           dependents={data.household.dependents}
           hasLoan={data.debts.length > 0}
         />
+      </div>
+
+      {/* ---------- Whether any of it is actually happening ---------- */}
+      <div className="mt-6">
+        <ConsistencyCard summary={checkinSummary} plannedKeptShare={plannedKeptShare} />
       </div>
 
       {/* ---------- The long view ---------- */}

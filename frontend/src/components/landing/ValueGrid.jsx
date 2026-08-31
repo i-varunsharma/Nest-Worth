@@ -3,8 +3,6 @@ import Eyebrow from '../shared/Eyebrow';
 import Reveal from '../shared/Reveal';
 
 /*
-  ValueGrid
-  ---------
   Four cards of different widths, each explaining one decision we made
   differently. Two wide cards and two narrow ones, so the block does not look
   like a spreadsheet.

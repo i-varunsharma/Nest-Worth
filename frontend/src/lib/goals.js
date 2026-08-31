@@ -1,6 +1,4 @@
 /*
-  goals.js
-  --------
   The maths behind a savings goal: how much is left, how long there is, and
   therefore how much has to go in every month.
 
@@ -160,11 +158,23 @@ export function summariseGoals(goals, monthlyCapacity) {
   The usual advice is three to six months. We suggest six for anybody supporting
   other people, because a household that depends on one salary has no second
   income to fall back on while a job is found.
+
+  A variable income adds three more on top. The standard advice quietly assumes
+  a salary that either arrives or stops; for a freelancer the gap between two
+  contracts is not an emergency, it is a Tuesday, and the fund has to absorb
+  that as well as the real emergencies.
+
+  incomeVaries is optional, so an older caller that does not pass it gets the
+  same answer it always did.
 */
-export function safetyNet(cashSavings, monthlyOutgoings, dependents) {
+export function safetyNet(cashSavings, monthlyOutgoings, dependents, incomeVaries) {
   let monthsTarget = 3;
   if (dependents > 0) {
     monthsTarget = 6;
+  }
+
+  if (incomeVaries === true) {
+    monthsTarget = monthsTarget + 3;
   }
 
   let monthsCovered = 0;

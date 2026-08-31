@@ -2,20 +2,15 @@ import AppBar from './AppBar';
 import Container from '../shared/Container';
 
 /*
-  AppShell
-  --------
-  The frame every signed-in page sits in: the bar across the top, the page
-  heading, and the column the content lives in.
-
-  Six pages use it. Without it, each of those six would repeat the same twenty
-  lines of layout, and the day you wanted to change the heading spacing you
-  would have to remember all six.
+  The frame every signed-in page sits in: the top bar, the page heading, and the
+  column the content lives in. Six pages use it, so changing the heading spacing
+  is one edit rather than six.
 
   Props:
     user     - the signed-in person, for the avatar
     title    - the big heading
     subtitle - the line under it
-    action   - something to show on the right of the heading, usually a button
+    action   - shown to the right of the heading, usually a button
     children - the page itself
 */
 export default function AppShell({ user, title, subtitle, action, children }) {

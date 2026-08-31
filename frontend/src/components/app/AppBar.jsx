@@ -4,8 +4,6 @@ import Container from '../shared/Container';
 import * as api from '../../lib/api';
 
 /*
-  AppBar
-  ------
   The bar across the top of every signed-in page.
 
   It is deliberately NOT the same component as the marketing Navbar. That one

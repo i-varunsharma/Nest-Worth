@@ -11,8 +11,6 @@ import * as api from '../lib/api';
 import { checkEmail, checkPassword } from '../lib/validation';
 
 /*
-  LoginPage
-  ---------
   The screen at /login. Three ways in:
 
     1. Continue with Google
@@ -190,9 +188,12 @@ export default function LoginPage() {
             Keep me signed in
           </label>
 
-          <a href="#reset" className="sweep text-[13.5px] text-muted transition-colors hover:text-ink">
+          <Link
+            to="/forgot-password"
+            className="sweep text-[13.5px] text-muted transition-colors hover:text-ink"
+          >
             Forgot password?
-          </a>
+          </Link>
         </div>
 
         {/* type="submit" is what connects this button to the form's onSubmit. */}

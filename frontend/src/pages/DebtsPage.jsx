@@ -8,8 +8,6 @@ import { formatDuration, formatMonthYear, orderByRate, summariseDebts } from '..
 import { formatRupees } from '../lib/plan';
 
 /*
-  DebtsPage
-  ---------
   The screen at /debts. Every debt, in the order they should be cleared, each
   with its payoff date and a slider showing what paying extra would do.
 
@@ -113,6 +111,52 @@ export default function DebtsPage({ user }) {
   const summary = summariseDebts(debts);
   const ordered = orderByRate(debts);
 
+  /*
+    When one debt never clears there is no honest "debt free" date, and
+    summariseDebts says so by leaving debtFreeDate null.
+
+    The line under it needs the same care. longestMonths only counts the debts
+    that do clear, so printing it would say "now away" for somebody whose only
+    debt is going nowhere.
+  */
+  let debtFreeText = formatMonthYear(summary.debtFreeDate);
+  let debtFreeNote = formatDuration(summary.longestMonths) + ' away';
+  let debtFreeColour = 'text-accent';
+
+  if (summary.everythingClears === false) {
+    debtFreeText = 'Not yet';
+    debtFreeNote = 'one debt never clears at its current EMI';
+    debtFreeColour = 'text-clay';
+  }
+
+  // The same reason makes the interest total incomplete rather than wrong, so
+  // the label says which it is.
+  let interestLabel = 'Interest still to pay';
+
+  if (summary.everythingClears === false) {
+    interestLabel = 'Interest on the debts that clear';
+  }
+
+  /*
+    Which thing the form is editing, worked out before the JSX.
+
+    The "key" matters more than it looks. React reuses a component that stays in
+    the same place, and a form's useState only reads its starting values once,
+    when it first appears. So pressing Edit on one row and then Edit on another
+    would leave the previous row's values in the boxes while saving them against
+    the new row's id, quietly overwriting the wrong record.
+
+    Giving the form a key that changes with the target tells React it is a
+    different form, so it is thrown away and rebuilt with the right values.
+  */
+  let formKey = 'new';
+  let debtBeingEdited = null;
+
+  if (editing !== null && editing !== 'new') {
+    formKey = 'debt-' + editing.id;
+    debtBeingEdited = editing;
+  }
+
   const addButton = (
     <Button onClick={() => setEditing('new')} variant="accent">
       Add a debt
@@ -131,7 +175,8 @@ export default function DebtsPage({ user }) {
       {editing !== null ? (
         <div className="mb-8">
           <DebtForm
-            debt={editing === 'new' ? null : editing}
+            key={formKey}
+            debt={debtBeingEdited}
             onSave={editing === 'new' ? handleAdd : handleUpdate}
             onCancel={() => setEditing(null)}
           />
@@ -169,15 +214,15 @@ export default function DebtsPage({ user }) {
 
           <div>
             <p className="text-2xs font-semibold uppercase tracking-widest2 text-muted">Debt free</p>
-            <p className="tnum mt-1.5 font-display text-[26px] leading-none text-accent">
-              {formatMonthYear(summary.debtFreeDate)}
+            <p className={'tnum mt-1.5 font-display text-[26px] leading-none ' + debtFreeColour}>
+              {debtFreeText}
             </p>
-            <p className="mt-1.5 text-2xs text-muted">{formatDuration(summary.longestMonths)} away</p>
+            <p className="mt-1.5 text-2xs text-muted">{debtFreeNote}</p>
           </div>
 
           <div>
             <p className="text-2xs font-semibold uppercase tracking-widest2 text-muted">
-              Interest still to pay
+              {interestLabel}
             </p>
             <p className="tnum mt-1.5 font-display text-[26px] leading-none text-clay">
               {formatRupees(summary.totalInterest)}
