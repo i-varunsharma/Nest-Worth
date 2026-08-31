@@ -1,15 +1,9 @@
 /*
-  household.js
-  ------------
   Small helpers to do with the household.
 
-  This file used to save the answers into the browser's own storage. It no
-  longer does, because there is a real server now and the answers live in the
-  database next to the account. That is a better home for them: they survive a
-  new laptop, a cleared browser, and a different phone.
-
-  Reading and writing now happens through lib/api.js. What is left here are the
-  two pieces that are not the server's business.
+  Reading and saving happens through lib/api.js, since the answers live in the
+  database next to the account. What is left here are the two pieces that are
+  not the server's business.
 */
 
 
@@ -19,16 +13,20 @@ export const DEFAULT_HOUSEHOLD = {
   income: 62000,
   dependents: 2,
   hasLoan: true,
+  incomeVaries: false,
+
+  // Rent, food, transport and bills. Roughly a third of the income above,
+  // which is a common shape for a first flat in a mid-sized Indian city.
+  essentialCosts: 22000,
 };
 
 
 /*
   "Good morning" before noon, "Good afternoon" until five, "Good evening" after.
 
-  This deliberately uses the clock on the reader's own computer rather than
-  asking the server. The server is in one timezone, the reader could be in any,
-  and greeting somebody with "good evening" over breakfast is a small thing that
-  makes software feel like it was not written for them.
+  Uses the clock on the reader's own computer, not the server's. The server is
+  in one timezone and the reader could be in any, and "good evening" at
+  breakfast reads as software written for somebody else.
 */
 export function greetingForNow() {
   const hour = new Date().getHours();

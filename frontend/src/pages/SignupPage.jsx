@@ -11,8 +11,6 @@ import * as api from '../lib/api';
 import { checkEmail, checkName, checkPassword } from '../lib/validation';
 
 /*
-  SignupPage
-  ----------
   The screen at /signup. It mirrors the login page, with three ways to start.
 
   Two things differ from signing in:

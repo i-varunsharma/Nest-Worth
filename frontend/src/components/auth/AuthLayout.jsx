@@ -1,18 +1,14 @@
 import { Link } from 'react-router-dom';
 
 /*
-  AuthLayout
-  ----------
   The frame around the login and signup screens.
 
-  It is deliberately plain: a thin bar with the logo, one column of form in the
-  middle of the page, and a line of small print at the bottom. No split screen,
-  no marketing panel, no decoration.
+  Deliberately plain: a thin bar with the logo, one column of form in the
+  middle, and small print at the bottom. No split screen or marketing panel.
 
-  That is a design decision, not laziness. Somebody on this screen has already
-  decided to use the product, so selling to them again just puts distance
-  between them and the box they are trying to type in. Narrow and quiet also
-  means the same layout works on a phone without a second version of it.
+  Somebody on this screen has already decided to use the product, so selling to
+  them again only puts distance between them and the box they are trying to
+  type in. Narrow also means the same layout works on a phone.
 
   Props:
     title    - the heading above the form

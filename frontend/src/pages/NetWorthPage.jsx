@@ -13,8 +13,6 @@ import {
 import { formatRupees } from '../lib/plan';
 
 /*
-  NetWorthPage
-  ------------
   The screen at /net-worth. One subtraction, shown properly:
 
       what you own  minus  what you owe
@@ -150,6 +148,26 @@ export default function NetWorthPage({ user }) {
     biggest = 1;
   }
 
+  /*
+    Which thing the form is editing, worked out before the JSX.
+
+    The "key" matters more than it looks. React reuses a component that stays in
+    the same place, and a form's useState only reads its starting values once,
+    when it first appears. So pressing Edit on one row and then Edit on another
+    would leave the previous row's values in the boxes while saving them against
+    the new row's id, quietly overwriting the wrong record.
+
+    Giving the form a key that changes with the target tells React it is a
+    different form, so it is thrown away and rebuilt with the right values.
+  */
+  let formKey = 'new';
+  let assetBeingEdited = null;
+
+  if (editing !== null && editing !== 'new') {
+    formKey = 'asset-' + editing.id;
+    assetBeingEdited = editing;
+  }
+
   const addButton = (
     <Button onClick={() => setEditing('new')} variant="accent">
       Add something
@@ -236,7 +254,8 @@ export default function NetWorthPage({ user }) {
       {editing !== null ? (
         <div className="mt-8">
           <AssetForm
-            asset={editing === 'new' ? null : editing}
+            key={formKey}
+            asset={assetBeingEdited}
             onSave={editing === 'new' ? handleAdd : handleUpdate}
             onCancel={() => setEditing(null)}
           />

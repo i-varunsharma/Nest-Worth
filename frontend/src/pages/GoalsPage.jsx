@@ -4,11 +4,10 @@ import GoalForm from '../components/app/GoalForm';
 import Button from '../components/shared/Button';
 import * as api from '../lib/api';
 import { describeGoal, summariseGoals } from '../lib/goals';
-import { buildPlan, formatRupees } from '../lib/plan';
+import { buildPlan, bucketAmount, formatRupees } from '../lib/plan';
+import { summariseDebts } from '../lib/debt';
 
 /*
-  GoalsPage
-  ---------
   The screen at /goals. Each goal, what it needs every month, and whether all of
   them together are affordable.
 
@@ -46,12 +45,20 @@ export default function GoalsPage({ user }) {
     reason to queue them.
   */
   useEffect(() => {
+    // Set to false when this page is left. Without it, a slow answer arriving
+    // after somebody has navigated away tries to update state that has gone.
+    let stillMounted = true;
+
     const load = async () => {
       const [goalsResult, householdResult, debtsResult] = await Promise.all([
         api.getGoals(),
         api.getHousehold(),
         api.getDebts(),
       ]);
+
+      if (!stillMounted) {
+        return;
+      }
 
       if (goalsResult.ok) {
         setGoals(goalsResult.data.goals);
@@ -61,27 +68,26 @@ export default function GoalsPage({ user }) {
       }
 
       if (householdResult.ok && debtsResult.ok) {
-        let totalEmi = 0;
-        debtsResult.data.debts.forEach((debt) => {
-          totalEmi = totalEmi + debt.emi;
-        });
+        const debts = debtsResult.data.debts;
 
         const plan = buildPlan({
           income: householdResult.data.household.income,
           dependents: householdResult.data.household.dependents,
-          hasLoan: debtsResult.data.debts.length > 0,
-          emi: totalEmi,
+          hasLoan: debts.length > 0,
+          incomeVaries: householdResult.data.household.incomeVaries,
+          essentialCosts: householdResult.data.household.essentialCosts,
+          emi: summariseDebts(debts).totalEmi,
         });
 
-        plan.buckets.forEach((bucket) => {
-          if (bucket.key === 'save') {
-            setMonthlySaving(bucket.amount);
-          }
-        });
+        setMonthlySaving(bucketAmount(plan, 'save'));
       }
     };
 
     load();
+
+    return () => {
+      stillMounted = false;
+    };
   }, []);
 
   const handleAdd = async (values) => {
@@ -125,6 +131,26 @@ export default function GoalsPage({ user }) {
 
   const summary = summariseGoals(goals, monthlySaving);
 
+  /*
+    Which thing the form is editing, worked out before the JSX.
+
+    The "key" matters more than it looks. React reuses a component that stays in
+    the same place, and a form's useState only reads its starting values once,
+    when it first appears. So pressing Edit on one row and then Edit on another
+    would leave the previous row's values in the boxes while saving them against
+    the new row's id, quietly overwriting the wrong record.
+
+    Giving the form a key that changes with the target tells React it is a
+    different form, so it is thrown away and rebuilt with the right values.
+  */
+  let formKey = 'new';
+  let goalBeingEdited = null;
+
+  if (editing !== null && editing !== 'new') {
+    formKey = 'goal-' + editing.id;
+    goalBeingEdited = editing;
+  }
+
   const addButton = (
     <Button onClick={() => setEditing('new')} variant="accent">
       Add a goal
@@ -142,7 +168,8 @@ export default function GoalsPage({ user }) {
       {editing !== null ? (
         <div className="mb-8">
           <GoalForm
-            goal={editing === 'new' ? null : editing}
+            key={formKey}
+            goal={goalBeingEdited}
             onSave={editing === 'new' ? handleAdd : handleUpdate}
             onCancel={() => setEditing(null)}
           />
@@ -203,6 +230,15 @@ export default function GoalsPage({ user }) {
             barColour = 'bg-clay';
           }
 
+          // The same three cases in words, built here rather than as a stack of
+          // ternaries inside the markup below.
+          let statusText = ' · ' + detail.months + ' months left';
+          if (detail.isComplete === true) {
+            statusText = ' · done';
+          } else if (detail.isOverdue === true) {
+            statusText = ' · date has passed';
+          }
+
           return (
             <article key={goal.id} className="rounded-[22px] border border-line bg-surface p-6 shadow-card sm:p-7">
 
@@ -213,11 +249,7 @@ export default function GoalsPage({ user }) {
                   </h3>
                   <p className="mt-1.5 text-[13px] text-muted">
                     {formatRupees(goal.savedAmount)} of {formatRupees(goal.targetAmount)}
-                    {detail.isComplete === true
-                      ? ' · done'
-                      : detail.isOverdue === true
-                        ? ' · date has passed'
-                        : ' · ' + detail.months + ' months left'}
+                    {statusText}
                   </p>
                 </div>
 

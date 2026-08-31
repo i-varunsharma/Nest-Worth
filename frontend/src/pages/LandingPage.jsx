@@ -11,8 +11,6 @@ import FAQ from '../components/landing/FAQ';
 import FinalCTA from '../components/landing/FinalCTA';
 
 /*
-  LandingPage
-  -----------
   The home page. It does two jobs.
 
   1. It lists the sections in the order the reader meets them.
@@ -33,6 +31,8 @@ export default function LandingPage() {
     income: 62000,
     dependents: 2,
     hasLoan: true,
+    incomeVaries: false,
+    essentialCosts: 22000,
   });
 
   return (

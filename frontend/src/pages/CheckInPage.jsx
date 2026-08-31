@@ -3,11 +3,11 @@ import AppShell from '../components/app/AppShell';
 import Button from '../components/shared/Button';
 import TextField from '../components/shared/TextField';
 import * as api from '../lib/api';
-import { buildPlan, formatRupees } from '../lib/plan';
+import { buildPlan, bucketAmount, formatRupees } from '../lib/plan';
+import { summariseDebts } from '../lib/debt';
+import { currentMonth, monthLabel } from '../lib/checkins';
 
 /*
-  CheckInPage
-  -----------
   The screen at /check-in. Once a month you write down what actually happened,
   and the page compares it against what the plan said should happen.
 
@@ -23,26 +23,6 @@ import { buildPlan, formatRupees } from '../lib/plan';
   Props:
     user - the signed-in person, handed down by RequireAuth
 */
-
-
-/* 'YYYY-MM' for the current month, which is the form the database expects. */
-function currentMonth() {
-  const now = new Date();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  return now.getFullYear() + '-' + month;
-}
-
-
-/* Turns '2026-08' into 'August 2026'. */
-function monthLabel(monthText) {
-  const year = Number(monthText.slice(0, 4));
-  const month = Number(monthText.slice(5, 7));
-
-  // Months are counted from zero in JavaScript dates, hence the minus one.
-  const date = new Date(year, month - 1, 1);
-
-  return date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
-}
 
 
 export default function CheckInPage({ user }) {
@@ -62,12 +42,20 @@ export default function CheckInPage({ user }) {
   const [justSaved, setJustSaved] = useState(false);
 
   useEffect(() => {
+    // Set to false when this page is left, so a slow answer arriving afterwards
+    // does not try to update state that has gone.
+    let stillMounted = true;
+
     const load = async () => {
       const [checkinResult, householdResult, debtsResult] = await Promise.all([
         api.getCheckins(),
         api.getHousehold(),
         api.getDebts(),
       ]);
+
+      if (!stillMounted) {
+        return;
+      }
 
       if (!checkinResult.ok) {
         setLoadError(checkinResult.error);
@@ -77,16 +65,15 @@ export default function CheckInPage({ user }) {
       setCheckins(checkinResult.data.checkins);
 
       if (householdResult.ok && debtsResult.ok) {
-        let totalEmi = 0;
-        debtsResult.data.debts.forEach((debt) => {
-          totalEmi = totalEmi + debt.emi;
-        });
+        const debts = debtsResult.data.debts;
 
         const built = buildPlan({
           income: householdResult.data.household.income,
           dependents: householdResult.data.household.dependents,
-          hasLoan: debtsResult.data.debts.length > 0,
-          emi: totalEmi,
+          hasLoan: debts.length > 0,
+          incomeVaries: householdResult.data.household.incomeVaries,
+          essentialCosts: householdResult.data.household.essentialCosts,
+          emi: summariseDebts(debts).totalEmi,
         });
 
         setPlan(built);
@@ -98,6 +85,10 @@ export default function CheckInPage({ user }) {
     };
 
     load();
+
+    return () => {
+      stillMounted = false;
+    };
   }, []);
 
   const handleSubmit = async (event) => {
@@ -147,18 +138,11 @@ export default function CheckInPage({ user }) {
     );
   }
 
-  // What the plan said, for the comparison column.
-  let plannedSpend = 0;
-  let plannedSave = 0;
-  let plannedInvest = 0;
-
-  if (plan) {
-    plan.buckets.forEach((bucket) => {
-      if (bucket.key === 'spend') plannedSpend = bucket.amount;
-      if (bucket.key === 'save') plannedSave = bucket.amount;
-      if (bucket.key === 'invest') plannedInvest = bucket.amount;
-    });
-  }
+  // What the plan said, for the comparison column. bucketAmount returns 0 when
+  // there is no plan yet, which is what this page wants while it loads.
+  const plannedSpend = bucketAmount(plan, 'spend');
+  const plannedSave = bucketAmount(plan, 'save');
+  const plannedInvest = bucketAmount(plan, 'invest');
 
   let saveLabel = 'Save this month';
   if (isSaving === true) {

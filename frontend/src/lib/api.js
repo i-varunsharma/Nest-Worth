@@ -1,43 +1,35 @@
 /*
-  api.js
-  ------
-  Every conversation with the backend goes through this one file.
-
-  Keeping it in one place means the pages stay readable: a page says
-  "api.login(email, password)" and never has to think about URLs, headers or
-  cookies. It also means that when something about the API changes, there is
-  exactly one file to edit.
+  Every request to the backend goes through this file, so pages can say
+  api.login(email, password) without thinking about URLs, headers or cookies.
 
   Two details matter here and nowhere else:
 
     credentials: 'include'
-      Tells the browser to send our session cookie with the request. Without it
-      the browser talks to the API perfectly happily but leaves the cookie
-      behind, and every request looks like it came from a stranger. It has to be
-      matched by credentials: true in the server's CORS settings.
+      Sends our session cookie with the request. Without it the browser talks to
+      the API happily but leaves the cookie behind, so every request looks like
+      it came from a stranger. The server's CORS settings have to match it with
+      credentials: true.
 
     Content-Type: application/json
-      Tells the server the body is JSON, so express.json() knows to read it.
+      Tells the server the body is JSON, so express.json() reads it.
 */
 
-// Where the backend lives. In development it is a different port from the
-// React app, which is why CORS has to be set up at all. Change this by putting
-// VITE_API_URL in frontend/.env.local when you deploy.
+// Where the backend lives. A different port from the React app in development,
+// which is why CORS has to be set up. Set VITE_API_URL when you deploy.
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
 
 /*
-  Sends one request and always gives back the same shape:
+  Sends one request and always returns the same shape:
 
     { ok: true,  data:  { ... } }
     { ok: false, error: 'a sentence to show the person', field: 'email' }
 
-  Returning a result rather than throwing an error is a deliberate choice. It
-  means pages can write a plain "if (result.ok)" instead of wrapping every call
-  in try / catch, which keeps them much easier to follow.
+  Returning a result rather than throwing means pages write a plain
+  if (result.ok) instead of wrapping every call in try / catch.
 
-  "field" is optional. When the server knows which input caused the problem it
-  says so, and the page can put the message under that exact box.
+  "field" is optional. When the server knows which input caused the problem, the
+  page can put the message under that box.
 */
 async function request(path, method, body) {
   try {
@@ -55,8 +47,8 @@ async function request(path, method, body) {
     const response = await fetch(API_URL + path, options);
     const data = await response.json();
 
-    // response.ok is true for status codes 200 to 299. Anything else is the
-    // server telling us it refused, and it will have said why.
+    // response.ok covers 200 to 299. Anything else is a refusal, and the
+    // server will have said why.
     if (!response.ok) {
       return {
         ok: false,
@@ -68,9 +60,9 @@ async function request(path, method, body) {
 
     return { ok: true, data: data };
   } catch {
-    // We only land here when the request never arrived: the server is not
-    // running, the internet is off, or the address is wrong. A network failure
-    // deserves a different message from a rejection.
+    // Only reached when the request never arrived: the server is not running,
+    // the internet is off, or the address is wrong. That deserves a different
+    // message from a refusal.
     return {
       ok: false,
       error: 'Cannot reach the server. Is the backend running on port 4000?',
@@ -95,9 +87,62 @@ export function logout() {
   return request('/api/auth/logout', 'POST');
 }
 
-/* Asks the server who is signed in. Used by every protected page on load. */
+/* Who is signed in? Called by every protected page when it loads. */
 export function me() {
   return request('/api/auth/me', 'GET');
+}
+
+
+// ---------------------------------------------------------------
+// Forgotten passwords
+// ---------------------------------------------------------------
+
+/*
+  Step one: ask for a reset link.
+
+  This reports success even for an email with no account. If it answered
+  differently for an address it recognised, the form could be used to find out
+  who has an account here.
+*/
+export function forgotPassword(email) {
+  return request('/api/auth/forgot', 'POST', { email });
+}
+
+/*
+  Step two: send back the token from the link, with the new password.
+
+  A success also signs them in, since reading the account's email is the same
+  proof a password gives.
+*/
+export function resetPassword(token, password) {
+  return request('/api/auth/reset', 'POST', { token, password });
+}
+
+
+/*
+  Changing the password from the settings page, while signed in.
+
+  currentPassword is ignored by the server for an account that has never had a
+  password, which is the case for anyone who only ever used Google or a phone
+  code. Those people are setting one for the first time.
+*/
+export function changePassword(currentPassword, newPassword) {
+  return request('/api/auth/password', 'POST', { currentPassword, newPassword });
+}
+
+
+/*
+  Closing the account for good.
+
+  The server needs the password when the account has one, and the word DELETE
+  typed out when it does not, because an account created with Google or a phone
+  code has no password to check against.
+
+  Everything goes with it: the household, debts, goals, assets and check-ins.
+  The database does that part itself through ON DELETE CASCADE.
+*/
+export function deleteAccount(password, confirmText) {
+  return request('/api/auth/account', 'DELETE', { password, confirmText });
 }
 
 
@@ -118,10 +163,8 @@ export function verifyOtp(phone, code) {
 // Signing in with Google
 // ---------------------------------------------------------------
 
-/*
-  "credential" is the token Google's own sign-in window hands us. We pass it
-  straight to our server, which checks with Google before believing any of it.
-*/
+// "credential" is the token Google's sign-in window gives us. It goes straight
+// to our server, which checks it with Google before believing any of it.
 export function google(credential) {
   return request('/api/auth/google', 'POST', { credential });
 }
@@ -140,6 +183,8 @@ export function saveHousehold(household) {
     income: household.income,
     dependents: household.dependents,
     hasLoan: household.hasLoan,
+    incomeVaries: household.incomeVaries,
+    essentialCosts: household.essentialCosts,
   });
 }
 
@@ -151,16 +196,13 @@ export function saveName(name) {
 // ---------------------------------------------------------------
 // Debts, goals, assets and check-ins
 //
-// These four all follow the same shape, which is not an accident. It is the
-// usual pattern for a list of things belonging to one person:
+// All four follow the same shape, the usual pattern for a list of things
+// belonging to one person:
 //
 //     GET     read them all
 //     POST    add one
 //     PUT     change one, named by its id
 //     DELETE  remove one, named by its id
-//
-// Once you can read one of these four, you can read all of them, and the same
-// pattern turns up in almost every app you will ever work on.
 // ---------------------------------------------------------------
 
 export function getDebts() {

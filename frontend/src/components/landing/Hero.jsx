@@ -4,8 +4,6 @@ import Reveal from '../shared/Reveal';
 import Planner from './Planner';
 
 /*
-  Hero
-  ----
   The first thing anyone sees. Headline and buttons on the left, the working
   planner card on the right.
 

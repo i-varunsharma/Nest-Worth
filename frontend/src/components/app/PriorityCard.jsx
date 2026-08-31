@@ -1,6 +1,4 @@
 /*
-  PriorityCard
-  ------------
   The one sentence explaining why the plan looks the way it does.
 
   This is the whole promise of the product in a single box: never show a number

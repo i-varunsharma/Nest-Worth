@@ -1,17 +1,15 @@
 import express from 'express';
-import db from '../db.js';
+import db from '../database/db.js';
 import { requireUser } from '../lib/sessions.js';
 
 /*
-  routes/goals.js
-  ---------------
     GET    /api/goals      list mine
     POST   /api/goals      add one
     PUT    /api/goals/:id  change one
     DELETE /api/goals/:id  remove one
 
-  Same shape as debts, and the same rule: every query filters on the user id
-  from the session cookie, never on anything the browser sent.
+  Same shape as debts.js, and the same rule: every query filters on the user id
+  from the session cookie.
 */
 
 const router = express.Router();
@@ -31,10 +29,9 @@ function publicGoal(row) {
 /*
   Checks one goal.
 
-  The date rule is worth a word. We accept a date in the past rather than
-  refusing it, because a goal whose deadline has slipped is a real thing that
-  people need to see and deal with. The interface marks it as overdue. Refusing
-  to store it would just hide the problem.
+  A date in the past is allowed. A goal whose deadline has slipped is a real
+  thing people need to see, and the interface marks it overdue. Refusing to
+  store it would only hide the problem.
 */
 function checkGoal(body) {
   if (typeof body.name !== 'string' || body.name.trim().length === 0) {
@@ -57,8 +54,8 @@ function checkGoal(body) {
     return 'You have saved more than the target. Raise the target, or mark it done.';
   }
 
-  // Dates arrive as 'YYYY-MM-DD' from a date input. Date.parse gives NaN for
-  // anything it cannot understand, which is how we spot rubbish.
+  // Dates arrive as 'YYYY-MM-DD' from a date input. Date.parse returns NaN for
+  // anything it cannot read.
   if (typeof body.targetDate !== 'string' || Number.isNaN(Date.parse(body.targetDate))) {
     return 'Pick a target date.';
   }

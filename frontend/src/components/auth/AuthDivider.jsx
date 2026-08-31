@@ -1,13 +1,10 @@
 /*
-  AuthDivider
-  -----------
-  The little "or" separator between the Google button and the normal form.
+  The "or" separator between the Google button and the normal form.
 
       ---------------- or ----------------
 
-  It is two flexible lines with a word between them. "flex-1" tells each line to
-  take up whatever space is left over, so they always meet in the middle no
-  matter how wide the form is.
+  Two lines with a word between them. flex-1 makes each line take the leftover
+  space, so they meet in the middle at any width.
 */
 export default function AuthDivider({ text }) {
   let label = 'or';

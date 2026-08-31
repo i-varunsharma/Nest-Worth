@@ -3,8 +3,6 @@ import Container from '../shared/Container';
 import Reveal from '../shared/Reveal';
 
 /*
-  FinalCTA
-  --------
   The last dark slab before the footer. One job: ask for the sign-up, from
   someone who has now read the whole page.
 */

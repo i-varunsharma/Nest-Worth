@@ -1,8 +1,6 @@
 import useReveal from '../../hooks/useReveal';
 
 /*
-  ProjectionChart
-  ---------------
   Draws the two lines showing money invested versus what it grows into.
 
   This file contains ONLY the drawing. The words and the big number next to it

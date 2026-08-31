@@ -4,8 +4,6 @@ import Eyebrow from '../shared/Eyebrow';
 import Reveal from '../shared/Reveal';
 
 /*
-  FAQ
-  ---
   An accordion: click a question, its answer slides open, and any other open
   answer slides shut.
 
@@ -24,30 +22,34 @@ const questions = [
   {
     question: 'Do I have to connect my bank account?',
     answer:
-      'Never. You describe your situation in ranges: income band, how many people you support, '
-      + 'roughly what leaves each month. There is no account linking, no statement upload and no '
-      + 'read access to anything.',
+      'Never. You tell us three things yourself: what you take home in a normal month, how many '
+      + 'people that has to cover, and whether you are repaying anything. There is no account '
+      + 'linking, no statement upload and no read access to anything you own.',
   },
   {
     question: 'What happens to what I tell you?',
     answer:
       'It is used to compute your plan and nothing else. No selling, no sharing with lenders or '
-      + 'fund houses, and no advertising built on your household. You can delete everything from '
-      + 'settings and it is gone.',
+      + 'fund houses, and no advertising built on your household. Settings has a Close your '
+      + 'account button that removes the lot, including every debt, goal and check-in, and we '
+      + 'keep no copy.',
   },
   {
     question: 'My income changes every month. Does that break it?',
     answer:
-      'It is built for that. Give a typical range rather than a number, and the plan recalculates '
-      + 'whenever you update it. Freelancers and variable-income earners get a wider buffer bucket '
-      + 'automatically.',
+      'No, we ask about it. Say your income moves around and the plan holds more of it as cash '
+      + 'you can reach rather than putting it into investments, and the emergency fund it aims '
+      + 'for goes up by three months. A thin month is a normal event on a freelance income, not '
+      + 'an emergency, and the plan should be built for the thin ones rather than the good ones.',
   },
   {
-    question: 'Why does the loan always come before investing?',
+    question: 'Why does the loan come before investing?',
     answer:
-      'Because clearing an 11% loan is a guaranteed 11% return, and no equity fund guarantees '
-      + 'anything. When your loan rate drops below the long-run market return, the model flips the '
-      + 'priority on its own.',
+      'Because clearing a loan at 14% is a guaranteed 14% return, and no equity fund guarantees '
+      + 'anything. It does not always come first, though. Once we know your real rate and it is '
+      + 'below the 11% we assume the market pays over long periods, a home loan being the usual '
+      + 'case, the model stops rushing it and keeps your investing going instead. The dashboard '
+      + 'says which of the two it did and why.',
   },
 ];
 

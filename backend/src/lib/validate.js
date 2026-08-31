@@ -1,15 +1,9 @@
 /*
-  validate.js
-  -----------
   The server's own copy of the form checks.
 
-  The browser already checks these before sending anything, so why check again?
-  Because the browser is not in charge. Anyone can send a request straight to
-  this API with curl or Postman and skip the form entirely. Checks in the
-  browser are there to be helpful. Checks here are there to be true.
-
-  This is worth remembering as a rule: validate for the user in the client,
-  validate for the database on the server.
+  The browser checks these too, but anyone can skip the form and post straight
+  at this API with curl. Checks in the browser are there to be helpful; these
+  are the ones that decide anything.
 
   Each function returns an error message, or an empty string when all is well.
 */
@@ -64,8 +58,8 @@ export function checkPassword(password) {
     return 'Use at least 8 characters.';
   }
 
-  // bcrypt only looks at the first 72 bytes of a password, so anything longer
-  // gives a false sense of security. We refuse it rather than silently trim.
+  // bcrypt only reads the first 72 bytes, so a longer password is no stronger
+  // than its first 72 characters. Refusing is more honest than trimming.
   if (password.length > 72) {
     return 'That password is too long. Use 72 characters or fewer.';
   }
@@ -123,9 +117,8 @@ export function checkOtp(code) {
 
 
 /*
-  Checks the three household answers.
-  Numbers arriving over the network are often text, so convert first and check
-  the result really is a number.
+  Checks the household answers. Numbers often arrive as text over the network,
+  so convert first and then check the result really is a number.
 */
 export function checkHousehold(body) {
   const income = Number(body.income);
@@ -139,6 +132,37 @@ export function checkHousehold(body) {
   }
   if (typeof body.hasLoan !== 'boolean') {
     return 'The loan answer is missing.';
+  }
+
+  /*
+    incomeVaries is allowed to be missing, unlike the three above.
+
+    It was added after people were already using the app, so an older browser
+    tab, or anything written against the earlier API, will not send it. Treating
+    that as an error would break those callers for no good reason. Missing means
+    a steady income, which is what everybody had before the question existed.
+
+    It still has to be a real true or false when it IS sent, so a typo like the
+    string "false" is rejected rather than quietly counted as true.
+  */
+  if (body.incomeVaries !== undefined && typeof body.incomeVaries !== 'boolean') {
+    return 'The varying income answer is not in the right form.';
+  }
+
+  // Optional for the same reason: it was added after people were already using
+  // the app. Missing means not answered, which the plan treats as zero.
+  if (body.essentialCosts !== undefined) {
+    const essentialCosts = Number(body.essentialCosts);
+
+    if (!Number.isFinite(essentialCosts) || essentialCosts < 0) {
+      return 'Those living costs do not look right.';
+    }
+
+    // More going out on rent and food than comes in is a data entry mistake,
+    // not a household. Storing it would produce a plan built on nothing.
+    if (essentialCosts >= income) {
+      return 'Your living costs cannot be more than your income.';
+    }
   }
 
   return '';

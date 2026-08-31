@@ -1,6 +1,4 @@
 /*
-  validation.js
-  -------------
   Small checks that the login and signup forms need.
 
   Each function returns an error message when something is wrong, or an empty

@@ -7,8 +7,6 @@ import { payoff } from '../../lib/debt';
 import { formatRupees } from '../../lib/plan';
 
 /*
-  DebtForm
-  --------
   The form for adding a debt, and for editing one. It is the same form either
   way: when "debt" is given it starts filled in and saves changes, and when it
   is not it starts blank and adds a new one.
@@ -75,6 +73,47 @@ export default function DebtForm({ debt, onSave, onCancel }) {
       setAnnualRate(String(match.typicalRate));
     }
   };
+
+  /*
+    The preview says one of three things, worked out here so the markup below
+    stays a single line.
+
+    There are three because a loan can fail to clear in two different ways, and
+    telling somebody "your EMI is smaller than the interest" when it is not
+    would send them looking for a problem that is not there.
+  */
+  let previewMessage = null;
+
+  if (preview && preview.clears === true) {
+    previewMessage = (
+      <p className="text-[13.5px] text-ink2">
+        At that EMI this clears in{' '}
+        <span className="tnum font-semibold text-ink">{preview.months} months</span>, costing{' '}
+        <span className="tnum font-semibold text-ink">{formatRupees(preview.totalInterest)}</span>{' '}
+        in interest.
+      </p>
+    );
+  } else if (preview && preview.reason === 'interest') {
+    previewMessage = (
+      <p className="text-[13.5px] text-clay">
+        That EMI is smaller than the interest, so the balance would grow rather than
+        shrink. It needs to be at least{' '}
+        <span className="tnum font-semibold">{formatRupees(emiNumber + preview.shortfall)}</span>{' '}
+        a month.
+      </p>
+    );
+  } else if (preview) {
+    // reason === 'tooSlow'. The balance does fall, but so slowly that fifty
+    // years later there is still most of it left.
+    previewMessage = (
+      <p className="text-[13.5px] text-clay">
+        That EMI only just covers the interest, so this would take more than fifty
+        years and still leave{' '}
+        <span className="tnum font-semibold">{formatRupees(preview.remainingAfterCap)}</span>{' '}
+        owing. Raising it even a little makes a large difference here.
+      </p>
+    );
+  }
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -165,25 +204,7 @@ export default function DebtForm({ debt, onSave, onCancel }) {
       {/* The live preview. It appears as soon as the three numbers make sense. */}
       {preview ? (
         <div className="mt-6 rounded-xl border border-line bg-paperDeep px-4 py-3.5">
-          {preview.clears === true ? (
-            <p className="text-[13.5px] text-ink2">
-              At that EMI this clears in{' '}
-              <span className="tnum font-semibold text-ink">{preview.months} months</span>, costing{' '}
-              <span className="tnum font-semibold text-ink">
-                {formatRupees(preview.totalInterest)}
-              </span>{' '}
-              in interest.
-            </p>
-          ) : (
-            <p className="text-[13.5px] text-clay">
-              That EMI is smaller than the interest, so the balance would grow rather than
-              shrink. It needs to be at least{' '}
-              <span className="tnum font-semibold">
-                {formatRupees(emiNumber + preview.shortfall)}
-              </span>{' '}
-              a month.
-            </p>
-          )}
+          {previewMessage}
         </div>
       ) : null}
 

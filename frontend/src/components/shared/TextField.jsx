@@ -1,8 +1,6 @@
 import { useState } from 'react';
 
 /*
-  TextField
-  ---------
   One labelled input box, used by every form on the site.
 
   Example:
@@ -102,9 +100,9 @@ export default function TextField({
       </label>
 
       {/*
-        The border lives on this wrapper rather than on the input itself, so the
-        prefix and the Show button sit inside the same box as the text.
-        focus-within means "highlight me when anything inside me is focused".
+        The border is on this wrapper rather than the input, so the prefix and
+        the Show button sit inside the same box as the text. focus-within means
+        "highlight me when anything inside me is focused".
       */}
       <div className={'flex items-center gap-3 rounded-xl border bg-surface px-4 transition-colors duration-300 ' + borderStyles}>
         {prefixText}

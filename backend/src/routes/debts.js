@@ -1,18 +1,16 @@
 import express from 'express';
-import db from '../db.js';
+import db from '../database/db.js';
 import { requireUser } from '../lib/sessions.js';
 
 /*
-  routes/debts.js
-  ---------------
     GET    /api/debts      list mine
     POST   /api/debts      add one
     PUT    /api/debts/:id  change one
     DELETE /api/debts/:id  remove one
 
-  Every query below filters on user_id from the session cookie, never from
-  anything the browser sent. That single habit is what stops somebody reading
-  another person's debts by changing the number in the URL.
+  Every query filters on user_id from the session cookie, never on anything the
+  browser sent. That is what stops somebody reading another person's debts by
+  changing the number in the URL.
 */
 
 const router = express.Router();
@@ -36,10 +34,10 @@ function publicDebt(row) {
 /*
   Checks one debt. Returns an error message, or an empty string.
 
-  The interesting rule is the last one. An EMI smaller than the monthly interest
-  means the balance grows every month and the loan never clears. That is a real
-  situation for somebody paying the minimum on a credit card, but it is almost
-  always a typo when entering a loan, so we refuse it and explain why.
+  The last rule: an EMI smaller than the monthly interest means the balance
+  grows every month and the loan never clears. That happens for real on a credit
+  card minimum payment, but when entering a loan it is almost always a typo, so
+  we refuse it and say why.
 */
 function checkDebt(body) {
   if (typeof body.name !== 'string' || body.name.trim().length === 0) {
@@ -132,13 +130,9 @@ router.put('/:id', requireUser, (req, res) => {
     return res.status(400).json({ error });
   }
 
-  /*
-    Note the "AND user_id = ?" on the update.
-
-    Without it, anybody could edit any debt in the database by guessing an id.
-    Putting the ownership check into the query itself, rather than fetching the
-    row and checking it in JavaScript, means it cannot be forgotten.
-  */
+  // The "AND user_id = ?" is what stops anyone editing any debt by guessing an
+  // id. Putting the ownership check in the query, rather than fetching the row
+  // and checking it in JavaScript, means it cannot be forgotten.
   const result = db.prepare(`
     UPDATE debts
     SET name = ?, kind = ?, principal = ?, annual_rate = ?, emi = ?, updated_at = ?
@@ -154,8 +148,8 @@ router.put('/:id', requireUser, (req, res) => {
     req.user.id,
   );
 
-  // "changes" is how many rows were altered. Zero means there was no such debt
-  // belonging to this person, so 404 is the honest answer.
+  // changes is how many rows were altered. Zero means no such debt belongs to
+  // this person, so 404 is the honest answer.
   if (result.changes === 0) {
     return res.status(404).json({ error: 'No such debt.' });
   }

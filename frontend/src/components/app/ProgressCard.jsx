@@ -1,8 +1,6 @@
 import { formatRupees } from '../../lib/plan';
 
 /*
-  ProgressCard
-  ------------
   A small card showing how the month is going: a bar for the savings goal and a
   row of marks for the streak.
 

@@ -1,18 +1,19 @@
 /*
-  global.css
-  ----------
   Three things live in this file:
 
-  1. The font imports.
-  2. Base rules that apply to the whole document.
-  3. A handful of reusable classes that were easier to write here than in Tailwind,
-     usually because they need a pseudo-element like ::before or ::after.
+  1. Base rules that apply to the whole document.
+  2. A handful of reusable classes that were easier to write here than in
+     Tailwind, usually because they need a pseudo-element like ::before.
 
-  Everything else, all the colours and spacing, is in tailwind.config.js.
+  Everything else, all the colours and spacing, is in tailwind.config.js. The
+  fonts are requested in index.html.
 */
 
-/* Instrument Serif is the elegant font used for headings, Inter is for everything else. */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700&family=Instrument+Serif:ital@0;1&display=swap');
+/*
+  The fonts are requested in index.html rather than here. An @import at the top
+  of this file would not be found until the browser had already downloaded and
+  parsed the whole stylesheet, which delays every heading on the page.
+*/
 
 /* These three lines pull in Tailwind. Do not remove them. */
 @tailwind base;

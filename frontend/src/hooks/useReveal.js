@@ -1,30 +1,24 @@
 import { useEffect, useRef, useState } from 'react';
 
 /*
-  Has the person asked their computer to reduce animations?
-  Some people turn this on because motion makes them feel unwell, so we respect
-  it by showing everything straight away instead of fading it in.
+  Has the person asked their computer to reduce animations? Some turn this on
+  because motion makes them feel unwell, so we show everything straight away
+  instead of fading it in.
 */
 function prefersNoMotion() {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
 /*
-  useReveal
-  ---------
-  A small custom hook that answers one question:
-  "has this element been scrolled into view yet?"
-
-  How to use it:
+  A hook that answers one question: has this element been scrolled into view?
 
     const [boxRef, isVisible] = useReveal();
-    return <div ref={boxRef}>{isVisible ? 'you can see me' : 'not yet'}</div>;
 
-  You attach the ref to an element, and isVisible turns true the first time that
-  element scrolls onto the screen. We use it to fade sections in as you scroll.
+  Attach the ref to an element and isVisible turns true the first time it
+  scrolls onto the screen. Used to fade sections in.
 
-  It only ever flips from false to true once. Content that re-animates every time
-  you scroll past it gets annoying very quickly.
+  It flips from false to true once and stays there. Content that re-animates
+  every time you scroll past it gets annoying.
 */
 export default function useReveal() {
   // A ref is just a box that holds a value. React puts the real DOM element
@@ -44,9 +38,8 @@ export default function useReveal() {
       return;
     }
 
-    // IntersectionObserver is a browser tool that tells us when an element
-    // enters the visible part of the page. It is much cheaper than checking
-    // the scroll position on every single scroll event.
+    // IntersectionObserver tells us when an element enters the visible part of
+    // the page. Much cheaper than checking scroll position on every event.
     const observer = new IntersectionObserver((entries) => {
       const entry = entries[0];
 
@@ -60,8 +53,8 @@ export default function useReveal() {
 
     observer.observe(element);
 
-    // React runs this clean-up function when the component is removed,
-    // which stops the observer from leaking memory.
+    // React runs this when the component is removed, so the observer does not
+    // leak memory.
     return () => {
       observer.disconnect();
     };

@@ -1,13 +1,11 @@
 /*
-  Eyebrow
-  -------
-  The small grey label that sits above a section heading, like:
+  The small grey label above a section heading:
 
       ---- THE PROBLEM
       The money leaves before the advice arrives.
 
-  The short line to its left is drawn in CSS, not here. Look for ".eyebrow"
-  in src/styles/global.css if you want to change how it looks.
+  The short line to its left is drawn by the ".eyebrow" class in
+  src/styles/global.css.
 */
 export default function Eyebrow({ children }) {
   return <span className="eyebrow">{children}</span>;

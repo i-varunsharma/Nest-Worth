@@ -4,8 +4,6 @@ import Reveal from '../shared/Reveal';
 import useReveal from '../../hooks/useReveal';
 
 /*
-  HowItWorks
-  ----------
   Three numbered steps down the right hand side, with a thin line running
   through the numbers. Each number turns green as you scroll down to it.
 */
@@ -22,15 +20,17 @@ const steps = [
     aside: 'No black box',
     title: 'Get a plan with its reasoning',
     text:
-      'A spend, save and invest split built from what is genuinely left after your household. '
-      + 'Every number arrives with the sentence that produced it, and you can ask why on any of them.',
+      'A spend, save and invest split built from what is genuinely left after your household, '
+      + 'with the sentence that produced it sitting next to the numbers. It names the debt it '
+      + 'wants cleared first, and the rate that made it choose that one.',
   },
   {
-    aside: 'Motivation by design',
+    aside: 'Built to be revisited',
     title: 'Watch it compound',
     text:
-      'Progress against the plan, a nudge when a priority changes, and a projection of what '
-      + 'today’s decision is worth in fifteen years. Built to keep you consistent, not impressed.',
+      'Record what actually happened each month and compare it against what the plan said. '
+      + 'Underneath, a projection of what today’s decision is worth in fifteen years. Built to '
+      + 'keep you consistent, not impressed.',
   },
 ];
 

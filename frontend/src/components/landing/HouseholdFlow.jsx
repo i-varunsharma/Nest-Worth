@@ -5,8 +5,6 @@ import useReveal from '../../hooks/useReveal';
 import { buildPlan, formatRupees } from '../../lib/plan';
 
 /*
-  HouseholdFlow
-  -------------
   The "where does the money actually go" section.
 
   It reads the same household the hero planner is using, so if the reader moved

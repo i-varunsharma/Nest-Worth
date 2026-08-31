@@ -1,29 +1,23 @@
 import { useEffect, useRef, useState } from 'react';
 
 /*
-  GoogleButton
-  ------------
   "Continue with Google", for real.
 
-  How the whole thing works, end to end:
+  How it works:
 
     1. index.html loads Google's script, which puts a "google" object on window.
-    2. We tell it our client id and give it a function to call when somebody
-       signs in.
+    2. We give it our client id and a function to call when somebody signs in.
     3. It draws its own button. When pressed, Google opens its window, the
        person picks an account, and Google calls our function with a token.
-    4. We hand that token to our server, which asks Google whether it is
-       genuine before believing a word of it.
+    4. We send that token to our server, which asks Google whether it is genuine.
 
-  Step 4 is the one that matters. The token is just text arriving from a
-  browser, and anybody can send our server made-up text. Only Google can say
-  whether a token is really theirs, which is why the server checks rather than
-  trusting what it was handed.
+  Step 4 is the one that matters. The token is text arriving from a browser and
+  anybody can send made-up text, so only Google can say whether it is really
+  theirs.
 
-  Why Google's own button rather than ours: this flow only hands out a token
-  through a button Google itself draws. Faking a click on a hidden one is
-  against their terms and breaks without warning. Their button is configurable
-  enough to sit comfortably in our design.
+  We use Google's own button because this flow only hands out a token through a
+  button they draw. Faking a click on a hidden one breaks their terms and stops
+  working without warning.
 
   Props:
     onCredential - called with the token string once Google returns one
@@ -53,19 +47,17 @@ export default function GoogleButton({ onCredential }) {
   });
 
   /*
-    Keep the newest onCredential in a box.
+    Keeps the newest onCredential in a box.
 
-    The effect below runs once, but the function it was given could be replaced
-    on any later render. Reading it out of a ref means Google always calls the
-    current one, without having to tear down and rebuild the button every time
-    the page re-renders.
+    The effect below runs once, but the function it was given can be replaced on
+    any later render. Reading it from a ref means Google always calls the
+    current one without rebuilding the button on every render.
   */
   const callbackRef = useRef(onCredential);
 
-  // Updating the box has to happen in an effect, not while rendering. React
-  // treats rendering as something it may run more than once or throw away, so
-  // changing anything outside the component during it is a bug waiting to
-  // happen. This effect has no dependency list, so it runs after every render.
+  // Updating the box happens in an effect, not while rendering. React may run
+  // a render more than once or throw it away, so changing anything outside the
+  // component during one is unsafe. No dependency list means every render.
   useEffect(() => {
     callbackRef.current = onCredential;
   });
@@ -81,12 +73,10 @@ export default function GoogleButton({ onCredential }) {
     let tries = 0;
 
     /*
-      Google's script is loaded with "async", so it may not have arrived yet
-      when this component first appears. We look every tenth of a second until
-      it turns up, and give up after four seconds.
-
-      Waiting like this is not elegant, but it is honest: we do not control when
-      an outside script finishes loading, and the alternatives are worse.
+      Google's script is loaded with "async", so it may not have arrived when
+      this component first appears. We check every tenth of a second and give
+      up after four seconds. We do not control when an outside script finishes
+      loading, so there is no better signal to wait on.
     */
     const setUpButton = () => {
       if (cancelled === true) {
@@ -117,8 +107,8 @@ export default function GoogleButton({ onCredential }) {
         },
       });
 
-      // Match the button to the width of the column it sits in, so it lines up
-      // with the form below it on a phone as well as on a monitor.
+      // Match the width of the column it sits in, so it lines up with the form
+      // below on a phone as well as a monitor.
       let width = 380;
       if (containerRef.current && containerRef.current.offsetWidth > 0) {
         width = Math.round(containerRef.current.offsetWidth);

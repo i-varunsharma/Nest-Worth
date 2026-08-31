@@ -2,8 +2,6 @@ import Container from '../shared/Container';
 import Reveal from '../shared/Reveal';
 
 /*
-  CompareStrip
-  ------------
   The dark slab. Two columns: what other apps do on the left, what we do on the
   right. The dark background gives the page a change of pace after three pale
   sections in a row.
