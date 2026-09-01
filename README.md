@@ -41,8 +41,8 @@ Open <http://localhost:5173> and create an account.
 To run the tests:
 
 ```bash
-cd backend  && npm test    # 67 tests: the API, sessions, rate limiting, the coach
-cd frontend && npm test    # 57 tests: the money maths, and the components
+cd backend  && npm test    # 85 tests: the API, sessions, rate limiting, the coach and its tools
+cd frontend && npm test    # 59 tests: the money maths, and the components
 ```
 
 To look at what the app has stored:
@@ -123,7 +123,7 @@ Nest-Worth/
 │       │   └── debt.js, goals.js, networth.js, plan.js
 │       │                     one line each, re-exporting shared/ below
 │       ├── components/
-│       │   ├── shared/       Button, TextField and friends. Used everywhere
+│       │   ├── shared/       Button, TextField, ErrorBoundary. Used everywhere
 │       │   ├── layout/       navbar and footer
 │       │   ├── landing/      the marketing page
 │       │   ├── auth/         sign-in screens
@@ -222,6 +222,11 @@ These are the parts worth being able to explain out loud.
   frontend code is a key anybody can read in their browser and spend money with.
   The AI route is rate limited to 20 questions an hour per person, because it is
   the only route in the app that costs real money to answer.
+- **A session that ends mid-use sends you to the login screen.** `requireUser`
+  answers with a `no_session` code, which is what the browser reacts to rather
+  than the bare 401. That distinction matters: a wrong password and a wrong
+  one-time code are also 401s, and bouncing somebody to the login screen for
+  mistyping a code would be worse than the dead end it fixes.
 - **The AI cannot reach another person's money.** Every calculation it can run
   takes the user id from the session cookie; not one of them accepts an argument
   naming a person. The conversation the browser sends back is rebuilt from

@@ -75,11 +75,12 @@ export function createApp() {
     arguments, and this is it. The real error goes to our terminal; the browser
     gets a plain message, because stack traces help whoever is attacking you.
 
-    "next" is unused but has to stay. Express counts the arguments to decide
-    this is an error handler, and with three it becomes ordinary middleware
-    that never runs.
+    The fourth argument has to stay even though nothing uses it. Express counts
+    the arguments to decide this is an error handler, and with three it becomes
+    ordinary middleware that never runs. The underscore is the usual way of
+    saying "deliberately unused", and it is what stops the linter flagging it.
   */
-  app.use((error, req, res, next) => {
+  app.use((error, req, res, _next) => {
     console.error('Unhandled error:', error);
     res.status(500).json({ error: 'Something went wrong on our side.' });
   });

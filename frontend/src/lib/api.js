@@ -31,7 +31,40 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
   "field" is optional. When the server knows which input caused the problem, the
   page can put the message under that box.
 */
-async function request(path, method, body) {
+/*
+  What to do when a session ends in the middle of using the app.
+
+  RequireAuth checks who is signed in when a page loads, so a session that had
+  already ended never gets that far. The gap is one that ends WHILE the page is
+  open: a tab left overnight, or the API restarted underneath you. The next
+  thing you click comes back 401, and without this the page showed "Please sign
+  in first" as a dead end with no way to reach the login screen.
+
+  It reacts to the server's "no_session" code rather than to the 401 on its own,
+  and that distinction matters. A wrong password and a wrong one-time code are
+  also 401s, and sending somebody to the login screen because they mistyped a
+  code on the signup page would be worse than the problem being fixed.
+
+  It is a full page load rather than a router navigation on purpose. Whatever
+  state the page was holding belongs to a session that no longer exists.
+
+  The check for where we already are stops a loop.
+*/
+function goToLoginAfterSessionEnded() {
+  const alreadyThere = window.location.pathname === '/login';
+
+  if (alreadyThere === false) {
+    window.location.href = '/login';
+  }
+}
+
+
+/*
+  The main helper. isAuthCheck marks the one call that is ALLOWED to be told
+  there is no session without it meaning anything went wrong: me(), whose whole
+  job is asking whether anybody is signed in.
+*/
+async function request(path, method, body, isAuthCheck) {
   try {
     const options = {
       method: method,
@@ -50,6 +83,10 @@ async function request(path, method, body) {
     // response.ok covers 200 to 299. Anything else is a refusal, and the
     // server will have said why.
     if (!response.ok) {
+      if (data.code === 'no_session' && isAuthCheck !== true) {
+        goToLoginAfterSessionEnded();
+      }
+
       return {
         ok: false,
         error: data.error || 'Something went wrong. Please try again.',
@@ -89,7 +126,9 @@ export function logout() {
 
 /* Who is signed in? Called by every protected page when it loads. */
 export function me() {
-  return request('/api/auth/me', 'GET');
+  // The true marks this as the auth check, so a 401 here means "nobody is
+  // signed in" rather than "your session just ended". See request() above.
+  return request('/api/auth/me', 'GET', undefined, true);
 }
 
 
@@ -315,8 +354,14 @@ export async function askCoach(question, history, onEvent) {
 
     try {
       const data = await response.json();
+
       if (data.error) {
         message = data.error;
+      }
+
+      // The same session check the rest of this file does. See request() above.
+      if (data.code === 'no_session') {
+        goToLoginAfterSessionEnded();
       }
     } catch {
       // The server sent something that is not JSON. The default line above
