@@ -1,8 +1,10 @@
 import db from '../database/db.js';
+import { bestAndWorstMonth, monthlyTrend, overallSummary } from './insights.js';
 import { buildPlan, bucketAmount, formatRupees } from '../../../shared/plan.js';
 import { extraPaymentEffect, formatDuration, formatMonthYear, payoff } from '../../../shared/debt.js';
 import { safetyNet, summariseGoals } from '../../../shared/goals.js';
 import { summariseNetWorth } from '../../../shared/networth.js';
+import { buildScenarios } from '../../../shared/scenarios.js';
 
 /*
   The things Claude is allowed to work out for itself.
@@ -366,6 +368,180 @@ const TOOLS = {
 
       if (summary.overdueCount > 0) {
         lines.push(summary.overdueCount + ' of them are past their date.');
+      }
+
+      return lines.join('\n');
+    },
+  },
+
+
+  compare_plans: {
+    description:
+      'Play out several different ways this person could use the same money, fifteen years '
+      + 'each, and return where every one of them lands. Use this whenever they ask what they '
+      + 'SHOULD do, which choice is better, whether to clear debt or invest, or any question '
+      + 'that is really a comparison between options. Each plan comes back with what it does '
+      + 'to their monthly split, when the debt clears, how much emergency cover it builds, and '
+      + 'what the investing is worth after fifteen years. Recommend one and say what it costs.',
+    input_schema: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+    describe: () => {
+      return 'Comparing your options';
+    },
+    run: (userId) => {
+      const household = readHousehold(userId);
+      const debts = readDebts(userId);
+
+      const assetRows = db.prepare('SELECT * FROM assets WHERE user_id = ?').all(userId);
+      const assets = assetRows.map((row) => {
+        return { name: row.name, kind: row.kind, value: row.value };
+      });
+
+      const netWorth = summariseNetWorth(assets, debts);
+      const plan = planFor(userId, null);
+
+      const monthlyCosts = bucketAmount(plan, 'spend') + plan.support + plan.emi;
+
+      const safety = safetyNet(
+        netWorth.liquidAssets,
+        monthlyCosts,
+        household.dependents,
+        household.income_varies === 1,
+      );
+
+      const plans = buildScenarios({
+        household: {
+          income: household.income,
+          dependents: household.dependents,
+          hasLoan: debts.length > 0,
+          incomeVaries: household.income_varies === 1,
+          essentialCosts: household.essential_costs,
+        },
+        debts: debts,
+        liquidSavings: netWorth.liquidAssets,
+        monthsTarget: safety.monthsTarget,
+        monthlyCosts: monthlyCosts,
+      });
+
+      const lines = [];
+
+      lines.push('Every plan below uses the same ' + formatRupees(household.income)
+        + ' a month. They differ only in how it is split.');
+      lines.push('');
+
+      plans.forEach((one) => {
+        const a = one.allocation;
+        const o = one.outcomes;
+
+        lines.push(one.name.toUpperCase());
+        lines.push('  ' + one.idea);
+        lines.push('  Monthly: spend ' + formatRupees(a.spend)
+          + ', save ' + formatRupees(a.save)
+          + ', invest ' + formatRupees(a.invest)
+          + ', extra at debt ' + formatRupees(a.extraToDebt) + '.');
+
+        if (o.debtFreeMonths === null) {
+          lines.push('  Debt: does not clear within fifteen years.');
+        } else if (o.debtFreeMonths > 0) {
+          lines.push('  Debt free in ' + formatDuration(o.debtFreeMonths)
+            + ', by ' + formatMonthYear(o.debtFreeDate) + '.');
+        } else {
+          lines.push('  No debt to clear.');
+        }
+
+        lines.push('  Emergency cover after a year: ' + o.monthsCoveredInAYear
+          + ' months, against a target of ' + safety.monthsTarget + '.');
+        lines.push('  After fifteen years they would have '
+          + formatRupees(o.totalAfterYears) + ' in total: '
+          + formatRupees(o.valueAfterYears) + ' invested and '
+          + formatRupees(o.cashAfterYears) + ' held as cash.');
+        lines.push('');
+      });
+
+      lines.push('These are on the Plans page in the app, with charts, if they want to '
+        + 'look at them properly.');
+
+      return lines.join('\n');
+    },
+  },
+
+
+  spending_trend: {
+    description:
+      'Look at what actually happened over the recorded months, rather than what the plan '
+      + 'says should happen. Use this for any question about habits, consistency, whether '
+      + 'things are getting better or worse, or how a recent month compares with the usual. '
+      + 'Returns each month, the share of income kept, the running total kept, and the best '
+      + 'and worst months.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        months: {
+          type: 'number',
+          description: 'How many of the most recent months to describe. Defaults to 6.',
+        },
+      },
+      required: [],
+    },
+    describe: () => {
+      return 'Looking at your recent months';
+    },
+    run: (userId, input) => {
+      const summary = overallSummary(userId);
+
+      if (summary.monthsRecorded === 0) {
+        return 'This person has not recorded any months yet, so there is no history to look at. '
+          + 'Suggest they record one.';
+      }
+
+      let howMany = 6;
+      if (Number.isFinite(Number(input.months)) && Number(input.months) > 0) {
+        howMany = Math.min(Math.round(Number(input.months)), 24);
+      }
+
+      const everything = monthlyTrend(userId);
+      const recent = everything.slice(Math.max(everything.length - howMany, 0));
+
+      const lines = [];
+
+      lines.push('Across ' + summary.monthsRecorded + ' recorded months they kept '
+        + formatRupees(summary.totalKept) + ' in total, averaging '
+        + summary.averageKeptPercent + '% of income.');
+      lines.push('');
+
+      recent.forEach((month) => {
+        let line = '- ' + month.month + ': earned ' + formatRupees(month.income)
+          + ', kept ' + formatRupees(month.kept);
+
+        // Null rather than zero, for a month with no income at all.
+        if (month.keptPercent !== null) {
+          line = line + ' (' + month.keptPercent + '%)';
+        } else {
+          line = line + ' (no income that month)';
+        }
+
+        if (month.changeFromLastMonth !== null) {
+          if (month.changeFromLastMonth > 0) {
+            line = line + ', ' + formatRupees(month.changeFromLastMonth) + ' more than the month before';
+          } else if (month.changeFromLastMonth < 0) {
+            line = line + ', ' + formatRupees(Math.abs(month.changeFromLastMonth))
+              + ' less than the month before';
+          }
+        }
+
+        lines.push(line);
+      });
+
+      const extremes = bestAndWorstMonth(userId);
+
+      if (extremes.best && extremes.worst) {
+        lines.push('');
+        lines.push('Best month: ' + extremes.best.month + ' at ' + extremes.best.keptPercent + '%.');
+        lines.push('Worst month: ' + extremes.worst.month + ' at ' + extremes.worst.keptPercent + '%.');
+        lines.push('Months with no income at all are left out of best and worst.');
       }
 
       return lines.join('\n');

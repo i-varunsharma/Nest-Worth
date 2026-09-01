@@ -8,7 +8,11 @@ import goalRoutes from './routes/goals.js';
 import assetRoutes from './routes/assets.js';
 import checkinRoutes from './routes/checkins.js';
 import adviceRoutes from './routes/advice.js';
+import insightRoutes from './routes/insights.js';
+import scenarioRoutes from './routes/scenarios.js';
 import { attachUser } from './lib/sessions.js';
+import { log, requestLogger, safeForLogging } from './lib/logger.js';
+import { isDatabaseHealthy } from './database/db.js';
 
 /*
   Builds the Express app and returns it. server.js is what opens a port.
@@ -34,6 +38,15 @@ export function createApp() {
     through but the session cookie is left behind, and the login never sticks.
     It cannot be used with origin: '*', which is why one exact address is named.
   */
+  /*
+    The logger goes first, before anything can refuse a request.
+
+    Order matters here more than it looks. Below CORS, a request rejected by
+    CORS would never be logged, and "the browser says CORS but the server shows
+    nothing" is one of the harder afternoons in web development.
+  */
+  app.use(requestLogger);
+
   app.use(cors({
     origin: CLIENT_ORIGIN,
     credentials: true,
@@ -59,10 +72,36 @@ export function createApp() {
   app.use('/api/assets', assetRoutes);
   app.use('/api/checkins', checkinRoutes);
   app.use('/api/advice', adviceRoutes);
+  app.use('/api/insights', insightRoutes);
+  app.use('/api/scenarios', scenarioRoutes);
 
-  // Handy for checking the server is up without opening the app.
+  /*
+    Is this server actually working?
+
+    It used to answer ok: true without checking anything, which meant it stayed
+    green while the database was missing. A health check that cannot go red is
+    decoration: the whole point is that something watching it restarts the
+    server or stops sending it traffic, and it can only do that if the check
+    tells the truth.
+
+    So it runs a real query. 503 means "up but not able to work", which is the
+    honest answer and the one a load balancer knows how to act on.
+  */
   app.get('/api/health', (req, res) => {
-    res.json({ ok: true, time: new Date().toISOString() });
+    const databaseOk = isDatabaseHealthy();
+
+    const body = {
+      ok: databaseOk,
+      database: databaseOk ? 'up' : 'down',
+      uptimeSeconds: Math.round(process.uptime()),
+      time: new Date().toISOString(),
+    };
+
+    if (databaseOk === false) {
+      return res.status(503).json(body);
+    }
+
+    return res.json(body);
   });
 
   // Anything that reached here is a typo in a URL.
@@ -81,8 +120,27 @@ export function createApp() {
     saying "deliberately unused", and it is what stops the linter flagging it.
   */
   app.use((error, req, res, _next) => {
-    console.error('Unhandled error:', error);
-    res.status(500).json({ error: 'Something went wrong on our side.' });
+    /*
+      The request id ties this to the line the logger already wrote for the
+      same request, so a stack trace and its timing are findable together.
+
+      It goes back to the browser too. "Something went wrong" is useless in a
+      bug report; "something went wrong, reference 4f2a9c1b" is a line you can
+      search the logs for.
+    */
+    log('error', 'Unhandled error', {
+      id: req.id,
+      path: req.originalUrl,
+      message: error.message,
+      body: JSON.stringify(safeForLogging(req.body)),
+    });
+
+    console.error(error);
+
+    res.status(500).json({
+      error: 'Something went wrong on our side.',
+      requestId: req.id,
+    });
   });
 
   return app;

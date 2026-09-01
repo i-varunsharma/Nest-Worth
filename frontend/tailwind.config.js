@@ -55,6 +55,47 @@ export default {
 
         // ---- The dark sections ----
         night: '#14120F',
+
+        /*
+          ---- Chart colours ----
+
+          The colours above were chosen to be READ: headings, borders, a button.
+          A chart needs something different from a colour, which is to be told
+          apart from the colour next to it, including by somebody who cannot
+          distinguish red from green. Around one man in twelve cannot.
+
+          So these are not reused UI colours. They sit on the same hues as the
+          theme, evergreen and brass, lifted into the lightness and saturation
+          band where they stay separable, and they were checked with a validator
+          rather than by eye. Dropping "accent" into a chart looks right on this
+          screen and collapses into the gold beside it under colourblindness.
+
+          There are three, and only three, because three is what the money can
+          actually be divided into once it is yours: spent, saved, invested.
+          Everything before that is chartCommitted, which is deliberately a
+          quiet grey rather than a fourth colour: it is not a choice you make,
+          it is the part that has already gone, and giving it a hue would make
+          it compete with the parts you can do something about.
+        */
+        chartSpend: '#3275B4',      // a cool slate, the counterweight to the warm page
+        chartSave: '#B07A00',       // the theme's brass, deepened for a chart
+        chartInvest: '#007654',     // the theme's evergreen, lifted for a chart
+        chartCommitted: '#CFC6B8',  // already spoken for. Context, not a choice.
+
+        /*
+          One hue, light to dark, for when the message is "how much" rather than
+          "which one". Used for the safety-net meter. The lightest step is not as
+          pale as it could be, because it has to stay visible against a white
+          card, which is what a decorative tint would fail to do.
+        */
+        chartRamp1: '#80B9A1',
+        chartRamp2: '#439C7B',
+        chartRamp3: '#007C5A',
+        chartRamp4: '#005E40',
+
+        // The de-emphasis grey. Every scenario except the one being looked at
+        // is drawn in this, so the eye lands on one line rather than four.
+        chartMuted: '#C8BFB2',
       },
 
       fontFamily: {

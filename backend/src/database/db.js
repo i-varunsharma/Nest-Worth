@@ -135,4 +135,73 @@ function deleteExpiredRows() {
 
 deleteExpiredRows();
 
+
+/*
+  Is the database actually usable right now?
+
+  Used by the health check. It runs a real query rather than checking a flag,
+  because the interesting failures are the ones a flag would miss: the file
+  deleted underneath a running server, a disk that has filled up, permissions
+  changed. In every one of those the connection object still looks perfectly
+  healthy and the first real query throws.
+
+  The query is deliberately trivial. This is asking "can you answer at all",
+  not "are you fast", and a health check that does real work becomes a way to
+  put a struggling server under more load at exactly the wrong moment.
+*/
+export function isDatabaseHealthy() {
+  try {
+    db.prepare('SELECT 1').get();
+    return true;
+  } catch (error) {
+    console.error('Database health check failed:', error.message);
+    return false;
+  }
+}
+
+
+/*
+  Runs several statements as one all-or-nothing unit.
+
+    const move = inTransaction((from, to, amount) => {
+      takeFrom(from, amount);
+      giveTo(to, amount);
+    });
+
+  Without this, a crash between two writes leaves the database in a state that
+  should never have existed: the money taken out of one place and never put into
+  the other. A transaction means the database either applies every statement or
+  none of them, so there is no halfway.
+
+  better-sqlite3 does the work; this wraps it so there is one obvious place to
+  find the explanation. Two things it does that are easy to miss:
+
+  It rolls back automatically. If the function throws, everything the function
+  did is undone and the error carries on up to the caller. There is no need to
+  remember a rollback, which is the step people forget.
+
+  It is synchronous, and it has to be. Nothing inside may await. SQLite holds
+  the write lock for the whole transaction, and an await would hand control back
+  to Node in the middle of it, letting another request try to write while this
+  one is halfway done.
+*/
+export function inTransaction(work) {
+  return db.transaction(work);
+}
+
+
+/*
+  Closes the database cleanly. Called on the way down. See server.js.
+
+  SQLite is running in WAL mode, which means recent writes live in a separate
+  -wal file until they are folded back into the main one. Closing properly does
+  that folding. Killing the process instead leaves the -wal file behind: not
+  lost, because SQLite recovers it on the next open, but the next start is
+  slower and a copy of the .db file taken in that state is incomplete.
+*/
+export function closeDatabase() {
+  db.close();
+}
+
+
 export default db;

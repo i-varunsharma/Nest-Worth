@@ -82,7 +82,7 @@ db.prepare(`
 test('every tool is described well enough for Claude to choose it', () => {
   const tools = toolDefinitions();
 
-  assert.equal(tools.length, 4);
+  assert.equal(tools.length, 6);
 
   for (const tool of tools) {
     assert.ok(tool.name.length > 0);

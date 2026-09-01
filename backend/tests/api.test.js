@@ -751,3 +751,128 @@ test('the coach ignores rubbish in the conversation history', async () => {
 
   assert.ok(body.includes('"type":"done"'), body);
 });
+
+
+// ---------------------------------------------------------------
+// Insights: the reporting endpoint
+// ---------------------------------------------------------------
+
+test('insights needs a session', async () => {
+  const result = await call('GET', '/api/insights');
+
+  assert.equal(result.status, 401);
+  assert.equal(result.data.code, 'no_session');
+});
+
+
+test('insights returns every section for a brand new account', async () => {
+  // Somebody who signed up a minute ago has no check-ins, no debts and no
+  // assets. Every section still has to be present, because the page reads all
+  // of them and a missing one is a crash rather than a blank.
+  const account = await makeAccount();
+
+  const result = await call('GET', '/api/insights', { cookie: account.cookie });
+
+  assert.equal(result.status, 200);
+
+  const insights = result.data.insights;
+
+  assert.equal(insights.summary.monthsRecorded, 0);
+  assert.deepEqual(insights.months, []);
+  assert.equal(insights.bestMonth, null);
+  assert.deepEqual(insights.debtsByKind, []);
+  assert.deepEqual(insights.assetsByKind, []);
+});
+
+
+test('insights adds up what was actually saved through the API', async () => {
+  /*
+    This goes the whole way through: two months recorded over HTTP, then read
+    back as a report. The unit tests check the SQL; this checks that the SQL is
+    wired to the route and reading the right person's rows.
+  */
+  const account = await makeAccount();
+
+  await call('POST', '/api/checkins', {
+    cookie: account.cookie,
+    body: { month: '2026-07', income: 50000, spent: 35000, saved: 10000, invested: 5000 },
+  });
+
+  await call('POST', '/api/checkins', {
+    cookie: account.cookie,
+    body: { month: '2026-08', income: 50000, spent: 30000, saved: 12000, invested: 8000 },
+  });
+
+  const result = await call('GET', '/api/insights', { cookie: account.cookie });
+  const insights = result.data.insights;
+
+  assert.equal(insights.summary.monthsRecorded, 2);
+  assert.equal(insights.summary.totalKept, 15000 + 20000);
+
+  // The running total, built by the window function, oldest month first.
+  assert.equal(insights.months[0].month, '2026-07');
+  assert.equal(insights.months[0].keptRunningTotal, 15000);
+  assert.equal(insights.months[1].keptRunningTotal, 35000);
+
+  // 30% and 40%, so the better month wins.
+  assert.equal(insights.bestMonth.month, '2026-08');
+  assert.equal(insights.worstMonth.month, '2026-07');
+});
+
+
+test('one person’s insights never include another person’s money', async () => {
+  /*
+    The rule the whole API is built on, checked once more on the newest
+    endpoint. There is deliberately no /api/insights/:userId: the id comes from
+    the session cookie, so there is nothing in the request to tamper with.
+  */
+  const rich = await makeAccount();
+  const poor = await makeAccount();
+
+  await call('POST', '/api/checkins', {
+    cookie: rich.cookie,
+    body: { month: '2026-08', income: 900000, spent: 100000, saved: 400000, invested: 400000 },
+  });
+
+  const result = await call('GET', '/api/insights', { cookie: poor.cookie });
+
+  assert.equal(result.data.insights.summary.monthsRecorded, 0);
+  assert.equal(result.data.insights.summary.totalIncome, 0);
+});
+
+
+// ---------------------------------------------------------------
+// The operational bits
+// ---------------------------------------------------------------
+
+test('health says whether the database is actually reachable', async () => {
+  // It used to answer ok: true without checking anything, which meant it stayed
+  // green while the database was missing. A health check that cannot go red is
+  // decoration.
+  const result = await call('GET', '/api/health');
+
+  assert.equal(result.status, 200);
+  assert.equal(result.data.ok, true);
+  assert.equal(result.data.database, 'up');
+  assert.equal(typeof result.data.uptimeSeconds, 'number');
+});
+
+
+test('every response carries a request id', async () => {
+  /*
+    One request can produce several log lines, and several requests can be in
+    flight at once. The id is what ties them together, and sending it back means
+    somebody reporting a problem can name the exact request rather than a
+    rough time.
+  */
+  const response = await fetch(BASE + '/api/health');
+  const id = response.headers.get('x-request-id');
+
+  assert.ok(id, 'no X-Request-Id header');
+  assert.match(id, /^[0-9a-f]+$/);
+
+  // A different request gets a different id, or it is not identifying anything.
+  const second = await fetch(BASE + '/api/health');
+
+  assert.notEqual(second.headers.get('x-request-id'), id);
+});

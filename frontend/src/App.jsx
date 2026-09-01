@@ -6,6 +6,7 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import OnboardingPage from './pages/OnboardingPage';
 import DashboardPage from './pages/DashboardPage';
+import PlansPage from './pages/PlansPage';
 import DebtsPage from './pages/DebtsPage';
 import GoalsPage from './pages/GoalsPage';
 import NetWorthPage from './pages/NetWorthPage';
@@ -30,6 +31,7 @@ import RequireAuth from './components/auth/RequireAuth';
   Only when signed in:
     /onboarding   the questions everything else is built from
     /dashboard    the overview
+    /plans        the same money spent several ways, and where each one lands
     /debts        every debt, with payoff dates and the extra-payment slider
     /goals        what you are saving for, and what each costs per month
     /net-worth    what you own against what you owe
@@ -70,6 +72,7 @@ export default function App() {
 
         <Route path="/onboarding" element={privateRoute(OnboardingPage)} />
         <Route path="/dashboard" element={privateRoute(DashboardPage)} />
+        <Route path="/plans" element={privateRoute(PlansPage)} />
         <Route path="/debts" element={privateRoute(DebtsPage)} />
         <Route path="/goals" element={privateRoute(GoalsPage)} />
         <Route path="/net-worth" element={privateRoute(NetWorthPage)} />
