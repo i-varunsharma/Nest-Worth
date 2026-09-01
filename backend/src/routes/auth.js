@@ -63,7 +63,8 @@ const HASH_ROUNDS = 12;
   or six times, but nobody types twelve in a minute.
 */
 
-// Signing in, the one most worth attacking.
+// Signing in, the one most worth attacking. Google sign-in uses it too: it is
+// the same action, and it makes a request out to Google on every call.
 const loginLimit = rateLimit({
   limit: 10,
   windowMs: 15 * 60 * 1000,
@@ -285,7 +286,7 @@ router.post('/otp/verify', verifyLimit, (req, res) => {
 // ---------------------------------------------------------------
 // POST /api/auth/google
 // ---------------------------------------------------------------
-router.post('/google', async (req, res) => {
+router.post('/google', loginLimit, async (req, res) => {
   const clientId = process.env.GOOGLE_CLIENT_ID;
 
   if (!clientId) {

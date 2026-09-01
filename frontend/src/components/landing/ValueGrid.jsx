@@ -32,15 +32,15 @@ export default function ValueGrid() {
           <div>
             <Reveal><Eyebrow>Why it feels different</Eyebrow></Reveal>
             <Reveal delay={80}>
-              <h2 className="mt-6 max-w-lg font-display text-[clamp(2.1rem,4vw,3.1rem)] leading-[1.06] tracking-[-0.02em]">
-                Advice with your actual life inside it.
+              <h2 className="mt-6 max-w-md font-display text-[clamp(2.1rem,4vw,3.1rem)] leading-[1.06] tracking-[-0.02em]">
+                Four things we do differently.
               </h2>
             </Reveal>
           </div>
 
           <Reveal delay={140}>
-            <p className="max-w-xs text-[14.5px] leading-relaxed text-muted">
-              Four decisions we made differently, because the messy middle is where most people live.
+            <p className="max-w-[15rem] text-[14.5px] leading-relaxed text-muted">
+              The messy middle is where most people live.
             </p>
           </Reveal>
         </div>
@@ -57,9 +57,8 @@ export default function ValueGrid() {
               <h3 className="mt-3.5 font-display text-[25px] leading-snug tracking-[-0.01em]">
                 It asks who your salary carries.
               </h3>
-              <p className="mt-3 max-w-md text-[14.5px] leading-relaxed text-ink2">
-                Dependents, a sibling&rsquo;s tuition, a loan taken in a parent&rsquo;s name. These are
-                the inputs that change the answer, and they are the ones nobody else collects.
+              <p className="mt-3 max-w-sm text-[14.5px] leading-relaxed text-ink2">
+                The inputs that change the answer, and the ones nobody else collects.
               </p>
 
               <div className="mt-auto flex flex-wrap gap-2.5 pt-8">
@@ -83,22 +82,22 @@ export default function ValueGrid() {
           {/* Card 2: narrow */}
           <Reveal delay={90}>
             <article className={cardClasses}>
-              <p className="text-2xs font-semibold uppercase tracking-widest2 text-brass">Transparent</p>
+              <p className="text-2xs font-semibold uppercase tracking-widest2 text-brass">AI coach</p>
               <h3 className="mt-3.5 font-display text-[25px] leading-snug tracking-[-0.01em]">
                 Ask why. Get a why.
               </h3>
               <p className="mt-3 text-[14.5px] leading-relaxed text-ink2">
-                Every number is defensible in one sentence, or it does not ship.
+                One sentence per number, or it does not ship.
               </p>
 
-              {/* A pretend chat. The question is pushed right with "ml-auto",
-                  the answer stays left, which is how messaging apps look. */}
+              {/* A sample of the real thing. On the dashboard this card is
+                  wired to Claude, which answers from your own numbers. */}
               <div className="mt-auto space-y-2.5 pt-8">
                 <div className="ml-auto w-fit rounded-2xl rounded-br-sm bg-ink px-3.5 py-2 text-[12.5px] text-paper">
                   Why so little going into equity?
                 </div>
                 <div className="w-fit rounded-2xl rounded-bl-sm border border-line bg-paper px-3.5 py-2 text-[12.5px] text-ink2 transition-colors duration-500 group-hover:border-accent/30 group-hover:bg-accentSoft">
-                  Your loan costs 11%. Beating it is guaranteed. Beating the market is not.
+                  Your loan costs 11%. Beating that is guaranteed. Beating the market is not.
                 </div>
               </div>
             </article>
@@ -112,8 +111,7 @@ export default function ValueGrid() {
                 No bank login. Ever.
               </h3>
               <p className="mt-3 text-[14.5px] leading-relaxed text-ink2">
-                You describe your situation in ranges. We never touch a statement, a password
-                or an account number.
+                No statement, no password, no account number.
               </p>
 
               <div className="mt-auto flex items-center gap-3 rounded-2xl border border-line bg-paper p-3.5 transition-colors duration-500 group-hover:border-accent/30 group-hover:bg-accentSoft">
@@ -135,7 +133,7 @@ export default function ValueGrid() {
                   />
                 </svg>
                 <p className="text-[12.5px] leading-snug text-ink2">
-                  Nothing to breach, because there is nothing stored.
+                  Nothing to breach. Nothing is stored.
                 </p>
               </div>
             </article>
@@ -146,11 +144,10 @@ export default function ValueGrid() {
             <article className={cardClasses}>
               <p className="text-2xs font-semibold uppercase tracking-widest2 text-brass">Built to be kept</p>
               <h3 className="mt-3.5 font-display text-[25px] leading-snug tracking-[-0.01em]">
-                A plan you abandon in March is not a plan.
+                A plan you drop in March is not a plan.
               </h3>
-              <p className="mt-3 max-w-md text-[14.5px] leading-relaxed text-ink2">
-                Progress you can see, a streak worth protecting, and a projection that makes the
-                boring months feel like they are adding up. Because they are.
+              <p className="mt-3 max-w-sm text-[14.5px] leading-relaxed text-ink2">
+                Progress you can see, and a streak worth protecting.
               </p>
 
               <div className="mt-auto grid gap-4 pt-8 sm:grid-cols-[1fr_auto] sm:items-end">

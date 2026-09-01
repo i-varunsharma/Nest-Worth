@@ -264,3 +264,111 @@ export function getCheckins() {
 export function saveCheckin(checkin) {
   return request('/api/checkins', 'POST', checkin);
 }
+
+
+// ---------------------------------------------------------------
+// The AI coach
+// ---------------------------------------------------------------
+
+/*
+  Asks Claude about the signed-in person's own money, and reads the answer as
+  it is written rather than waiting for the whole thing.
+
+  This is the only call in this file that does not use request() above, because
+  it is the only one that does not get a single JSON object back. The server
+  holds the connection open and sends pieces along it, so this has to read them
+  as they land.
+
+    question  what to ask. Empty means "what should I do next".
+    history   earlier turns, as [{ role, text }]. The browser keeps the
+              conversation; the server keeps nothing between questions.
+    onEvent   called for each piece:
+                { type: 'text',  text }   more of the answer
+                { type: 'tool',  label }  a calculation started running
+                { type: 'error', error }  something went wrong
+                { type: 'done' }          finished
+
+  Nothing about the money is sent. The server reads that out of the database
+  itself, which is both safer and less to send.
+*/
+export async function askCoach(question, history, onEvent) {
+  let response;
+
+  try {
+    response = await fetch(API_URL + '/api/advice', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: question, history: history }),
+    });
+  } catch {
+    onEvent({ type: 'error', error: 'Cannot reach the server. Is the backend running on port 4000?' });
+    return;
+  }
+
+  /*
+    A refusal arrives as ordinary JSON with a 4xx status, before any streaming
+    starts. Only once the status is 200 is the body a stream.
+  */
+  if (!response.ok) {
+    let message = 'Something went wrong. Please try again.';
+
+    try {
+      const data = await response.json();
+      if (data.error) {
+        message = data.error;
+      }
+    } catch {
+      // The server sent something that is not JSON. The default line above
+      // is still true, so there is nothing to do here.
+    }
+
+    onEvent({ type: 'error', error: message });
+    return;
+  }
+
+  /*
+    Reading the stream.
+
+    getReader hands back the connection a chunk at a time. A chunk is whatever
+    happened to arrive together, which has nothing to do with where our events
+    start and end: one chunk can hold three events, or half of one.
+
+    So chunks are added to a buffer, and complete events are taken out of it.
+    Each event ends with a blank line, which is what the split below looks for.
+  */
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+
+  let buffer = '';
+
+  while (true) {
+    const chunk = await reader.read();
+
+    if (chunk.done === true) {
+      break;
+    }
+
+    buffer = buffer + decoder.decode(chunk.value, { stream: true });
+
+    const pieces = buffer.split('\n\n');
+
+    // The last piece is whatever came after the final blank line, which is an
+    // event that has not finished arriving. It stays in the buffer.
+    buffer = pieces.pop();
+
+    for (const piece of pieces) {
+      const line = piece.trim();
+
+      if (line.startsWith('data:') === false) {
+        continue;
+      }
+
+      try {
+        onEvent(JSON.parse(line.slice(5).trim()));
+      } catch {
+        // A half-written event is not worth crashing the page over.
+      }
+    }
+  }
+}

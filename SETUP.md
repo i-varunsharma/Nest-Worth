@@ -42,7 +42,77 @@ back to the browser, because a code the browser can read proves nothing.
 
 ---
 
-## 2. What works right now
+## 2. Looking at the data
+
+There is no database server to log into, because SQLite keeps everything in one
+file: `backend/data/nestworth.db`. That file is the database. Three ways to read
+it, easiest first.
+
+### A viewer inside VS Code
+
+The closest thing to MongoDB Compass, and the one to use day to day.
+
+1. Open the Extensions panel in VS Code and search for **SQLite Viewer**
+   (`qwtel.sqlite-viewer`).
+2. Install it.
+3. Click `backend/data/nestworth.db` in the file tree.
+
+It opens as a spreadsheet: tables down the side, rows in the middle, sortable
+columns. No commands to remember.
+
+### One command, no SQL
+
+```bash
+cd backend
+npm run db:show
+```
+
+Prints every table as a tidy grid. Password hashes and session tokens are
+deliberately left out.
+
+### The SQLite shell, for real queries
+
+`sqlite3` already ships with macOS, so there is nothing to install.
+
+```bash
+cd backend
+npm run db
+```
+
+That opens a prompt where you can type SQL:
+
+```sql
+.tables                                  -- list the tables
+.schema debts                            -- how one table is built
+SELECT * FROM users;                     -- everything in a table
+SELECT name, principal FROM debts WHERE user_id = 1;
+.quit                                    -- leave
+```
+
+Two settings make the output readable, and it is worth typing them first:
+
+```sql
+.headers on
+.mode column
+```
+
+### Editing by hand
+
+You can, and sometimes it is the quickest way to set up a case you want to test:
+
+```sql
+UPDATE households SET income = 95000 WHERE user_id = 1;
+DELETE FROM debts WHERE id = 3;
+```
+
+Two things to know before you do. The app does not notice until the page is
+reloaded, since it only reads the database when asked. And nothing here runs
+the checks in `lib/validate.js`, so you can write an income of -5 by hand where
+the API would refuse it, and then wonder why a page looks broken.
+
+---
+
+## 3. What works right now
 
 | Feature | State |
 |---|---|
@@ -60,11 +130,12 @@ back to the browser, because a code the browser can read proves nothing.
 | Delete your account and everything in it | Working, on the settings page |
 | Progress against the plan, from your check-ins | Working, on the dashboard |
 | Plan subtracts real rent and bills before splitting | Working |
-| Backend tests (`npm test` in `backend/`) | Working, 54 of them |
-| Frontend tests (`npm test` in `frontend/`) | Working, 51 of them |
-| Continue with Google | Code is finished, needs a client id: section 3 |
-| Real text messages | Needs section 4 |
-| Real password reset emails | Needs section 5 |
+| Backend tests (`npm test` in `backend/`) | Working, 67 of them |
+| Frontend tests (`npm test` in `frontend/`) | Working, 57 of them |
+| AI coach on the dashboard | Working, needs an API key: section 4 |
+| Continue with Google | Code is finished, needs a client id: section 5 |
+| Real text messages | Needs section 6 |
+| Real password reset emails | Needs section 7 |
 
 Passwords are hashed with bcrypt at cost 12 and never stored or logged in plain
 text. The session is a random 256-bit token in an `httpOnly` cookie, so page
@@ -78,7 +149,64 @@ running the API**. Copy it into your browser.
 
 ---
 
-## 3. Continue with Google
+## 4. The AI coach
+
+The dashboard has a card that reads your real numbers, works things out, and
+says what to do next in plain English. Ask it "what if I paid ₹3,000 more on the
+card?" and it runs the app's own payoff simulation before answering.
+
+It is the one feature here that calls out to somebody else's server, and the one
+that costs money per use.
+
+Without a key it does not break anything. The card shows a line saying the coach
+is not set up, and the rest of the dashboard carries on.
+
+### Getting a key
+
+1. Sign in at [console.anthropic.com](https://console.anthropic.com) and add a
+   little credit. There is no free tier.
+2. Make an API key and copy it. The console shows it once.
+3. Put it in `backend/.env`:
+
+   ```
+   ANTHROPIC_API_KEY=sk-ant-...
+   ```
+
+4. Restart the API. `npm run dev` reloads on file changes but not on `.env`
+   changes.
+
+### The two rules this follows
+
+**The key stays on the server.** It is read in `backend/src/lib/advice.js` and
+nowhere else. Putting it in `frontend/` would publish it: anything the browser
+downloads, anybody can read, and they would be spending your credit by lunchtime.
+This is the same reason `GOOGLE_CLIENT_ID` is fine in the frontend and a client
+*secret* would not be.
+
+**Claude never does the arithmetic.** It is handed a snapshot of your numbers,
+and four calculations it can ask the server to run: a debt payoff simulation, a
+"what if my situation changed" rebuild of the plan, a goals check and an
+emergency fund check. Those run the code in `shared/`, which is the same code
+the dashboard draws with, so the coach cannot tell you a payoff date the debts
+page disagrees with. A language model states a wrong number with total
+confidence, so it is given the calculator rather than asked to be one.
+
+`ai-integration/README.md` explains the loop in more detail.
+
+### What it costs, roughly
+
+A question with no tool call is about 1,500 tokens in and a few hundred out. One
+that runs a tool goes round the loop twice or three times, so call it three or
+four times that. On `claude-opus-5` even the expensive case is a rupee or two.
+
+The route is limited to 20 questions an hour per person in
+`backend/src/routes/advice.js`, which is more than a person asks and far fewer
+than a script would. Set a monthly cap in the console as well; the limit is per
+person, and a hundred people is a hundred limits.
+
+---
+
+## 5. Continue with Google
 
 The code for this is finished on both sides. All it needs is a client id.
 
@@ -119,7 +247,7 @@ rather than failing silently.
 
 ---
 
-## 4. Real text messages
+## 6. Real text messages
 
 Right now codes appear in your terminal. To send actual SMS in India there is
 paperwork before there is code, and **it takes several days**, so start it early.
@@ -167,7 +295,7 @@ attempt limit and the resend wait, already works and does not change.
 
 ---
 
-## 5. Real password reset emails
+## 7. Real password reset emails
 
 Right now the reset link is printed in your terminal. Sending it for real is the
 easier of the two providers, because email has no equivalent of India's DLT
@@ -206,7 +334,7 @@ Two things worth getting right in the email itself:
 
 ---
 
-## 6. Before this goes on the internet
+## 8. Before this goes on the internet
 
 Three of the items that used to be on this list are now done: the repository is
 clean, sign-in is rate limited, and the password reset exists. What is left is
@@ -239,6 +367,11 @@ about deployment.
    people are using this, those printouts have to become real messages, or every
    code your users receive is sitting in a log file.
 
+7. **Set a spending limit on the Anthropic key.** The route is rate limited per
+   person, but a hundred real people asking a hundred questions is still a bill.
+   The console has a monthly cap, and it is easier to set it now than to explain
+   it later.
+
 ---
 
 ## Checklist
@@ -250,29 +383,35 @@ about deployment.
 - [ ] Create an account and check the dashboard appears
 - [ ] Try the Phone tab and read the code from the API terminal
 - [ ] Try "Forgot password?" and read the link from the API terminal
-- [ ] `cd backend && npm test` and see 54 passing
-- [ ] `cd frontend && npm test` and see 51 passing
+- [ ] `cd backend && npm test` and see 67 passing
+- [ ] `cd frontend && npm test` and see 57 passing
 
-**Google sign-in (section 3)**
+**AI coach (section 4)**
+
+- [ ] Anthropic account created and credit added
+- [ ] `ANTHROPIC_API_KEY` in `backend/.env`
+- [ ] API restarted, and the coach card on the dashboard answers
+
+**Google sign-in (section 5)**
 
 - [ ] Google Cloud project and OAuth Client ID created
 - [ ] Client ID added to both `backend/.env` and `frontend/.env.local`
 - [ ] Both servers restarted
 
-**Text messages (section 4)**
+**Text messages (section 6)**
 
 - [ ] DLT entity, header and template registered
 - [ ] SMS provider account created, API key in `backend/.env`
 - [ ] `deliver()` in `backend/src/lib/otp.js` calls the provider
 
-**Email (section 5)**
+**Email (section 7)**
 
 - [ ] Email provider account created, domain added
 - [ ] SPF, DKIM and DMARC records added to your DNS
 - [ ] API key in `backend/.env`
 - [ ] `deliver()` in `backend/src/lib/passwordReset.js` calls the provider
 
-**Deploying (section 6)**
+**Deploying (section 8)**
 
 - [ ] `NODE_ENV=production` set
 - [ ] `CLIENT_ORIGIN` set to the real domain

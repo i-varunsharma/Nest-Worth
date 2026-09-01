@@ -9,20 +9,20 @@ import Reveal from '../shared/Reveal';
 
 const comparisons = [
   {
-    others: 'A 50/30/20 rule imported from a country where nobody sends money home',
-    ours: 'A split derived from what is left after your household is looked after',
+    others: 'A 50/30/20 rule from a country where nobody sends money home',
+    ours: 'A split from what is left after your household',
   },
   {
     others: '“Family plan” means linking everyone’s bank accounts',
-    ours: 'You describe the situation. No logins, no statements, no scraping',
+    ours: 'You describe it. No logins, no statements',
   },
   {
-    others: 'A number, and no explanation for it',
-    ours: 'Every number carries the sentence that produced it',
+    others: 'A number, and no explanation',
+    ours: 'Every number carries its reason',
   },
   {
     others: 'Invest first, worry about the 11% loan later',
-    ours: 'Debt that outruns the market gets cleared before you invest a rupee',
+    ours: 'Expensive debt clears before you invest a rupee',
   },
 ];
 
@@ -50,15 +50,13 @@ export default function CompareStrip() {
 
               <Reveal delay={80}>
                 <h2 className="mt-6 font-display text-[clamp(2.1rem,4vw,3.1rem)] leading-[1.06] tracking-[-0.02em]">
-                  Every other app assumes you are on your own.
+                  Most apps assume you are on your own.
                 </h2>
               </Reveal>
 
               <Reveal delay={150}>
-                <p className="mt-6 max-w-sm text-[15.5px] leading-relaxed text-paper/60">
-                  Budgeting apps track transactions. Investment apps ask five generic questions.
-                  None of them ask whether your income supports anyone besides you, and that
-                  single fact changes everything about what you should do with it.
+                <p className="mt-6 max-w-xs text-[15.5px] leading-relaxed text-paper/60">
+                  None of them ask who your income supports. That one fact changes the answer.
                 </p>
               </Reveal>
             </div>

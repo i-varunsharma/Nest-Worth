@@ -193,3 +193,35 @@ CREATE TABLE IF NOT EXISTS checkins (
   UNIQUE (user_id, month),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+
+-- ---------------------------------------------------------------
+-- Indexes
+-- ---------------------------------------------------------------
+--
+-- Nearly every query in this app ends in "WHERE user_id = ?". Without an index
+-- SQLite answers that by reading every row in the table and checking each one.
+-- With one it jumps straight to that person's rows.
+--
+-- It makes no difference at two accounts and a great deal at fifty thousand,
+-- which is the point of adding it now rather than after somebody complains.
+-- The cost is a little extra work on every insert, which is the trade an index
+-- always makes.
+
+CREATE INDEX IF NOT EXISTS idx_debts_user     ON debts(user_id);
+CREATE INDEX IF NOT EXISTS idx_goals_user     ON goals(user_id);
+CREATE INDEX IF NOT EXISTS idx_assets_user    ON assets(user_id);
+
+-- checkins needs no index of its own. Its "UNIQUE (user_id, month)" line makes
+-- SQLite build one over those two columns already, and a lookup by user_id
+-- uses it because user_id is the first column in it. A second index here would
+-- be extra work on every write for nothing.
+
+-- Sessions are looked up by token on EVERY request, so this is the hottest
+-- lookup in the app. The token is already the primary key, which SQLite indexes
+-- on its own. What is missing is the other direction: deleting every session
+-- for one user, which happens whenever a password changes.
+CREATE INDEX IF NOT EXISTS idx_sessions_user  ON sessions(user_id);
+
+-- For the startup sweep in db.js, which deletes everything already expired.
+CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);

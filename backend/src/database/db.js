@@ -100,4 +100,39 @@ addColumnIfMissing('households', 'income_varies', 'INTEGER NOT NULL DEFAULT 0');
 // what is left. Existing households get 0, which behaves exactly as before.
 addColumnIfMissing('households', 'essential_costs', 'INTEGER NOT NULL DEFAULT 0');
 
+/*
+  Throwing away what has expired.
+
+  Three tables hold things with a deadline: sessions, one-time codes and reset
+  links. Each of them is checked when somebody tries to use it, and deleted then
+  if it has run out. That is what keeps them secure.
+
+  What it does not do is clean up after everybody who never came back. A phone
+  number that asks for a code and never types it leaves its row behind forever,
+  and so does every session belonging to somebody who signed in a year ago and
+  moved on. None of those rows can be used, they just sit there.
+
+  Running this at startup is enough at this size. A busier app would run it on a
+  timer instead, or let SQLite do it, but "clean up when the server restarts" is
+  simple, obvious, and cannot fire at a bad moment.
+*/
+function deleteExpiredRows() {
+  const now = new Date().toISOString();
+
+  // The dates are stored as ISO text, which sorts in date order, so a plain
+  // text comparison is also a date comparison. That is why they are stored
+  // that way round.
+  const sessions = db.prepare('DELETE FROM sessions WHERE expires_at < ?').run(now);
+  const codes = db.prepare('DELETE FROM otp_codes WHERE expires_at < ?').run(now);
+  const resets = db.prepare('DELETE FROM password_resets WHERE expires_at < ?').run(now);
+
+  const total = sessions.changes + codes.changes + resets.changes;
+
+  if (total > 0) {
+    console.log('  database: cleared ' + total + ' expired rows');
+  }
+}
+
+deleteExpiredRows();
+
 export default db;

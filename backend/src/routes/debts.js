@@ -154,7 +154,12 @@ router.put('/:id', requireUser, (req, res) => {
     return res.status(404).json({ error: 'No such debt.' });
   }
 
-  const row = db.prepare('SELECT * FROM debts WHERE id = ?').get(req.params.id);
+  // Filtered on the user id like every other query in this file. The
+  // changes check above already proves the row is theirs, so this changes
+  // nothing today. It is here so the rule holds everywhere without
+  // exception, and nobody has to work out which lines are the safe ones.
+  const row = db.prepare('SELECT * FROM debts WHERE id = ? AND user_id = ?')
+    .get(req.params.id, req.user.id);
 
   return res.json({ debt: publicDebt(row) });
 });

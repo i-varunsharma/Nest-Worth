@@ -100,6 +100,61 @@ export default function DebtCard({ debt, isPriority, onEdit, onDelete }) {
     sliderNote = 'That is not enough extra to change the payoff month.';
   }
 
+  /*
+    What the slider shows once it has been moved.
+
+    There are two different answers, because there are two different starting
+    points. A debt that already clears gets months and interest saved. A debt
+    that never cleared has no "sooner" to compare against, so what it gets is
+    the fact that it now finishes at all, and the date.
+  */
+  let answerPanel = null;
+
+  if (effect.possible === true && effect.turnsAround === true) {
+    answerPanel = (
+      <div className="mt-5 border-t border-line pt-5">
+        <p className="text-2xs font-semibold uppercase tracking-widest2 text-muted">
+          This debt now clears
+        </p>
+        <p className="tnum mt-1.5 font-display text-[26px] leading-none text-accent">
+          {formatMonthYear(effect.newPayoffDate)}
+        </p>
+        <p className="mt-1.5 text-[13px] leading-relaxed text-ink2">
+          On the EMI alone it never finished. {formatRupees(debt.emi + extra)} a month
+          clears it in {formatDuration(effect.newMonths)}.
+        </p>
+      </div>
+    );
+  } else if (effect.possible === true) {
+    answerPanel = (
+      <div className="mt-5 grid gap-4 border-t border-line pt-5 sm:grid-cols-2">
+        <div>
+          <p className="text-2xs font-semibold uppercase tracking-widest2 text-muted">
+            Free sooner by
+          </p>
+          <p className="tnum mt-1.5 font-display text-[26px] leading-none text-accent">
+            {formatDuration(effect.monthsSaved)}
+          </p>
+          <p className="mt-1.5 text-2xs text-muted">
+            {formatMonthYear(effect.newPayoffDate)} instead
+          </p>
+        </div>
+
+        <div>
+          <p className="text-2xs font-semibold uppercase tracking-widest2 text-muted">
+            Interest saved
+          </p>
+          <p className="tnum mt-1.5 font-display text-[26px] leading-none text-accent">
+            {formatRupees(effect.interestSaved)}
+          </p>
+          <p className="mt-1.5 text-2xs text-muted">
+            money that stays yours
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <article className="rounded-[22px] border border-line bg-surface p-6 shadow-card sm:p-7">
 
@@ -222,33 +277,7 @@ export default function DebtCard({ debt, isPriority, onEdit, onDelete }) {
 
         {/* The answer. It only appears once the slider has been moved, because
             "you would save 0 months" is noise. */}
-        {extra > 0 && effect.possible === true ? (
-          <div className="mt-5 grid gap-4 border-t border-line pt-5 sm:grid-cols-2">
-            <div>
-              <p className="text-2xs font-semibold uppercase tracking-widest2 text-muted">
-                Free sooner by
-              </p>
-              <p className="tnum mt-1.5 font-display text-[26px] leading-none text-accent">
-                {formatDuration(effect.monthsSaved)}
-              </p>
-              <p className="mt-1.5 text-2xs text-muted">
-                {formatMonthYear(effect.newPayoffDate)} instead
-              </p>
-            </div>
-
-            <div>
-              <p className="text-2xs font-semibold uppercase tracking-widest2 text-muted">
-                Interest saved
-              </p>
-              <p className="tnum mt-1.5 font-display text-[26px] leading-none text-accent">
-                {formatRupees(effect.interestSaved)}
-              </p>
-              <p className="mt-1.5 text-2xs text-muted">
-                money that stays yours
-              </p>
-            </div>
-          </div>
-        ) : (
+        {extra > 0 && effect.possible === true ? answerPanel : (
           <p className="mt-4 text-2xs text-muted">{sliderNote}</p>
         )}
       </div>

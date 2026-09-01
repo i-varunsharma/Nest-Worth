@@ -53,9 +53,8 @@ export default function Projection({ household }) {
             </Reveal>
 
             <Reveal delay={150}>
-              <p className="mt-6 max-w-sm text-[16px] leading-relaxed text-ink2">
-                The {formatRupees(monthlyInvestment)} a month your plan sends to index funds is
-                the least dramatic line in it. Left alone, it is also the one that changes your life.
+              <p className="mt-6 max-w-xs text-[16px] leading-relaxed text-ink2">
+                {formatRupees(monthlyInvestment)} a month, left alone.
               </p>
             </Reveal>
 
@@ -73,7 +72,7 @@ export default function Projection({ household }) {
                   </span> invested,
                   <span className="tnum font-semibold text-brass">
                     {' '}{formatRupees(totalEarned, { short: true })}
-                  </span> earned while you did nothing.
+                  </span> earned.
                 </p>
               </div>
             </Reveal>

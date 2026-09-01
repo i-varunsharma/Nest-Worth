@@ -15,41 +15,26 @@ const questions = [
   {
     question: 'Is this regulated financial advice?',
     answer:
-      'No. Nestworth is educational guidance built on transparent arithmetic, not a registered '
-      + 'investment adviser. Every recommendation shows its reasoning precisely so you can judge '
-      + 'it yourself, or take it to someone who is registered.',
+      'No. It is educational guidance built on transparent arithmetic. Every number shows '
+      + 'its reasoning, so you can judge it yourself or take it to someone registered.',
   },
   {
     question: 'Do I have to connect my bank account?',
     answer:
-      'Never. You tell us three things yourself: what you take home in a normal month, how many '
-      + 'people that has to cover, and whether you are repaying anything. There is no account '
-      + 'linking, no statement upload and no read access to anything you own.',
+      'Never. You tell us what you take home, who it has to cover, and what you are repaying. '
+      + 'No account linking, no statements, no read access to anything.',
   },
   {
-    question: 'What happens to what I tell you?',
+    question: 'What does the AI coach see?',
     answer:
-      'It is used to compute your plan and nothing else. No selling, no sharing with lenders or '
-      + 'fund houses, and no advertising built on your household. Settings has a Close your '
-      + 'account button that removes the lot, including every debt, goal and check-in, and we '
-      + 'keep no copy.',
-  },
-  {
-    question: 'My income changes every month. Does that break it?',
-    answer:
-      'No, we ask about it. Say your income moves around and the plan holds more of it as cash '
-      + 'you can reach rather than putting it into investments, and the emergency fund it aims '
-      + 'for goes up by three months. A thin month is a normal event on a freelance income, not '
-      + 'an emergency, and the plan should be built for the thin ones rather than the good ones.',
+      'Only the numbers you typed into Nestworth, and only when you press the button. It is '
+      + 'never used to train anything, and the answer is shown to you alone.',
   },
   {
     question: 'Why does the loan come before investing?',
     answer:
-      'Because clearing a loan at 14% is a guaranteed 14% return, and no equity fund guarantees '
-      + 'anything. It does not always come first, though. Once we know your real rate and it is '
-      + 'below the 11% we assume the market pays over long periods, a home loan being the usual '
-      + 'case, the model stops rushing it and keeps your investing going instead. The dashboard '
-      + 'says which of the two it did and why.',
+      'Clearing a loan at 14% is a guaranteed 14% return, and no fund guarantees anything. '
+      + 'Below about 11% the model stops rushing it and keeps your investing going instead.',
   },
 ];
 
@@ -76,14 +61,8 @@ export default function FAQ() {
 
             <Reveal delay={80}>
               <h2 className="mt-6 font-display text-[clamp(2.1rem,4vw,3.1rem)] leading-[1.06] tracking-[-0.02em]">
-                The questions you should be asking.
+                The questions worth asking.
               </h2>
-            </Reveal>
-
-            <Reveal delay={150}>
-              <p className="mt-6 max-w-xs text-[15.5px] leading-relaxed text-ink2">
-                A finance product that dodges these does not deserve your household.
-              </p>
             </Reveal>
           </div>
 

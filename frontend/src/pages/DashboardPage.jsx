@@ -5,6 +5,7 @@ import PlanCard from '../components/app/PlanCard';
 import PriorityCard from '../components/app/PriorityCard';
 import OutflowCard from '../components/app/OutflowCard';
 import ConsistencyCard from '../components/app/ConsistencyCard';
+import CoachCard from '../components/app/CoachCard';
 import ProjectionChart from '../components/landing/ProjectionChart';
 import Eyebrow from '../components/shared/Eyebrow';
 import * as api from '../lib/api';
@@ -170,17 +171,6 @@ export default function DashboardPage({ user }) {
 
   const checkinSummary = summariseCheckins(data.checkins, plannedKeptShare);
 
-  // The safety net bar and its caption, both built here so the markup below
-  // stays free of ternaries.
-  let safetyBarColour = 'bg-brass';
-  let safetyNote = formatRupees(safety.amountTarget - netWorth.liquidAssets)
-    + ' more would get you to ' + safety.monthsTarget + ' months.';
-
-  if (safety.isEnough === true) {
-    safetyBarColour = 'bg-accent';
-    safetyNote = 'Comfortably past the ' + safety.monthsTarget + ' months we suggest.';
-  }
-
   // The button in the corner says which of the two jobs is left.
   let checkInLabel = 'Check in for this month';
   let checkInClasses = 'border-line bg-surface text-ink hover:border-ink hover:shadow-card';
@@ -268,7 +258,7 @@ export default function DashboardPage({ user }) {
     <AppShell
       user={user}
       title={greeting}
-      subtitle={'Your plan for ' + thisMonth + ', built from your household.'}
+      subtitle={thisMonth}
       action={
         <Link
           to="/check-in"
@@ -319,31 +309,7 @@ export default function DashboardPage({ user }) {
 
         <div className="space-y-6">
           <PriorityCard reasoning={plan.reasoning} />
-
-          {/* Safety net, in words rather than a bar alone. */}
-          <div className="rounded-[26px] border border-line bg-surface p-6 shadow-card sm:p-7">
-            <p className="text-2xs font-semibold uppercase tracking-widest2 text-muted">
-              If your income stopped
-            </p>
-
-            <p className="tnum mt-4 font-display text-[30px] leading-none">
-              {safety.monthsCovered.toFixed(1)} months
-            </p>
-
-            <p className="mt-3 text-[14px] leading-relaxed text-ink2">
-              {formatRupees(netWorth.liquidAssets)} you could reach quickly, against{' '}
-              {formatRupees(monthlyOutgoings)} a month of costs.
-            </p>
-
-            <div className="mt-5 h-2 overflow-hidden rounded-full bg-paperDeep">
-              <div
-                className={'h-full rounded-full transition-[width] duration-700 ease-smooth ' + safetyBarColour}
-                style={{ width: safety.percentDone + '%' }}
-              />
-            </div>
-
-            <p className="mt-3 text-2xs text-muted">{safetyNote}</p>
-          </div>
+          <CoachCard hasDebts={hasDebts} />
         </div>
       </div>
 
@@ -367,7 +333,7 @@ export default function DashboardPage({ user }) {
 
         <div className="mt-5 flex flex-wrap items-end justify-between gap-5">
           <h2 className="max-w-md font-display text-[clamp(1.7rem,3vw,2.3rem)] leading-[1.1] tracking-[-0.02em]">
-            Keep the {formatRupees(monthlyInvestment)} going and this is where it lands.
+            {formatRupees(monthlyInvestment)} a month, for {PROJECTION_YEARS} years.
           </h2>
           <p className="tnum font-display text-[clamp(2rem,4vw,2.8rem)] leading-none text-accent">
             {formatRupees(finalValue, { short: true })}
@@ -379,9 +345,8 @@ export default function DashboardPage({ user }) {
         </div>
       </div>
 
-      <p className="mt-14 border-t border-line pt-7 text-2xs leading-relaxed text-muted">
-        Educational guidance, not regulated investment advice. Your answers are stored against
-        your account and are never sold or shared.
+      <p className="mt-14 border-t border-line pt-7 text-2xs text-muted">
+        Educational guidance, not regulated investment advice.
       </p>
     </AppShell>
   );
