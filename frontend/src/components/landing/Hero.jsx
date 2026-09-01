@@ -70,10 +70,8 @@ export default function Hero({ household, onHouseholdChange }) {
             </Reveal>
 
             <Reveal delay={160}>
-              <p className="mt-7 max-w-lg text-[17px] leading-relaxed text-ink2">
-                Every budgeting app assumes your salary is yours alone. Nestworth starts from
-                your household, the dependents, the fees, the family debt, and only then tells
-                you what to spend, save and invest. With the reasoning shown for every number.
+              <p className="mt-7 max-w-md text-[17.5px] leading-relaxed text-ink2">
+                Other apps assume your salary is yours alone. We start with who it has to carry.
               </p>
             </Reveal>
 
@@ -109,7 +107,7 @@ export default function Hero({ household, onHouseholdChange }) {
             {/* A quiet nudge to keep scrolling. Hidden on small screens, where
                 there is no empty space to fill. */}
             <Reveal delay={360}>
-              <a href="#household" className="group mt-14 hidden items-center gap-4 border-t border-line pt-7 lg:flex">
+              <a href="#how" className="group mt-14 hidden items-center gap-4 border-t border-line pt-7 lg:flex">
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-line transition-all duration-500 ease-smooth group-hover:border-ink group-hover:bg-ink group-hover:text-paper">
                   <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 transition-transform duration-500 ease-smooth group-hover:translate-y-0.5" aria-hidden="true">
                     <path
@@ -127,7 +125,7 @@ export default function Hero({ household, onHouseholdChange }) {
                     Keep reading
                   </span>
                   <span className="sweep mt-1 block text-[14.5px] font-medium text-ink">
-                    See where the money actually goes
+                    How the plan is built
                   </span>
                 </span>
               </a>
@@ -138,7 +136,7 @@ export default function Hero({ household, onHouseholdChange }) {
           <Reveal delay={160} className="lg:pl-4 lg:pt-2">
             <Planner household={household} onChange={onHouseholdChange} />
             <p className="mt-9 text-center text-[12.5px] text-muted">
-              This is the real model. Move the slider and watch the reasoning change.
+              The real model. Move a slider.
             </p>
           </Reveal>
         </div>

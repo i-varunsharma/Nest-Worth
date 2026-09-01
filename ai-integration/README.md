@@ -1,46 +1,134 @@
-# AI integration (not built yet)
+# AI integration
 
-This folder is a placeholder. Nothing here runs, and nothing in the app imports
-from it. It exists so the plan for the next feature has an obvious home.
+This folder is notes only. Nothing here runs, and nothing imports from it. The
+feature itself lives in the files listed below.
 
-## The idea
+## What was built
 
-Nest-Worth already knows a lot about one person: their income, how many people
-depend on them, every debt with its interest rate, what they are saving for and
-what they own. Today the app turns that into numbers. The next step is turning
-it into a paragraph of plain advice, written for someone who does not enjoy
-spreadsheets.
+A coach on the dashboard that can work things out rather than only talk about
+them. Ask it "what if I paid ₹3,000 more on the card?" and it runs the app's own
+payoff simulation and answers from the result.
 
-For example, instead of only showing that a credit card at 38% should be cleared
-before a home loan at 8.4%, the app could explain *why* in a sentence, and say
-what that choice costs or saves over a year.
+```
+frontend/src/components/app/CoachCard.jsx   the conversation, streamed
+frontend/src/lib/api.js                     askCoach(), reads the stream
+        |
+        |  POST /api/advice   { question, history }
+        v
+backend/src/routes/advice.js                auth, rate limit, Server-Sent Events
+backend/src/lib/advice.js                   the agent loop, streaming
+backend/src/lib/tools.js                    what Claude is allowed to run
+        |
+        v
+shared/plan.js  shared/debt.js  shared/goals.js  shared/networth.js
+        ^
+        |
+frontend/src/lib/*                          the same files draw the dashboard
+```
 
-## How it would be built
+The model is `claude-opus-5`, called through the official `@anthropic-ai/sdk`.
+`SETUP.md` section 4 covers getting a key.
 
-Follow the shape the rest of the backend already uses, so there is nothing new
-to learn:
+## The agent loop
 
-1. `backend/src/lib/advice.js` — builds the prompt from the user's real rows and
-   calls the model. This is the only file that talks to the AI provider.
-2. `backend/src/routes/advice.js` — a `POST /api/advice` route behind
-   `requireUser`, exactly like `routes/debts.js`.
-3. `frontend/src/lib/api.js` — one more function, `getAdvice()`.
-4. A page or a card that shows the answer.
+This is the part worth being able to explain. `askClaude` in `lib/advice.js`
+goes round like this:
 
-## Two rules to keep
+1. Send the conversation and the list of tools.
+2. Claude streams back text, and may also ask to run one or more tools.
+3. If it asked, run them, put the results in the conversation, go round again.
+4. If it did not ask, it has finished.
 
-**The API key stays on the server.** It goes in `backend/.env`, which git
-ignores. A key in frontend code is a key anybody can read in their browser and
-spend your money with. This is the same reason the SMS key stays on the server.
+It is written out by hand rather than using the SDK helper that does the same
+job, for two reasons. The loop is the feature, so hiding it inside a library
+call would hide the thing worth understanding. And running it ourselves is what
+lets the server tell the browser which tool is running, so the card can say
+"running the numbers on your credit card" instead of sitting still.
 
-**Rate limit it.** Every request costs real money, so it needs the same
-treatment as the OTP route: a limit per user, per hour. `lib/rateLimit.js`
-already does this and can be reused as it is.
+There is a cap of five rounds. A loop with no end is a loop that spends money
+forever.
 
-## What to be careful about
+## Why there are tools at all
 
-A language model will state a wrong number with complete confidence. Anything
-that must be correct — a payoff date, an interest total, a monthly figure —
-should be calculated in JavaScript and passed *into* the prompt, never asked
-for from the model. The model's job is to explain the numbers, not to produce
-them.
+The first version handed Claude a fixed block of numbers and asked for a
+paragraph. That works, and it is safe, but it can only ever describe what is
+already on the screen.
+
+With tools, Claude decides what it needs to know. Four are available:
+
+| Tool | What it runs |
+|---|---|
+| `simulate_extra_payment` | the real payoff loop, on one of their debts |
+| `simulate_household_change` | the recommendation model, with income, rent or dependents changed |
+| `check_goals` | whether the goals fit inside what the plan saves |
+| `emergency_fund` | months of cover, against the target for this household |
+
+Two things follow.
+
+**The coach cannot contradict the app.** Every tool calls the code in `shared/`,
+which is the same code the dashboard draws with. There is one payoff function,
+so there is one payoff date. That is why those files moved out of
+`frontend/src/lib/` and why the frontend now re-exports them: two copies would
+eventually disagree, and there would be no way to tell which was right.
+
+**It can answer things nobody built a screen for.** There is no "what if my rent
+went up ₹5,000" page, but the plan model can answer it, so the coach can.
+
+## The rules it follows
+
+**The API key stays on the server.** It is read from `backend/.env` inside
+`lib/advice.js` and nowhere else. A key in frontend code is a key anybody can
+read in their browser and spend your money with.
+
+**Claude never does the arithmetic.** It is good at knowing which calculation
+matters and bad at running one. The system prompt says so, and the tools are
+what it uses instead. A wrong figure stated confidently is the worst thing this
+app could do.
+
+**The browser sends only words.** It keeps the conversation, because the server
+stores nothing between questions, and sends it back each time. `cleanHistory` in
+`routes/advice.js` rebuilds it from scratch and drops anything that is not a
+plain user or assistant turn. Tool results are never accepted from the browser:
+one that could send its own could tell Claude any figure it liked and have it
+repeated back as fact.
+
+**The user id comes from the session, never from Claude.** No tool takes an
+argument naming a person. That is what makes it safe rather than merely
+untested, and `tests/tools.test.js` has a test whose only job is to keep it true.
+
+**It is rate limited.** Twenty questions an hour per person, using the same
+`lib/rateLimit.js` the OTP route uses. Every question costs real money, and a
+question with tool rounds costs several times one without.
+
+**Nothing happens until you press the button.** The card does not call the API
+when the dashboard loads.
+
+## Why it streams
+
+An answer with a tool round means two or three calls to Claude, so it can take
+ten seconds. Ten seconds of a spinner feels broken in a way that ten seconds of
+text appearing does not.
+
+The transport is Server-Sent Events, which is a plain HTTP response that stays
+open: each event is the word `data:`, a line of JSON, and a blank line. The
+browser reads it with `response.body.getReader()` in `lib/api.js`. `EventSource`
+would be the usual choice and cannot be used here, because it only makes GET
+requests and this one has a body.
+
+One thing to know if you touch `routes/advice.js`: the listener watching for the
+person navigating away is on the **response**, not the request. A request's
+`close` event fires as soon as its body has been read, which is before any of
+the work has happened. Getting that wrong made every request hang forever, with
+no error anywhere. There is a test for it.
+
+## What is deliberately not here
+
+No stored chat history. The conversation lives in React state and is gone on
+refresh. Storing it would mean another table, another thing to delete when an
+account closes, and another thing to explain in the privacy answer, for a
+feature people use a question or two at a time.
+
+No prompt caching yet. The system prompt and tool definitions are stable and
+would be the obvious thing to cache, but they are under the minimum size the
+cache needs, so adding it today would be a line of code that quietly does
+nothing.

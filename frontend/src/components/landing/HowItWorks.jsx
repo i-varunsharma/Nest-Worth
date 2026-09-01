@@ -12,25 +12,17 @@ const steps = [
   {
     aside: 'Ranges, not receipts',
     title: 'Describe your household',
-    text:
-      'Income, and who it carries. Dependents, a sibling in college, family debt. '
-      + 'Ranges are fine, nobody remembers their exact grocery spend, and the model does not need it.',
+    text: 'Income, and who it carries. Rough numbers are fine.',
   },
   {
     aside: 'No black box',
-    title: 'Get a plan with its reasoning',
-    text:
-      'A spend, save and invest split built from what is genuinely left after your household, '
-      + 'with the sentence that produced it sitting next to the numbers. It names the debt it '
-      + 'wants cleared first, and the rate that made it choose that one.',
+    title: 'Get a plan, and the reason for it',
+    text: 'A spend, save and invest split, with the sentence that produced it.',
   },
   {
     aside: 'Built to be revisited',
     title: 'Watch it compound',
-    text:
-      'Record what actually happened each month and compare it against what the plan said. '
-      + 'Underneath, a projection of what today’s decision is worth in fifteen years. Built to '
-      + 'keep you consistent, not impressed.',
+    text: 'Record each month. Ask the coach what to do next.',
   },
 ];
 
@@ -67,7 +59,7 @@ function Step({ step, number, isLast }) {
 
       <p className="text-2xs font-semibold uppercase tracking-widest2 text-brass">{step.aside}</p>
       <h3 className="mt-3 font-display text-[26px] leading-tight tracking-[-0.01em]">{step.title}</h3>
-      <p className="mt-3.5 max-w-lg text-[15.5px] leading-relaxed text-ink2">{step.text}</p>
+      <p className="mt-3 max-w-md text-[15.5px] leading-relaxed text-ink2">{step.text}</p>
     </div>
   );
 }
@@ -84,14 +76,13 @@ export default function HowItWorks() {
 
             <Reveal delay={80}>
               <h2 className="mt-6 font-display text-[clamp(2.1rem,4vw,3.1rem)] leading-[1.06] tracking-[-0.02em]">
-                Three steps to an answer you can argue with.
+                Three steps.
               </h2>
             </Reveal>
 
             <Reveal delay={150}>
-              <p className="mt-6 max-w-sm text-[16px] leading-relaxed text-ink2">
-                Not a rule of thumb borrowed from another country. A recommendation shaped by
-                the life you actually fund.
+              <p className="mt-6 max-w-xs text-[16px] leading-relaxed text-ink2">
+                About three minutes, start to finish.
               </p>
             </Reveal>
           </div>

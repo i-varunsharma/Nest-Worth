@@ -7,6 +7,7 @@ import debtRoutes from './routes/debts.js';
 import goalRoutes from './routes/goals.js';
 import assetRoutes from './routes/assets.js';
 import checkinRoutes from './routes/checkins.js';
+import adviceRoutes from './routes/advice.js';
 import { attachUser } from './lib/sessions.js';
 
 /*
@@ -57,6 +58,7 @@ export function createApp() {
   app.use('/api/goals', goalRoutes);
   app.use('/api/assets', assetRoutes);
   app.use('/api/checkins', checkinRoutes);
+  app.use('/api/advice', adviceRoutes);
 
   // Handy for checking the server is up without opening the app.
   app.get('/api/health', (req, res) => {

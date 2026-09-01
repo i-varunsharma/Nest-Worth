@@ -41,12 +41,23 @@ Open <http://localhost:5173> and create an account.
 To run the tests:
 
 ```bash
-cd backend  && npm test    # 54 tests: the API, sessions, rate limiting
-cd frontend && npm test    # 51 tests: the money maths, and the components
+cd backend  && npm test    # 67 tests: the API, sessions, rate limiting, the coach
+cd frontend && npm test    # 57 tests: the money maths, and the components
 ```
 
-`SETUP.md` covers the optional extras: Google sign-in, real text messages, real
-email, and what to do before putting this on the internet.
+To look at what the app has stored:
+
+```bash
+cd backend
+npm run db:show     # every table, printed as a grid
+npm run db          # the SQLite shell, for your own queries
+```
+
+Or install the **SQLite Viewer** extension for VS Code and click
+`backend/data/nestworth.db` to browse it like a spreadsheet.
+
+`SETUP.md` covers the rest: reading and editing the data, Google sign-in, real
+text messages, real email, and what to do before putting this on the internet.
 
 ---
 
@@ -58,7 +69,7 @@ email, and what to do before putting this on the internet.
 | `/signup`, `/login` | Three ways in: email and password, a code by text, or Google. |
 | `/forgot-password`, `/reset-password` | Setting a new password, by a one-time link. |
 | `/onboarding` | The questions everything else is calculated from. |
-| `/dashboard` | The overview: what to do this month, and why. |
+| `/dashboard` | The overview: what to do this month, and why. Includes the AI coach. |
 | `/debts` | Every debt, with payoff dates and an extra-payment slider. |
 | `/goals` | What you are saving for, and what each costs per month. |
 | `/net-worth` | What you own against what you owe. |
@@ -81,13 +92,15 @@ Nest-Worth/
 │   │   ├── server.js         starts the app on a port. Does nothing else
 │   │   ├── app.js            builds the app: CORS, cookies, routes, error handling
 │   │   ├── database/
-│   │   │   ├── schema.sql    every table, in one readable file
+│   │   │   ├── schema.sql    every table and index, in one readable file
 │   │   │   └── db.js         opens the database, runs the schema, migrates
 │   │   ├── lib/              the thinking. No HTTP in here
 │   │   │   ├── sessions.js   who is signed in, and the cookie that says so
 │   │   │   ├── otp.js        the six digit code: making, sending, checking
 │   │   │   ├── passwordReset.js  the reset link, built the same way as the OTP
 │   │   │   ├── rateLimit.js  refusing somebody who is asking far too often
+│   │   │   ├── advice.js     the agent loop. The only file that talks to Claude
+│   │   │   ├── tools.js      the calculations Claude is allowed to run
 │   │   │   └── validate.js   the server's own copy of the form checks
 │   │   └── routes/           one file per thing the app stores
 │   │       ├── auth.js       signup, login, OTP, Google, reset, logout
@@ -95,21 +108,20 @@ Nest-Worth/
 │   │       ├── debts.js      ┐
 │   │       ├── goals.js      │ all four are the same four routes:
 │   │       ├── assets.js     │ list, add, change, remove
-│   │       └── checkins.js   ┘
+│   │       ├── checkins.js   ┘
+│   │       └── advice.js     the AI coach, streamed as it is written
 │   └── tests/                run with npm test
 │
 ├── frontend/                 the app. React, Vite and Tailwind
 │   ├── tailwind.config.js    every colour, font, shadow and timing. One source of truth
 │   └── src/
 │       ├── App.jsx           which page shows at which address
-│       ├── lib/              the maths, and the one file that talks to the API
+│       ├── lib/              the browser's own code, plus shims into shared/
 │       │   ├── api.js        every request to the backend goes through here
-│       │   ├── debt.js       payoff dates, avalanche ordering, interest saved
-│       │   ├── goals.js      what each goal costs per month
-│       │   ├── networth.js   assets against debts
 │       │   ├── checkins.js   what actually happened, against what was planned
-│       │   ├── plan.js       the recommendation model
-│       │   └── validation.js the browser's copy of the form checks
+│       │   ├── validation.js the browser's copy of the form checks
+│       │   └── debt.js, goals.js, networth.js, plan.js
+│       │                     one line each, re-exporting shared/ below
 │       ├── components/
 │       │   ├── shared/       Button, TextField and friends. Used everywhere
 │       │   ├── layout/       navbar and footer
@@ -119,10 +131,24 @@ Nest-Worth/
 │       └── pages/            one file per address in the table above
 │   └── tests/                the money maths and the components, npm test
 │
-└── ai-integration/           a placeholder for the next feature. Nothing runs here yet
+├── shared/                   the money maths, used by BOTH sides
+│   ├── plan.js               the recommendation model
+│   ├── debt.js               payoff dates, avalanche ordering, interest saved
+│   ├── goals.js              what each goal costs, and the emergency fund
+│   └── networth.js           assets against debts
+│
+└── ai-integration/           notes on how the AI coach is wired up
 ```
 
 ### Why it is arranged this way
+
+**`shared/` is shared on purpose.** The money maths is the one thing both sides
+genuinely need: the browser draws the dashboard with it, and the server hands it
+to Claude as tools. It lived in `frontend/src/lib/` until the AI coach needed it
+too. Copying it would have meant the coach and the debts page could quietly
+disagree about a payoff date, with no way to tell which was right. The four files
+left behind in `frontend/src/lib/` are one line each, re-exporting it, so every
+import in the app still reads `../lib/debt`.
 
 **`lib/` thinks, `routes/` talks.** The files in `backend/src/lib/` know nothing
 about HTTP: no `req`, no `res`, no status codes. They take values and return
@@ -183,6 +209,24 @@ These are the parts worth being able to explain out loud.
   the household, debts, goals, assets and check-ins with it, through the
   `ON DELETE CASCADE` lines in `schema.sql`. A test checks no orphaned rows are
   left behind, and that the email can be used to sign up again afterwards.
+- **Every table is indexed on user_id.** Without it SQLite answers
+  "WHERE user_id = ?" by reading every row in the table. It makes no difference
+  at two accounts and a great deal at fifty thousand. `checkins` needs no index
+  of its own, because its `UNIQUE (user_id, month)` line already builds one.
+- **Expired rows are swept at startup.** Sessions, one-time codes and reset
+  links are each destroyed when somebody tries to use an expired one, but that
+  never cleans up after people who do not come back. `db.js` clears them when
+  the server starts.
+- **The Claude API key never leaves the server.** It lives in `backend/.env`,
+  which git ignores, and only `backend/src/lib/advice.js` reads it. A key in
+  frontend code is a key anybody can read in their browser and spend money with.
+  The AI route is rate limited to 20 questions an hour per person, because it is
+  the only route in the app that costs real money to answer.
+- **The AI cannot reach another person's money.** Every calculation it can run
+  takes the user id from the session cookie; not one of them accepts an argument
+  naming a person. The conversation the browser sends back is rebuilt from
+  scratch and anything that is not a plain turn of text is dropped, so a browser
+  cannot forge a calculation result and have it repeated back as fact.
 
 ---
 
@@ -194,6 +238,12 @@ Worth saying plainly, since this is a learning project rather than a product.
   reset link are printed in the terminal running the API. `SETUP.md` explains
   what to connect and what paperwork India requires first.
 - **Google sign-in needs a client id** before the button does anything.
+- **The AI coach needs an Anthropic API key** in `backend/.env`. Without one the
+  card on the dashboard says so, and everything else works as normal.
+- **A language model can be confidently wrong.** Every figure it is shown is read
+  out of the database and summed in JavaScript first, and it is told never to
+  invent one, but nothing stops it drawing a poor conclusion from correct
+  numbers. It is a second opinion on the arithmetic, not the arithmetic.
 - **Rate limit counts live in memory**, so they reset when the server restarts
   and would need Redis if the app ever ran as more than one copy.
 - **No test drives a real browser.** The component tests run in jsdom, which is

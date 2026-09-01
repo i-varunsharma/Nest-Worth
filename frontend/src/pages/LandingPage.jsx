@@ -2,7 +2,6 @@ import { useState } from 'react';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import Hero from '../components/landing/Hero';
-import HouseholdFlow from '../components/landing/HouseholdFlow';
 import HowItWorks from '../components/landing/HowItWorks';
 import CompareStrip from '../components/landing/CompareStrip';
 import ValueGrid from '../components/landing/ValueGrid';
@@ -15,11 +14,10 @@ import FinalCTA from '../components/landing/FinalCTA';
 
   1. It lists the sections in the order the reader meets them.
 
-  2. It owns the household numbers. Three sections need them: the planner card in
-     the hero, the "where the money goes" section, and the projection chart. If
-     each of those kept its own copy they would drift apart, so instead this page
-     holds the single copy and hands it down. Move the slider in the hero and the
-     sections further down change with it.
+  2. It owns the household numbers. Two sections need them: the planner card in
+     the hero and the projection chart. If each kept its own copy they would
+     drift apart, so this page holds the single copy and hands it down. Move the
+     slider in the hero and the projection further down changes with it.
 
      React people call this "lifting state up": whichever component sits above
      everyone who needs the data is the one that should hold it.
@@ -43,13 +41,11 @@ export default function LandingPage() {
         {/* Only the hero can edit the household, so only it gets onHouseholdChange. */}
         <Hero household={household} onHouseholdChange={setHousehold} />
 
-        {/* These two read the household but never change it. */}
-        <HouseholdFlow household={household} />
-
         <HowItWorks />
         <CompareStrip />
         <ValueGrid />
 
+        {/* Reads the household but never changes it. */}
         <Projection household={household} />
 
         <FAQ />

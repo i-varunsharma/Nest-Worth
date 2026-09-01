@@ -1,7 +1,14 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { buildPlan, bucketAmount, formatRupees, ASSUMED_YEARLY_RETURN } from '../src/lib/plan.js';
-import { payoff, summariseDebts, monthsFromNow, formatDuration, orderByRate } from '../src/lib/debt.js';
+import {
+  payoff,
+  summariseDebts,
+  monthsFromNow,
+  formatDuration,
+  orderByRate,
+  extraPaymentEffect,
+} from '../src/lib/debt.js';
 import { describeGoal, summariseGoals, safetyNet, monthsUntil } from '../src/lib/goals.js';
 import { summariseNetWorth, groupAssetsByKind } from '../src/lib/networth.js';
 import { summariseCheckins, keptShareOf, hasCheckinFor, monthLabel } from '../src/lib/checkins.js';
@@ -578,4 +585,130 @@ test('the assumed market return is a sensible long-run figure', () => {
   // Used by both the projection and the debt-priority decision, so a slip here
   // would change advice as well as a chart.
   assert.ok(ASSUMED_YEARLY_RETURN > 0.05 && ASSUMED_YEARLY_RETURN < 0.2);
+});
+
+
+// ---------------------------------------------------------------
+// Regressions found in the full read-through
+// ---------------------------------------------------------------
+
+test('regression: no share is ever pushed below its own floor', () => {
+  /*
+    The floors used to be applied BEFORE the shares were scaled to add up to
+    100, and scaling changes every number, so the floor did not survive it. A
+    low income with a loan and a variable income came out with invest at 7%,
+    under the 8% that was supposed to be guaranteed.
+
+    The floors are now applied after the scaling. This walks the same grid that
+    found the bug.
+  */
+  const floors = { spend: 34, save: 18, invest: 8 };
+  const ceilings = { spend: 68, save: 48, invest: 40 };
+
+  const incomes = [15000, 25000, 35000, 62000, 90000, 150000, 300000];
+  const dependentCounts = [0, 1, 2, 3, 5];
+
+  for (const income of incomes) {
+    for (const dependents of dependentCounts) {
+      for (const hasLoan of [true, false]) {
+        for (const incomeVaries of [true, false]) {
+          for (const topRate of [undefined, 8.4, 11, 42]) {
+            const plan = buildPlan({
+              income, dependents, hasLoan, incomeVaries, topRate, topDebtName: 'card',
+            });
+
+            let total = 0;
+
+            for (const bucket of plan.buckets) {
+              const where = `${bucket.key} at ${income}/${dependents}/${hasLoan}/${incomeVaries}/${topRate}`;
+
+              assert.ok(bucket.percent >= floors[bucket.key], where + ' fell below its floor');
+              assert.ok(bucket.percent <= ceilings[bucket.key], where + ' went above its ceiling');
+
+              total = total + bucket.percent;
+            }
+
+            assert.equal(total, 100);
+          }
+        }
+      }
+    }
+  }
+});
+
+
+test('regression: paying extra rescues a debt that never cleared', () => {
+  /*
+    A credit card at 42% with a minimum payment below the interest never
+    finishes. That is exactly the debt where paying more matters most, and the
+    card on the debts page says so: "drag it far enough and this debt starts
+    clearing".
+
+    It used to be a lie. extraPaymentEffect refused to answer at all whenever
+    the debt did not already clear, so the slider could be dragged to the end
+    and nothing appeared.
+  */
+  const principal = 84000;
+  const rate = 42;
+  const emi = 2800;
+
+  assert.equal(payoff(principal, rate, emi, 0).clears, false);
+
+  const effect = extraPaymentEffect(principal, rate, emi, 1000);
+
+  assert.equal(effect.possible, true);
+  assert.equal(effect.turnsAround, true);
+  assert.ok(effect.newMonths > 0);
+  assert.ok(effect.newPayoffDate instanceof Date);
+});
+
+
+test('extra that is still not enough is reported as not possible', () => {
+  // One rupee more on a card that is 140 short every month changes nothing,
+  // and claiming a payoff date would be worse than saying nothing.
+  const effect = extraPaymentEffect(84000, 42, 2800, 1);
+
+  assert.equal(effect.possible, false);
+});
+
+
+test('an ordinary loan still reports months and interest saved', () => {
+  // The rescue case above must not have changed the normal one.
+  const effect = extraPaymentEffect(410000, 8.4, 7200, 3000);
+
+  assert.equal(effect.possible, true);
+  assert.equal(effect.turnsAround, false);
+  assert.ok(effect.monthsSaved > 0);
+  assert.ok(effect.interestSaved > 0);
+});
+
+
+test('regression: a goal date means the same month in every timezone', () => {
+  /*
+    monthsUntil used to hand the date to new Date(), which reads '2027-06-01'
+    as midnight UTC and then gives the parts back in local time. East of London
+    that is fine. West of it, the 1st of June becomes the 31st of May, and
+    every goal on the page is a month out.
+
+    It now reads the numbers out of the text, so where the browser is standing
+    makes no difference.
+  */
+  const now = new Date();
+
+  // Six months out, built from today so the test does not expire.
+  const target = new Date(now.getFullYear(), now.getMonth() + 6, now.getDate());
+
+  const year = target.getFullYear();
+  const month = String(target.getMonth() + 1).padStart(2, '0');
+  const day = String(target.getDate()).padStart(2, '0');
+
+  assert.equal(monthsUntil(year + '-' + month + '-' + day), 6);
+});
+
+
+test('monthsUntil refuses anything that is not a date', () => {
+  assert.equal(monthsUntil('not a date'), 0);
+  assert.equal(monthsUntil(''), 0);
+  assert.equal(monthsUntil(undefined), 0);
+  assert.equal(monthsUntil('2027-06'), 0);
 });
