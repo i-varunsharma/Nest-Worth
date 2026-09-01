@@ -130,9 +130,9 @@ the API would refuse it, and then wonder why a page looks broken.
 | Delete your account and everything in it | Working, on the settings page |
 | Progress against the plan, from your check-ins | Working, on the dashboard |
 | Plan subtracts real rent and bills before splitting | Working |
-| Backend tests (`npm test` in `backend/`) | Working, 67 of them |
-| Frontend tests (`npm test` in `frontend/`) | Working, 57 of them |
-| AI coach on the dashboard | Working, needs an API key: section 4 |
+| Backend tests (`npm test` in `backend/`) | Working, 85 of them |
+| Frontend tests (`npm test` in `frontend/`) | Working, 59 of them |
+| AI coach that runs your numbers | Working, needs an API key: section 4 |
 | Continue with Google | Code is finished, needs a client id: section 5 |
 | Real text messages | Needs section 6 |
 | Real password reset emails | Needs section 7 |
@@ -383,8 +383,8 @@ about deployment.
 - [ ] Create an account and check the dashboard appears
 - [ ] Try the Phone tab and read the code from the API terminal
 - [ ] Try "Forgot password?" and read the link from the API terminal
-- [ ] `cd backend && npm test` and see 67 passing
-- [ ] `cd frontend && npm test` and see 57 passing
+- [ ] `cd backend && npm test` and see 85 passing
+- [ ] `cd frontend && npm test` and see 59 passing
 
 **AI coach (section 4)**
 

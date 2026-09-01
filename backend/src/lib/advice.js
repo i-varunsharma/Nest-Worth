@@ -177,6 +177,24 @@ export function factsToText(facts) {
 
   const household = facts.household;
 
+  /*
+    Today's date, first.
+
+    Without it a goal "wanted by 2027-03-01" means nothing: the model cannot
+    tell whether that is six months away or three years, and it will guess
+    rather than say it does not know. A model's own sense of the date comes
+    from when it was trained, so it is exactly the kind of fact to hand it
+    rather than trust it for.
+  */
+  const today = new Date().toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+
+  lines.push('TODAY IS ' + today);
+  lines.push('');
+
   lines.push('HOUSEHOLD');
   lines.push('Take-home income: ₹' + round(household.income) + ' a month');
   lines.push('People depending on this income: ' + household.dependents);
@@ -249,13 +267,26 @@ export function factsToText(facts) {
     lines.push('No months recorded yet.');
   } else {
     facts.checkins.forEach((checkin) => {
-      lines.push(
-        '- ' + checkin.month
+      let line = '- ' + checkin.month
         + ': earned ₹' + round(checkin.income)
         + ', spent ₹' + round(checkin.spent)
         + ', saved ₹' + round(checkin.saved)
-        + ', invested ₹' + round(checkin.invested),
-      );
+        + ', invested ₹' + round(checkin.invested);
+
+      /*
+        The note the person wrote about that month, if they wrote one.
+
+        This is the only thing in the whole prompt that is not a number, and it
+        is often the most useful line in it. "Sister's wedding" explains a bad
+        month in a way the figures never will, and a coach that ignores it
+        sounds like it is telling somebody off for something they already know
+        about.
+      */
+      if (checkin.note) {
+        line = line + '. They wrote: "' + checkin.note + '"';
+      }
+
+      lines.push(line);
     });
   }
 

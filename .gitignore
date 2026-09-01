@@ -1,5 +1,9 @@
 # Files git should never track, anywhere in this project.
 #
+# This is the only ignore file. There used to be one of these in backend/ and
+# another in frontend/, both saying the same things as this one, which meant
+# three places to check when something was committed that should not have been.
+#
 # Two rules worth knowing:
 #   1. Installed packages are never committed. Anyone can rebuild them from
 #      package-lock.json with "npm install", and committing them adds tens of
@@ -19,6 +23,9 @@ build/
 .env
 .env.local
 .env.*.local
+
+# Vite's convention: anything ending .local is yours and is never committed.
+*.local
 
 # The SQLite database and its temporary write-ahead files.
 # It is rebuilt automatically the first time the server starts.

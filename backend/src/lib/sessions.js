@@ -97,10 +97,20 @@ export function attachUser(req, res, next) {
   next();
 }
 
-/* Middleware for routes that only make sense when signed in. */
+/*
+  Middleware for routes that only make sense when signed in.
+
+  The "code" is for the browser rather than the person. A 401 from this API can
+  mean two completely different things: a wrong password, or a session that has
+  ended. Both are 401, and the browser has to react differently, so this one
+  says which it is. Without it the frontend would have to guess from the URL.
+*/
 export function requireUser(req, res, next) {
   if (!req.user) {
-    return res.status(401).json({ error: 'Please sign in first.' });
+    return res.status(401).json({
+      error: 'Please sign in first.',
+      code: 'no_session',
+    });
   }
   next();
 }

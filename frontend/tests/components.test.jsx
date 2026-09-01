@@ -5,6 +5,7 @@ import TextField from '../src/components/shared/TextField';
 import DebtCard from '../src/components/app/DebtCard';
 import DebtForm from '../src/components/app/DebtForm';
 import ConsistencyCard from '../src/components/app/ConsistencyCard';
+import ErrorBoundary from '../src/components/shared/ErrorBoundary';
 
 /*
   Tests that render real components and poke at them. Run with: npm test
@@ -339,4 +340,55 @@ test('ConsistencyCard claims a trend only from four months', () => {
   // Falling short is reported without scolding.
   const verdict = screen.getByText(/points under the plan/);
   expect(verdict).toHaveTextContent(/plan is too tight/);
+});
+
+
+// ---------------------------------------------------------------
+// The error boundary
+// ---------------------------------------------------------------
+
+test('a crash inside a page shows a message instead of a blank screen', () => {
+  /*
+    When a component throws while rendering, React removes the whole tree
+    rather than leave a half-drawn page up. Without a boundary the result is a
+    completely white browser window, which is the worst thing to show somebody
+    looking at their own finances.
+
+    The error is expected here, so the console is quietened for the duration.
+    Otherwise React prints the whole stack and a passing run looks like a
+    failing one.
+  */
+  const realError = console.error;
+  console.error = () => {};
+
+  function Exploding() {
+    throw new Error('deliberate, for the test');
+  }
+
+  try {
+    render(
+      <ErrorBoundary>
+        <Exploding />
+      </ErrorBoundary>,
+    );
+
+    expect(screen.getByText('This page stopped working.')).toBeInTheDocument();
+
+    // It has to offer a way out. A dead end is only slightly better than a
+    // blank page.
+    expect(screen.getByRole('button', { name: /reload/i })).toBeInTheDocument();
+  } finally {
+    console.error = realError;
+  }
+});
+
+
+test('the boundary stays out of the way when nothing is wrong', () => {
+  render(
+    <ErrorBoundary>
+      <p>the real page</p>
+    </ErrorBoundary>,
+  );
+
+  expect(screen.getByText('the real page')).toBeInTheDocument();
 });
