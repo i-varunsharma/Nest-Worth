@@ -295,6 +295,36 @@ export function deleteAsset(id) {
 }
 
 
+// ---------------------------------------------------------------
+// Insights
+// ---------------------------------------------------------------
+
+/*
+  The reporting endpoint.
+
+  Everything it returns is worked out by the database rather than here:
+  averages, running totals, the best and worst month, and what is owed and
+  owned grouped by kind. This page used to add those up itself after fetching
+  every row, which meant sending two years of check-ins across the network so
+  that JavaScript could throw nearly all of it away.
+*/
+export function getInsights() {
+  return request('/api/insights', 'GET');
+}
+
+
+/*
+  The different ways this person could use the same money, each played out
+  fifteen years by the simulation in shared/scenarios.js.
+
+  Every figure comes from the server. The browser only draws it, which is why
+  the charts and the AI coach can never disagree about where a choice lands.
+*/
+export function getScenarios() {
+  return request('/api/scenarios', 'GET');
+}
+
+
 export function getCheckins() {
   return request('/api/checkins', 'GET');
 }

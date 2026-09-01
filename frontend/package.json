@@ -9,7 +9,10 @@
     "lint": "cd .. && frontend/node_modules/.bin/oxlint frontend/src frontend/tests shared backend/src backend/tests",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "shots": "node scripts/screenshot.mjs",
+    "shots:api": "cd ../backend && NESTWORTH_DB_FILE=/tmp/nestworth-shots.db DISABLE_RATE_LIMIT=true PORT=4001 CLIENT_ORIGIN=http://localhost:5174 node src/server.js",
+    "shots:web": "VITE_API_URL=http://localhost:4001 vite --port 5174 --strictPort"
   },
   "dependencies": {
     "react": "^19.2.8",
@@ -26,6 +29,7 @@
     "autoprefixer": "^10.5.4",
     "jsdom": "^29.1.1",
     "oxlint": "^1.79.0",
+    "playwright": "^1.62.1",
     "postcss": "^8.5.26",
     "tailwindcss": "^3.4.17",
     "vite": "^8.2.2",

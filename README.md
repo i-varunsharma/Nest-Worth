@@ -41,8 +41,8 @@ Open <http://localhost:5173> and create an account.
 To run the tests:
 
 ```bash
-cd backend  && npm test    # 85 tests: the API, sessions, rate limiting, the coach and its tools
-cd frontend && npm test    # 59 tests: the money maths, and the components
+cd backend  && npm test    # 126 tests: the API, the SQL, the simulation, transactions, the coach
+cd frontend && npm test    # 76 tests: the money maths, the components and the charts
 ```
 
 To look at what the app has stored:
@@ -70,10 +70,11 @@ text messages, real email, and what to do before putting this on the internet.
 | `/forgot-password`, `/reset-password` | Setting a new password, by a one-time link. |
 | `/onboarding` | The questions everything else is calculated from. |
 | `/dashboard` | The overview: what to do this month, and why. Includes the AI coach. |
+| `/plans` | The same money spent four ways, each played out fifteen years, in charts. |
 | `/debts` | Every debt, with payoff dates and an extra-payment slider. |
 | `/goals` | What you are saving for, and what each costs per month. |
 | `/net-worth` | What you own against what you owe. |
-| `/check-in` | What actually happened this month, as opposed to the plan. |
+| `/check-in` | What actually happened this month, as opposed to the plan, with the totals the database works out. |
 | `/settings` | Name, household, password, and closing the account. |
 
 ---
@@ -89,7 +90,7 @@ Nest-Worth/
 ├── backend/                  the API. Node, Express and SQLite
 │   ├── data/                 the SQLite file. Created on first run, never committed
 │   ├── src/
-│   │   ├── server.js         starts the app on a port. Does nothing else
+│   │   ├── server.js         starts the app, and stops it without dropping anybody
 │   │   ├── app.js            builds the app: CORS, cookies, routes, error handling
 │   │   ├── database/
 │   │   │   ├── schema.sql    every table and index, in one readable file
@@ -99,6 +100,8 @@ Nest-Worth/
 │   │   │   ├── otp.js        the six digit code: making, sending, checking
 │   │   │   ├── passwordReset.js  the reset link, built the same way as the OTP
 │   │   │   ├── rateLimit.js  refusing somebody who is asking far too often
+│   │   │   ├── insights.js   the reporting SQL: aggregates, GROUP BY, windows
+│   │   │   ├── logger.js     request ids, timings, and what to never log
 │   │   │   ├── advice.js     the agent loop. The only file that talks to Claude
 │   │   │   ├── tools.js      the calculations Claude is allowed to run
 │   │   │   └── validate.js   the server's own copy of the form checks
@@ -109,7 +112,9 @@ Nest-Worth/
 │   │       ├── goals.js      │ all four are the same four routes:
 │   │       ├── assets.js     │ list, add, change, remove
 │   │       ├── checkins.js   ┘
-│   │       └── advice.js     the AI coach, streamed as it is written
+│   │       ├── advice.js     the AI coach, streamed as it is written
+│   │       ├── insights.js   GET /api/insights, the reporting endpoint
+│   │       └── scenarios.js  GET /api/scenarios, the plan comparison
 │   └── tests/                run with npm test
 │
 ├── frontend/                 the app. React, Vite and Tailwind
@@ -123,6 +128,7 @@ Nest-Worth/
 │       │   └── debt.js, goals.js, networth.js, plan.js
 │       │                     one line each, re-exporting shared/ below
 │       ├── components/
+│       │   ├── charts/       the four charts, hand-drawn. No chart library
 │       │   ├── shared/       Button, TextField, ErrorBoundary. Used everywhere
 │       │   ├── layout/       navbar and footer
 │       │   ├── landing/      the marketing page
@@ -139,6 +145,32 @@ Nest-Worth/
 │
 └── ai-integration/           notes on how the AI coach is wired up
 ```
+
+### Where the work happens
+
+Most of the API hands out rows and lets the browser add them up. That is the
+right call when the browser needs every row anyway, which is what the debts and
+goals pages do.
+
+It is the wrong call for an average, a running total or a share, where the
+answer is one number and the rows are only the raw material. Fetching two years
+of check-ins so JavaScript can work out a mean means sending every column of
+every row across the network to throw nearly all of it away. Those live in
+`backend/src/lib/insights.js` as real SQL instead:
+
+| What | The SQL that does it |
+|---|---|
+| Running total of everything kept | `SUM(...) OVER (ORDER BY month)`, a window function |
+| Each month against the one before | `LAG(...) OVER (ORDER BY month)` |
+| Average share of income kept | `AVG`, which skips NULL rather than counting it as zero |
+| Best and worst month | a `WITH` clause, used twice without repeating it |
+| Debts and assets by kind | `GROUP BY`, with each share against a scalar subquery |
+| Never dividing by zero | `NULLIF(income, 0)` |
+
+There is a test for each, with the expected number worked out by hand in a
+comment. A wrong aggregate does not throw and does not look wrong: it returns a
+number, in the right format, in the right place on the page, and it is simply
+not true.
 
 ### Why it is arranged this way
 
@@ -232,6 +264,94 @@ These are the parts worth being able to explain out loud.
   naming a person. The conversation the browser sends back is rebuilt from
   scratch and anything that is not a plain turn of text is dropped, so a browser
   cannot forge a calculation result and have it repeated back as fact.
+
+---
+
+## The charts
+
+`/plans` shows the same income arranged four ways. Four charts, and the type of
+each was picked from the job it does rather than from what looks impressive.
+
+| What the reader has to do | The chart |
+|---|---|
+| See where one month's money goes | a stacked bar, part-to-whole |
+| Compare four plans over fifteen years | multi-line, one axis |
+| See how much sooner the debt clears | a dumbbell, before against after |
+| Judge one number against a target | a meter, not a chart |
+
+Three rules the colours follow, and they are why the chart colours in
+`tailwind.config.js` are not the UI colours:
+
+**The UI colours failed as chart colours.** `accent` and `ink` are too dark and
+too grey to be told apart as marks. The chart steps sit on the same hues, lifted
+into the band where they stay separable, and they were checked with a validator
+rather than by eye. Roughly one man in twelve cannot distinguish red from green,
+and "these look different to me" is not a test.
+
+**Only choices get a colour.** Spend, save and invest are decisions and each has
+a hue. The money already committed is grey: it is not a choice, and giving it a
+colour would make it compete with the parts somebody can act on.
+
+**One plan at a time is coloured.** On the comparison chart the plan being read
+is green and the other three are one grey. Four coloured lines is a chart where
+the eye has nowhere to land.
+
+Every chart has a legend, and the page ends with a table of every figure on it,
+so nothing is available only as a picture.
+
+### Looking at them
+
+```bash
+cd frontend
+npm run shots:api    # a throwaway API on 4001, its own database, limits off
+npm run shots:web    # vite on 5174, pointed at it
+npm run shots        # drives a real browser, saves to frontend/screenshots/
+```
+
+The component tests run in jsdom, which has no layout engine. It can say a
+legend was rendered and that no width came out as NaN; it cannot say a label was
+cut in half, or that the comparison chart collapsed to six pixels tall on a
+phone. Both of those were really here, and both were found by looking at what
+this script produced rather than by a test.
+
+It reports horizontal overflow and text clipped by its own box, and it scrolls
+each page before shooting, because several things here only draw once they have
+been scrolled into view. It never touches the real database, for the same reason
+the tests do not: it needs a fresh account with fixed numbers every run.
+
+---
+
+## Running it as a service
+
+The parts that have nothing to do with features, and everything to do with
+whether this could be left running.
+
+- **Every request has an id**, returned in an `X-Request-Id` header and printed
+  on every log line for that request. One request produces several lines and
+  several requests overlap, so without an id there is no way to tell which
+  belongs to which. A person reporting a problem can name the exact request
+  instead of a rough time, and a 500 sends the id back in the body.
+- **Every request is timed.** An endpoint that is merely slow never throws, so
+  it never appears anywhere until somebody complains. `ms=` on every line makes
+  it obvious. Signup is the slow one on purpose: bcrypt at cost 12.
+- **Passwords, tokens and one-time codes are never logged.** A log file is the
+  easiest place in a system to leak a secret, because nobody thinks of it as
+  storage: it gets pasted into tickets and kept longer than any database row.
+- **Logs are JSON in production and readable text in development.** A sentence
+  is nicer on a laptop and useless to a machine.
+- **`/api/health` runs a real query.** It used to answer `ok: true` without
+  checking anything, which meant it stayed green while the database was gone. A
+  health check that cannot go red is decoration. It answers 503 when SQLite is
+  unreachable, which is what a load balancer knows how to act on.
+- **SIGTERM and SIGINT shut down in order:** stop accepting new connections,
+  let the requests already in flight finish, close SQLite so it folds its
+  write-ahead log back into the main file, then exit. There is a ten second
+  limit, because one request waiting on a slow AI answer should not hold a
+  deploy open forever.
+- **Multi-step writes are transactions.** Signup, password change and password
+  reset each write several rows, and a failure halfway through the reset would
+  be the worst kind: password changed, old sessions not deleted, success
+  reported. `db.transaction()` means either all of it happens or none does.
 
 ---
 

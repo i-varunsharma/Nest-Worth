@@ -1,6 +1,6 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
-import db from '../database/db.js';
+import db, { inTransaction } from '../database/db.js';
 import { sendCode, verifyCode } from '../lib/otp.js';
 import {
   COOKIE_NAME,
@@ -129,6 +129,18 @@ function signIn(res, user) {
   setSessionCookie(res, session.token, session.expires);
 }
 
+/*
+  The database half of signing in, for the routes below that do it inside a
+  transaction.
+
+  Setting the cookie has to stay outside. A transaction can be rolled back and
+  an HTTP header cannot, so writing the header first would leave the browser
+  holding a session token for a session that was undone.
+*/
+function createSessionOnly(userId) {
+  return createSession(userId);
+}
+
 
 // ---------------------------------------------------------------
 // POST /api/auth/signup
@@ -172,14 +184,31 @@ router.post('/signup', signupLimit, (req, res) => {
   // hashes.
   const passwordHash = bcrypt.hashSync(password, HASH_ROUNDS);
 
-  const result = db.prepare(`
-    INSERT INTO users (name, email, password_hash, created_at)
-    VALUES (?, ?, ?, ?)
-  `).run(name.trim(), cleanEmail, passwordHash, new Date().toISOString());
+  /*
+    Two writes: the account, and the session that signs them straight in.
 
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid);
+    A failure between them would leave an account that exists, holds the email
+    so it cannot be signed up again, and has no session, so the person is
+    looking at a form that now says the address is taken. Together or not at
+    all is the only sensible outcome.
+  */
+  const createAccount = inTransaction((accountName, email, hash) => {
+    const inserted = db.prepare(`
+      INSERT INTO users (name, email, password_hash, created_at)
+      VALUES (?, ?, ?, ?)
+    `).run(accountName, email, hash, new Date().toISOString());
 
-  signIn(res, user);
+    return {
+      userId: inserted.lastInsertRowid,
+      session: createSessionOnly(inserted.lastInsertRowid),
+    };
+  });
+
+  const created = createAccount(name.trim(), cleanEmail, passwordHash);
+
+  setSessionCookie(res, created.session.token, created.session.expires);
+
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(created.userId);
 
   // 201 means "created".
   return res.status(201).json({ user: publicUser(user) });
@@ -429,27 +458,39 @@ router.post('/reset', verifyLimit, (req, res) => {
 
   const passwordHash = bcrypt.hashSync(req.body.password, HASH_ROUNDS);
 
-  db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(passwordHash, result.user.id);
-
   /*
-    Three things happen once the password has changed.
+    Four writes, and they have to be all-or-nothing.
 
-    Throw the reset token away, so the link cannot be used again by whoever else
-    reads that email.
+    Change the password. Throw the reset token away, so the link cannot be used
+    again by whoever else reads that email. Delete every session on the account,
+    because somebody resetting may be doing it precisely because a stranger got
+    in. Then make one fresh session, so they land on the dashboard rather than
+    back at a login form having just proved who they are.
 
-    Delete every session on the account. Somebody resetting may be doing it
-    because a stranger got in, and leaving the stranger signed in would make the
-    reset pointless. This is the step easiest to forget.
+    Run those one at a time and a failure in the middle leaves the account in a
+    state nobody designed, and the worst version of it is not unlikely: the
+    password changed, and the stranger's session still alive. The reset would
+    have reported success while doing the one thing it exists to prevent.
 
-    Then sign them in fresh, so they land on the dashboard rather than a login
-    form, having just proved who they are.
+    Inside a transaction there is no middle. Either all four happen or none do,
+    and the caller gets the error.
   */
-  clearResetToken(result.user.id);
-  deleteAllSessionsForUser(result.user.id);
+  const resetPassword = inTransaction((userId, hash) => {
+    db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, userId);
+
+    clearResetToken(userId);
+    deleteAllSessionsForUser(userId);
+
+    return createSessionOnly(userId);
+  });
+
+  const session = resetPassword(result.user.id, passwordHash);
+
+  // The cookie is set only after the transaction has committed. See
+  // createSessionOnly above for why it cannot go inside.
+  setSessionCookie(res, session.token, session.expires);
 
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(result.user.id);
-
-  signIn(res, user);
 
   return res.json({ user: publicUser(user) });
 });
@@ -505,22 +546,27 @@ router.post('/password', requireUser, verifyLimit, (req, res) => {
 
   const passwordHash = bcrypt.hashSync(req.body.newPassword, HASH_ROUNDS);
 
-  db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(passwordHash, user.id);
-
   /*
-    Same as a reset: every other browser is signed out, and then this one is
-    signed back in with a new session.
+    The same all-or-nothing set as the reset above, and for the same reason.
 
-    Doing it in that order matters. Deleting everything first and then making a
-    fresh session means the person changing the password stays where they are,
-    while anybody else holding an old cookie is out.
+    The order inside matters as well as the atomicity. Deleting every session
+    first and then making a fresh one means the person changing the password
+    stays where they are, while anybody else holding an old cookie is out.
   */
-  deleteAllSessionsForUser(user.id);
-  clearResetToken(user.id);
+  const changePassword = inTransaction((userId, hash) => {
+    db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, userId);
+
+    deleteAllSessionsForUser(userId);
+    clearResetToken(userId);
+
+    return createSessionOnly(userId);
+  });
+
+  const session = changePassword(user.id, passwordHash);
+
+  setSessionCookie(res, session.token, session.expires);
 
   const updated = db.prepare('SELECT * FROM users WHERE id = ?').get(user.id);
-
-  signIn(res, updated);
 
   return res.json({ user: publicUser(updated) });
 });

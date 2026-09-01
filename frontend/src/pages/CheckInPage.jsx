@@ -37,6 +37,10 @@ export default function CheckInPage({ user }) {
   const [invested, setInvested] = useState('');
   const [note, setNote] = useState('');
 
+  // What the database worked out about the months already recorded. Null until
+  // it arrives, and it stays null for somebody with no history.
+  const [insights, setInsights] = useState(null);
+
   const [formError, setFormError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
@@ -47,10 +51,11 @@ export default function CheckInPage({ user }) {
     let stillMounted = true;
 
     const load = async () => {
-      const [checkinResult, householdResult, debtsResult] = await Promise.all([
+      const [checkinResult, householdResult, debtsResult, insightResult] = await Promise.all([
         api.getCheckins(),
         api.getHousehold(),
         api.getDebts(),
+        api.getInsights(),
       ]);
 
       if (!stillMounted) {
@@ -63,6 +68,12 @@ export default function CheckInPage({ user }) {
       }
 
       setCheckins(checkinResult.data.checkins);
+
+      // The summary is a bonus, not a requirement. If it fails the history
+      // below still draws, so there is nothing to report here.
+      if (insightResult.ok) {
+        setInsights(insightResult.data.insights);
+      }
 
       if (householdResult.ok && debtsResult.ok) {
         const debts = debtsResult.data.debts;
@@ -257,6 +268,14 @@ export default function CheckInPage({ user }) {
             What has happened
           </h2>
 
+          {/*
+            The summary strip. Every number in it is computed by SQL in
+            lib/insights.js on the server, not by this page: the running total
+            is a window function, the average skips the months with no income,
+            and the best month is picked on share rather than on amount.
+          */}
+          <HistorySummary insights={insights} />
+
           {checkins.length === 0 ? (
             <p className="mt-4 text-[14.5px] leading-relaxed text-ink2">
               Nothing recorded yet. Do this once at the end of the month and by March you will
@@ -322,5 +341,71 @@ export default function CheckInPage({ user }) {
         </div>
       </div>
     </AppShell>
+  );
+}
+
+
+/*
+  The strip above the history: what all these months add up to.
+
+  It draws nothing at all until there are at least two months, because a
+  "running total" and a "best month" over a single entry are not summaries, they
+  are that one entry repeated in three boxes.
+
+  Props:
+    insights - the object from GET /api/insights, or null while it loads
+*/
+function HistorySummary({ insights }) {
+  if (insights === null) {
+    return null;
+  }
+
+  if (insights.summary.monthsRecorded < 2) {
+    return null;
+  }
+
+  const summary = insights.summary;
+
+  // The last month in the list carries the running total of everything kept,
+  // which is what a window function in SQL put there.
+  const latest = insights.months[insights.months.length - 1];
+
+  const boxes = [
+    {
+      label: 'Kept in total',
+      value: formatRupees(latest.keptRunningTotal, { short: true }),
+      note: 'across ' + summary.monthsRecorded + ' months',
+    },
+    {
+      label: 'Average kept',
+      value: summary.averageKeptPercent + '%',
+      note: 'of what you earned',
+    },
+  ];
+
+  if (insights.bestMonth) {
+    boxes.push({
+      label: 'Best month',
+      value: monthLabel(insights.bestMonth.month),
+      note: insights.bestMonth.keptPercent + '% kept',
+    });
+  }
+
+  return (
+    <div className="mt-5 grid gap-3 sm:grid-cols-3">
+      {boxes.map((box) => {
+        return (
+          <div key={box.label} className="rounded-[18px] border border-line bg-surface p-4">
+            <p className="text-2xs font-semibold uppercase tracking-widest2 text-muted">
+              {box.label}
+            </p>
+            <p className="tnum mt-2 font-display text-[22px] leading-none text-accent">
+              {box.value}
+            </p>
+            <p className="mt-1.5 text-2xs text-muted">{box.note}</p>
+          </div>
+        );
+      })}
+    </div>
   );
 }

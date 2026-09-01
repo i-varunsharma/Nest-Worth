@@ -47,5 +47,9 @@ npm-debug.log*
 # Test coverage output
 coverage/
 
+# Pictures from "npm run shots". They are for looking at, not for committing:
+# a screenshot goes stale the moment the page changes.
+screenshots/
+
 # Vite cache
 .vite/

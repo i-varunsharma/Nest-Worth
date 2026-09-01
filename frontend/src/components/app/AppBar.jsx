@@ -18,6 +18,7 @@ import * as api from '../../lib/api';
 
 const sections = [
   { to: '/dashboard', label: 'Dashboard' },
+  { to: '/plans', label: 'Plans' },
   { to: '/debts', label: 'Debts' },
   { to: '/goals', label: 'Goals' },
   { to: '/net-worth', label: 'Net worth' },
