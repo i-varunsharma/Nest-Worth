@@ -128,6 +128,7 @@ the API would refuse it, and then wonder why a page looks broken.
 | Rate limiting on sign-in and sign-up | Working |
 | Reporting endpoint, aggregated in SQL | Working, `GET /api/insights` |
 | Four plans compared in charts | Working, on `/plans` |
+| Choosing a plan, and the dashboard following it | Working |
 | Screenshot checks in a real browser | Working, `npm run shots` in `frontend/` |
 | Request logging with request ids | Working, see the API terminal |
 | Graceful shutdown on Ctrl+C | Working |
@@ -136,9 +137,9 @@ the API would refuse it, and then wonder why a page looks broken.
 | Delete your account and everything in it | Working, on the settings page |
 | Progress against the plan, from your check-ins | Working, on the dashboard |
 | Plan subtracts real rent and bills before splitting | Working |
-| Backend tests (`npm test` in `backend/`) | Working, 126 of them |
-| Frontend tests (`npm test` in `frontend/`) | Working, 76 of them |
-| AI coach that runs your numbers | Working, needs an API key: section 4 |
+| Backend tests (`npm test` in `backend/`) | Working, 141 of them |
+| Frontend tests (`npm test` in `frontend/`) | Working, 78 of them |
+| AI coach (Gemini free, or Claude) | Working, needs an API key: section 4 |
 | Continue with Google | Code is finished, needs a client id: section 5 |
 | Real text messages | Needs section 6 |
 | Real password reset emails | Needs section 7 |
@@ -161,54 +162,84 @@ The dashboard has a card that reads your real numbers, works things out, and
 says what to do next in plain English. Ask it "what if I paid ₹3,000 more on the
 card?" and it runs the app's own payoff simulation before answering.
 
-It is the one feature here that calls out to somebody else's server, and the one
-that costs money per use.
+It works with either of two models, and the app behaves the same way with both.
 
-Without a key it does not break anything. The card shows a line saying the coach
-is not set up, and the rest of the dashboard carries on.
+| | Gemini | Claude |
+|---|---|---|
+| Cost | **has a free allowance** | paid, no free tier |
+| Key from | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) | [console.anthropic.com](https://console.anthropic.com) |
+| Setting | `GEMINI_API_KEY` | `ANTHROPIC_API_KEY` |
 
-### Getting a key
+Without a key it does not break anything. The card says the coach is not set up
+and the rest of the app carries on.
 
-1. Sign in at [console.anthropic.com](https://console.anthropic.com) and add a
-   little credit. There is no free tier.
-2. Make an API key and copy it. The console shows it once.
-3. Put it in `backend/.env`:
+### Where to paste the key (Gemini, the free one)
+
+1. Go to **https://aistudio.google.com/apikey** and sign in with a Google
+   account.
+2. Press **Create API key**. Copy it. It starts with `AIzaSy`.
+3. Open **`backend/.env`**. If that file does not exist yet, make it by copying
+   the template:
+
+   ```bash
+   cd backend
+   cp .env.example .env
+   ```
+
+4. Find this line, which is already in the file, and paste the key straight
+   after the `=`. No quotes, no spaces:
 
    ```
-   ANTHROPIC_API_KEY=sk-ant-...
+   GEMINI_API_KEY=AIzaSy........................
    ```
 
-4. Restart the API. `npm run dev` reloads on file changes but not on `.env`
-   changes.
+5. **Restart the API.** `npm run dev` reloads when code changes but not when
+   `.env` does, so it has to be stopped and started.
 
-### The two rules this follows
+You will know it worked, because the line the server prints when it starts
+changes from `AI coach: not configured` to `AI coach: Gemini (gemini-2.0-flash)`.
 
-**The key stays on the server.** It is read in `backend/src/lib/advice.js` and
-nowhere else. Putting it in `frontend/` would publish it: anything the browser
-downloads, anybody can read, and they would be spending your credit by lunchtime.
-This is the same reason `GOOGLE_CLIENT_ID` is fine in the frontend and a client
-*secret* would not be.
+If it says there is no such model, Google has renamed it. Pick a current one
+from [ai.google.dev](https://ai.google.dev/gemini-api/docs/models) and add
+`GEMINI_MODEL=` to `.env`.
 
-**Claude never does the arithmetic.** It is handed a snapshot of your numbers,
-and four calculations it can ask the server to run: a debt payoff simulation, a
-"what if my situation changed" rebuild of the plan, a goals check and an
-emergency fund check. Those run the code in `shared/`, which is the same code
-the dashboard draws with, so the coach cannot tell you a payoff date the debts
-page disagrees with. A language model states a wrong number with total
-confidence, so it is given the calculator rather than asked to be one.
+### Which one gets used
+
+Whichever key is filled in. With both, Gemini wins, because it is the free one.
+`AI_PROVIDER=claude` or `AI_PROVIDER=gemini` in `.env` settles it either way.
+
+### The rules this follows
+
+**The key stays on the server.** It is read in `backend/src/lib/ai/` and nowhere
+else. Putting it in `frontend/` would publish it: anything the browser downloads,
+anybody can read. This is the same reason `GOOGLE_CLIENT_ID` is fine in the
+frontend and a client *secret* would not be.
+
+**The model never does the arithmetic.** It is handed a snapshot of your numbers
+and a set of calculations it can ask the server to run: a debt payoff
+simulation, a "what if my situation changed" rebuild of the plan, a goals check,
+an emergency fund check, a look at your recent months, and a comparison of every
+plan. Those run the code in `shared/`, which is the same code the dashboard
+draws with, so the coach cannot tell you a payoff date the debts page disagrees
+with. A language model states a wrong number with total confidence, so it is
+given the calculator rather than asked to be one.
+
+**One conversation, two translators.** `lib/advice.js` keeps the conversation in
+its own shape and `lib/ai/gemini.js` and `lib/ai/claude.js` translate it. The
+agent loop is written once. Adding a third model means one more file there and
+one line in `lib/ai/index.js`.
 
 `ai-integration/README.md` explains the loop in more detail.
 
-### What it costs, roughly
+### What it costs
 
-A question with no tool call is about 1,500 tokens in and a few hundred out. One
-that runs a tool goes round the loop twice or three times, so call it three or
-four times that. On `claude-opus-5` even the expensive case is a rupee or two.
+Gemini's free allowance covers ordinary use of this app comfortably. If it runs
+out the coach says so and everything else keeps working.
 
-The route is limited to 20 questions an hour per person in
-`backend/src/routes/advice.js`, which is more than a person asks and far fewer
-than a script would. Set a monthly cap in the console as well; the limit is per
-person, and a hundred people is a hundred limits.
+On Claude, a question with no tool call is about 1,500 tokens in and a few
+hundred out; one that runs a tool goes round the loop two or three times. Even
+the expensive case is a rupee or two. The route is limited to 20 questions an
+hour per person either way.
 
 ---
 
@@ -389,14 +420,15 @@ about deployment.
 - [ ] Create an account and check the dashboard appears
 - [ ] Try the Phone tab and read the code from the API terminal
 - [ ] Try "Forgot password?" and read the link from the API terminal
-- [ ] `cd backend && npm test` and see 126 passing
-- [ ] `cd frontend && npm test` and see 76 passing
+- [ ] `cd backend && npm test` and see 141 passing
+- [ ] `cd frontend && npm test` and see 78 passing
 
 **AI coach (section 4)**
 
-- [ ] Anthropic account created and credit added
-- [ ] `ANTHROPIC_API_KEY` in `backend/.env`
-- [ ] API restarted, and the coach card on the dashboard answers
+- [ ] Key created at aistudio.google.com/apikey (free) or console.anthropic.com
+- [ ] Pasted after the `=` in `backend/.env`, no quotes
+- [ ] API restarted, and its startup line names the model
+- [ ] The coach card on the dashboard answers
 
 **Google sign-in (section 5)**
 

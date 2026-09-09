@@ -1,5 +1,5 @@
-import Anthropic from '@anthropic-ai/sdk';
 import db from '../database/db.js';
+import { chooseProvider } from './ai/index.js';
 import { MAX_TOOL_ROUNDS, describeTool, runTool, toolDefinitions } from './tools.js';
 
 /*
@@ -17,10 +17,6 @@ import { MAX_TOOL_ROUNDS, describeTool, runTool, toolDefinitions } from './tools
   hands the finished figures to Claude. Claude's job is to explain them and pick
   what matters, never to produce them.
 */
-
-// Opus is the strongest model, which matters here because the answer is about
-// somebody's money. The exact id is what the API expects, no date after it.
-const MODEL = 'claude-opus-5';
 
 /*
   The ceiling on one round of the loop.
@@ -295,20 +291,36 @@ export function factsToText(facts) {
 
 
 /*
-  Asks Claude, and streams the answer back as it is written.
+  Asks the model, and streams the answer back as it is written.
 
   This is an agent loop, and it is worth understanding because it is the whole
   feature. It goes round like this:
 
     1. Send the conversation and the list of tools.
-    2. Claude streams back some text, and may also ask to run one or more tools.
+    2. The model streams back some text, and may also ask to run one or more
+       tools.
     3. If it asked, we run them here, add the results to the conversation, and
        go round again. If it did not, it has finished and we stop.
 
-  Nothing is hidden inside the SDK: the loop is these thirty lines, which is
-  why it is written out by hand rather than using the helper that does it for
-  you. It also means we can tell the browser which tool is running, so the card
-  can say "checking your goals" instead of sitting still.
+  Nothing is hidden inside a library: the loop is these thirty lines, which is
+  why it is written out by hand rather than using a helper that does it for you.
+  It also means we can tell the browser which tool is running, so the card can
+  say "checking your goals" instead of sitting still.
+
+  ---------------------------------------------------------------
+  The conversation is kept in a shape neither provider uses
+  ---------------------------------------------------------------
+
+  Every entry in `messages` below is one of three things:
+
+    { role, text }        somebody said something
+    { toolCalls: [...] }  the model asked for a calculation
+    { toolResults: [...] } we ran it and this is what came back
+
+  Claude and Gemini both want that expressed differently: different names for
+  the two sides, different envelopes for a tool call, different words for the
+  system prompt. Keeping our own shape here and translating in lib/ai/ means
+  the loop is written once and reads the same whichever model is answering.
 
   Rather than returning the answer, this calls onEvent as things happen:
 
@@ -317,21 +329,20 @@ export function factsToText(facts) {
     { type: 'error', error }       it went wrong, and this is what to show
 
   Streaming matters more here than it looks. A tool round means two or three
-  calls to Claude, so the whole thing can take ten seconds, and ten seconds of
-  a spinner feels broken in a way that ten seconds of text appearing does not.
+  calls to the model, so the whole thing can take ten seconds, and ten seconds
+  of a spinner feels broken in a way that ten seconds of text appearing does not.
 */
 export async function askClaude(userId, facts, history, question, onEvent) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const provider = chooseProvider();
 
-  if (!apiKey) {
+  if (!provider) {
     onEvent({
       type: 'error',
-      error: 'The AI coach is not set up on this server yet. Add ANTHROPIC_API_KEY to backend/.env.',
+      error: 'The AI coach is not set up on this server yet. Put a GEMINI_API_KEY '
+        + '(free) or an ANTHROPIC_API_KEY in backend/.env, then restart the API.',
     });
     return;
   }
-
-  const client = new Anthropic({ apiKey: apiKey });
 
   let task = 'Look at these numbers and tell them the single most useful thing to do with '
     + 'their money this month, and why. Use a tool to check anything you want to suggest.';
@@ -341,8 +352,6 @@ export async function askClaude(userId, facts, history, question, onEvent) {
   }
 
   /*
-    The conversation.
-
     The snapshot goes in the first message rather than the system prompt, so it
     sits with the question it belongs to. Earlier turns are added after it, so
     a follow-up like "and if I paid double that?" has something to refer to.
@@ -351,84 +360,58 @@ export async function askClaude(userId, facts, history, question, onEvent) {
 
   messages.push({
     role: 'user',
-    content: 'Here are their numbers.\n\n' + factsToText(facts),
+    text: 'Here are their numbers.\n\n' + factsToText(facts),
   });
 
   messages.push({
     role: 'assistant',
-    content: 'Understood. I have their numbers and I will use the tools for anything I need to work out.',
+    text: 'Understood. I have their numbers and I will use the tools for anything I need to work out.',
   });
 
   history.forEach((turn) => {
-    messages.push({ role: turn.role, content: turn.text });
+    messages.push({ role: turn.role, text: turn.text });
   });
 
-  messages.push({ role: 'user', content: task });
+  messages.push({ role: 'user', text: task });
 
   const tools = toolDefinitions();
 
   try {
-    // A cap, because a loop with no end is a loop that spends money forever.
+    // A cap, because a loop with no end is a loop that keeps asking forever.
     for (let round = 0; round < MAX_TOOL_ROUNDS; round = round + 1) {
-      const stream = client.messages.stream({
-        model: MODEL,
-        max_tokens: MAX_TOKENS,
+      const reply = await provider.run({
         system: SYSTEM_PROMPT,
-        tools: tools,
         messages: messages,
-      });
-
-      // Send each piece of text on as it arrives, rather than waiting for the
-      // whole reply.
-      stream.on('text', (piece) => {
-        onEvent({ type: 'text', text: piece });
-      });
-
-      // Waits for this round to finish and hands back the complete reply, so
-      // we can see whether any tools were asked for.
-      const reply = await stream.finalMessage();
-
-      if (reply.stop_reason === 'refusal') {
-        onEvent({
-          type: 'error',
-          error: 'The model would not answer that one. Try asking it differently.',
-        });
-        return;
-      }
-
-      const toolCalls = reply.content.filter((block) => {
-        return block.type === 'tool_use';
+        tools: tools,
+        maxTokens: MAX_TOKENS,
+        onText: (piece) => {
+          onEvent({ type: 'text', text: piece });
+        },
       });
 
       // No tools asked for means the answer is finished.
-      if (toolCalls.length === 0) {
+      if (reply.toolCalls.length === 0) {
         return;
       }
 
-      // Claude's turn has to go back into the conversation exactly as it came,
-      // tool requests and all, or the results below have nothing to attach to.
-      messages.push({ role: 'assistant', content: reply.content });
+      // The model's own turn has to go back into the conversation exactly as it
+      // came, tool requests and all, or the results below have nothing to
+      // attach to.
+      messages.push({ toolCalls: reply.toolCalls });
 
       const results = [];
 
-      toolCalls.forEach((call) => {
+      reply.toolCalls.forEach((call) => {
         onEvent({ type: 'tool', label: describeTool(call.name, call.input) });
 
-        const output = runTool(userId, call.name, call.input);
-
         results.push({
-          type: 'tool_result',
-          tool_use_id: call.id,
-          content: output,
+          id: call.id,
+          name: call.name,
+          output: runTool(userId, call.name, call.input),
         });
       });
 
-      /*
-        Every result goes back in ONE user message. Splitting them across
-        several teaches Claude to stop asking for more than one at a time,
-        which makes every later answer slower for no reason.
-      */
-      messages.push({ role: 'user', content: results });
+      messages.push({ toolResults: results });
     }
 
     // Only reached if it kept asking for tools until the cap ran out.
@@ -437,20 +420,12 @@ export async function askClaude(userId, facts, history, question, onEvent) {
       error: 'That question took more working out than the coach allows. Try asking something narrower.',
     });
   } catch (error) {
-    // The real reason goes to our terminal. The browser gets a plain sentence,
-    // because an API error can carry details a stranger should not see.
-    console.error('Claude request failed:', error);
-
-    if (error.status === 401) {
-      onEvent({ type: 'error', error: 'The AI key on this server was refused. Check ANTHROPIC_API_KEY.' });
-      return;
-    }
-    if (error.status === 429) {
-      onEvent({ type: 'error', error: 'The AI coach is busy right now. Try again in a minute.' });
-      return;
-    }
-
-    onEvent({ type: 'error', error: 'Could not reach the AI coach. Please try again.' });
+    /*
+      The providers throw with a message written to be shown: a wrong key, a
+      used-up allowance, a model name that no longer exists. Anything else has
+      already been logged where it happened.
+    */
+    onEvent({ type: 'error', error: error.message });
   }
 }
 

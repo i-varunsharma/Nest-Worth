@@ -440,7 +440,7 @@ export default function SettingsPage({ user }) {
                 <button
                   type="submit"
                   disabled={isDeleting}
-                  className="rounded-full bg-clay px-6 py-3.5 text-[14.5px] font-semibold text-white transition-all duration-300 ease-smooth hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-full bg-clay px-6 py-3.5 text-[14.5px] font-semibold text-paper transition-all duration-300 ease-smooth hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {deleteButtonLabel}
                 </button>

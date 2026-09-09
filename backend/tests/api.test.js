@@ -34,6 +34,19 @@ process.env.NESTWORTH_DB_FILE = path.join(temporaryFolder, 'test.db');
 */
 process.env.DISABLE_RATE_LIMIT = 'true';
 
+/*
+  No AI keys for this run, whatever the machine happens to have set.
+
+  Two routes reach a language model. Left to whatever is in the developer's
+  environment, the same test would take a network round trip on one laptop and
+  none on another, and would assert on wording nobody controls. Cleared here,
+  both routes take their no-model path, which is the one worth checking anyway:
+  the app has to stay useful without one.
+*/
+delete process.env.GEMINI_API_KEY;
+delete process.env.ANTHROPIC_API_KEY;
+delete process.env.AI_PROVIDER;
+
 // Now, and only now, is it safe to load the app.
 const { createApp } = await import('../src/app.js');
 
@@ -875,4 +888,440 @@ test('every response carries a request id', async () => {
   const second = await fetch(BASE + '/api/health');
 
   assert.notEqual(second.headers.get('x-request-id'), id);
+});
+
+
+// ---------------------------------------------------------------
+// Importing a bank statement
+// ---------------------------------------------------------------
+
+const STATEMENT = [
+  'Account Number: XXXXXXXX1234',
+  '',
+  'Date,Narration,Withdrawal Amt.,Deposit Amt.,Closing Balance',
+  '01/08/2026,SALARY AUG 2026,,85000.00,120000.00',
+  '02/08/2026,UPI-SWIGGY-ORDER,420.00,,119580.00',
+  '03/08/2026,NEFT DR-RENT AUGUST,22000.00,,97580.00',
+  '05/08/2026,ZERODHA BROKING SIP,5000.00,,92580.00',
+  '06/08/2026,POS 4823 UNKNOWN SHOP,900.00,,91680.00',
+].join('\n');
+
+
+test('a statement is imported and sorted into categories', async () => {
+  const account = await makeAccount();
+
+  const result = await call('POST', '/api/transactions/import', {
+    body: { csv: STATEMENT },
+    cookie: account.cookie,
+  });
+
+  assert.equal(result.status, 201);
+  assert.equal(result.data.added, 5);
+  assert.deepEqual(result.data.months, ['2026-08']);
+
+  const listed = await call('GET', '/api/transactions?month=2026-08', {
+    cookie: account.cookie,
+  });
+
+  assert.equal(listed.data.transactions.length, 5);
+});
+
+
+test('importing the same statement twice adds nothing the second time', async () => {
+  /*
+    The mistake this prevents is the easy one to make and the hard one to spot.
+    Import a file, wonder whether it worked, import it again: every figure on
+    the page doubles and all of them still look like perfectly good numbers.
+  */
+  const account = await makeAccount();
+
+  await call('POST', '/api/transactions/import', {
+    body: { csv: STATEMENT }, cookie: account.cookie,
+  });
+
+  const second = await call('POST', '/api/transactions/import', {
+    body: { csv: STATEMENT }, cookie: account.cookie,
+  });
+
+  assert.equal(second.data.added, 0);
+  assert.equal(second.data.alreadyHad, 5);
+
+  const listed = await call('GET', '/api/transactions?month=2026-08', {
+    cookie: account.cookie,
+  });
+
+  assert.equal(listed.data.transactions.length, 5);
+});
+
+
+test('the summary counts spending without counting investing as spending', async () => {
+  /*
+    The SIP and the salary both moved money, and neither is spending. Worked out
+    by hand from the statement above: 420 food + 22000 rent + 900 unknown, which
+    is 23320. The 5000 SIP is money put away and the 85000 is money arriving.
+  */
+  const account = await makeAccount();
+
+  await call('POST', '/api/transactions/import', {
+    body: { csv: STATEMENT }, cookie: account.cookie,
+  });
+
+  const result = await call('GET', '/api/transactions/summary?month=2026-08', {
+    cookie: account.cookie,
+  });
+
+  assert.equal(result.status, 200);
+  assert.equal(result.data.summary.income, 85000);
+  assert.equal(result.data.summary.spent, 23320);
+  assert.equal(result.data.summary.putAway, 5000);
+  assert.equal(result.data.summary.kept, 85000 - 23320);
+});
+
+
+test('the category shares add up to a hundred', async () => {
+  const account = await makeAccount();
+
+  await call('POST', '/api/transactions/import', {
+    body: { csv: STATEMENT }, cookie: account.cookie,
+  });
+
+  const result = await call('GET', '/api/transactions/summary?month=2026-08', {
+    cookie: account.cookie,
+  });
+
+  let total = 0;
+
+  result.data.summary.categories.forEach((entry) => {
+    total = total + entry.share;
+  });
+
+  // Allowing a rounding crumb, the shares are shares of one whole month.
+  assert.ok(Math.abs(total - 100) < 0.01, 'shares came to ' + total);
+});
+
+
+test('a category can be corrected, and the correction is marked as a person\'s', async () => {
+  const account = await makeAccount();
+
+  await call('POST', '/api/transactions/import', {
+    body: { csv: STATEMENT }, cookie: account.cookie,
+  });
+
+  const listed = await call('GET', '/api/transactions?month=2026-08', {
+    cookie: account.cookie,
+  });
+
+  const unknown = listed.data.transactions.find((row) => {
+    return row.category === 'other';
+  });
+
+  assert.ok(unknown, 'expected the unknown shop to be uncategorised');
+
+  const changed = await call('PATCH', '/api/transactions/' + unknown.id, {
+    body: { category: 'groceries' }, cookie: account.cookie,
+  });
+
+  assert.equal(changed.status, 200);
+  assert.equal(changed.data.transaction.category, 'groceries');
+  assert.equal(changed.data.transaction.isConfirmed, true);
+});
+
+
+test('a category that is not on the list is refused', async () => {
+  const account = await makeAccount();
+
+  await call('POST', '/api/transactions/import', {
+    body: { csv: STATEMENT }, cookie: account.cookie,
+  });
+
+  const listed = await call('GET', '/api/transactions?month=2026-08', {
+    cookie: account.cookie,
+  });
+
+  const result = await call('PATCH', '/api/transactions/' + listed.data.transactions[0].id, {
+    body: { category: 'yachts' }, cookie: account.cookie,
+  });
+
+  assert.equal(result.status, 400);
+});
+
+
+test('a whole month can be thrown away after a wrong import', async () => {
+  const account = await makeAccount();
+
+  await call('POST', '/api/transactions/import', {
+    body: { csv: STATEMENT }, cookie: account.cookie,
+  });
+
+  const removed = await call('DELETE', '/api/transactions/month/2026-08', {
+    cookie: account.cookie,
+  });
+
+  assert.equal(removed.data.removed, 5);
+
+  const listed = await call('GET', '/api/transactions?month=2026-08', {
+    cookie: account.cookie,
+  });
+
+  assert.equal(listed.data.transactions.length, 0);
+});
+
+
+test('nobody can read or change another person\'s transactions', async () => {
+  /*
+    The rule the whole API is built on, checked again for the newest table. Both
+    of these would pass if the queries filtered on the id in the URL rather than
+    the id in the session cookie, which is exactly the mistake this catches.
+  */
+  const owner = await makeAccount();
+  const stranger = await makeAccount();
+
+  await call('POST', '/api/transactions/import', {
+    body: { csv: STATEMENT }, cookie: owner.cookie,
+  });
+
+  const theirs = await call('GET', '/api/transactions?month=2026-08', {
+    cookie: owner.cookie,
+  });
+
+  const seen = await call('GET', '/api/transactions?month=2026-08', {
+    cookie: stranger.cookie,
+  });
+
+  assert.equal(seen.data.transactions.length, 0);
+
+  const meddled = await call('PATCH', '/api/transactions/' + theirs.data.transactions[0].id, {
+    body: { category: 'shopping' }, cookie: stranger.cookie,
+  });
+
+  assert.equal(meddled.status, 404);
+});
+
+
+test('a month that is not a month is refused rather than searched for', async () => {
+  // The month goes into a LIKE pattern, so it is checked before it is used.
+  const account = await makeAccount();
+
+  const result = await call('GET', '/api/transactions/summary?month=not-a-month', {
+    cookie: account.cookie,
+  });
+
+  assert.equal(result.status, 400);
+});
+
+
+// ---------------------------------------------------------------
+// The note the dashboard writes without being asked
+// ---------------------------------------------------------------
+
+/* July, then August with the food spend more than doubled. */
+const JULY = [
+  'Date,Narration,Withdrawal Amt.,Deposit Amt.,Closing Balance',
+  '01/07/2026,SALARY JUL 2026,,85000.00,120000.00',
+  '02/07/2026,UPI-SWIGGY ORDER,2000.00,,118000.00',
+  '03/07/2026,NEFT DR-RENT JULY,24000.00,,94000.00',
+].join('\n');
+
+const AUGUST = [
+  'Date,Narration,Withdrawal Amt.,Deposit Amt.,Closing Balance',
+  '01/08/2026,SALARY AUG 2026,,85000.00,120000.00',
+  '02/08/2026,UPI-SWIGGY ORDER,6000.00,,114000.00',
+  '03/08/2026,NEFT DR-RENT AUGUST,24000.00,,90000.00',
+].join('\n');
+
+
+async function accountWithTwoMonths() {
+  const account = await makeAccount();
+
+  await call('POST', '/api/transactions/import', { body: { csv: JULY }, cookie: account.cookie });
+  await call('POST', '/api/transactions/import', { body: { csv: AUGUST }, cookie: account.cookie });
+
+  return account;
+}
+
+
+test('the briefing notices a category that jumped, without being asked', async () => {
+  /*
+    Food went from ₹2,000 to ₹6,000, which is a 200 per cent rise and well over
+    the thresholds in signals.js. Rent did not move at all and must not appear:
+    a coach that mentions everything is a coach nobody reads.
+  */
+  const account = await accountWithTwoMonths();
+
+  const result = await call('GET', '/api/briefing', { cookie: account.cookie });
+
+  assert.equal(result.status, 200);
+
+  const codes = result.data.briefing.signals.map((signal) => {
+    return signal.code;
+  });
+
+  assert.ok(codes.includes('spend_up_food'), 'expected the food rise, got ' + codes.join(', '));
+  assert.equal(codes.includes('spend_up_rent'), false, 'rent did not change and should be silent');
+});
+
+
+test('with no model configured the briefing still says something true', async () => {
+  /*
+    The findings are written as plain sentences in signals.js precisely so there
+    is something honest to show when no AI is set up. An empty card would be
+    worse, and one reading "the AI is unavailable" would be worse still: it
+    makes the model sound like the point when it only does the wording.
+  */
+  const account = await accountWithTwoMonths();
+
+  const result = await call('GET', '/api/briefing', { cookie: account.cookie });
+
+  assert.equal(result.data.briefing.writtenBy, 'rules');
+  assert.ok(result.data.briefing.body.length > 0);
+  assert.match(result.data.briefing.body, /food/i);
+});
+
+
+test('the briefing is written once a day, not once a page load', async () => {
+  // The dashboard is opened several times a day. Rewriting the note each time
+  // would cost a call to a model per refresh, and wording that changed on every
+  // reload would read as noise rather than as something that was noticed.
+  const account = await accountWithTwoMonths();
+
+  const first = await call('GET', '/api/briefing', { cookie: account.cookie });
+  const second = await call('GET', '/api/briefing', { cookie: account.cookie });
+
+  assert.equal(first.data.briefing.isNew, true);
+  assert.equal(second.data.briefing.isNew, false);
+  assert.equal(first.data.briefing.body, second.data.briefing.body);
+});
+
+
+test('an account with nothing to report says so rather than inventing something', async () => {
+  const account = await makeAccount();
+
+  const result = await call('GET', '/api/briefing', { cookie: account.cookie });
+
+  assert.equal(result.status, 200);
+  assert.deepEqual(result.data.briefing.signals, []);
+  assert.ok(result.data.briefing.body.length > 0);
+});
+
+
+test('a briefing is only ever built from the signed-in person\'s own money', async () => {
+  const busy = await accountWithTwoMonths();
+  const empty = await makeAccount();
+
+  const theirs = await call('GET', '/api/briefing', { cookie: busy.cookie });
+  const mine = await call('GET', '/api/briefing', { cookie: empty.cookie });
+
+  assert.ok(theirs.data.briefing.signals.length > 0);
+  assert.deepEqual(mine.data.briefing.signals, []);
+});
+
+
+// ---------------------------------------------------------------
+// The year, looked back on
+// ---------------------------------------------------------------
+
+test('the recap adds a year up without counting investing as spending', async () => {
+  /*
+    Worked out by hand from the two statements above. Spending is 2000 + 24000
+    in July and 6000 + 24000 in August, which is 56000. Income is 85000 twice.
+    Neither month has a SIP in it, so putAway is zero and the point being
+    checked is that rent and food are the only things counted.
+  */
+  const account = await accountWithTwoMonths();
+
+  const result = await call('GET', '/api/recap?year=2026', { cookie: account.cookie });
+
+  assert.equal(result.status, 200);
+  assert.equal(result.data.recap.totals.cameIn, 170000);
+  assert.equal(result.data.recap.totals.spent, 56000);
+  assert.equal(result.data.recap.kept, 114000);
+  assert.equal(result.data.recap.covered.fromStatements, 2);
+});
+
+
+test('the recap names the heaviest and lightest month, and they are different', async () => {
+  const account = await accountWithTwoMonths();
+
+  const result = await call('GET', '/api/recap?year=2026', { cookie: account.cookie });
+
+  assert.equal(result.data.recap.heaviestMonth.month, '2026-08');
+  assert.equal(result.data.recap.lightestMonth.month, '2026-07');
+});
+
+
+test('one month of data does not report the same month as both ends', async () => {
+  // True, and reads as a bug. A recap saying the best and worst month were both
+  // August is the kind of output that makes somebody stop trusting the rest.
+  const account = await makeAccount();
+
+  await call('POST', '/api/transactions/import', { body: { csv: AUGUST }, cookie: account.cookie });
+
+  const result = await call('GET', '/api/recap?year=2026', { cookie: account.cookie });
+
+  assert.equal(result.data.recap.heaviestMonth.month, '2026-08');
+  assert.equal(result.data.recap.lightestMonth, null);
+});
+
+
+test('an empty year reports zeroes rather than blanks', async () => {
+  /*
+    SUM over no rows is NULL in SQL, not 0. Left as it comes back, every figure
+    on the recap would print as a dash for anybody who had not imported
+    anything, which looks like the page failed rather than like an empty year.
+  */
+  const account = await makeAccount();
+
+  const result = await call('GET', '/api/recap?year=2026', { cookie: account.cookie });
+
+  assert.equal(result.data.recap.totals.cameIn, 0);
+  assert.equal(result.data.recap.totals.spent, 0);
+  assert.equal(result.data.recap.totals.lines, 0);
+  assert.deepEqual(result.data.recap.categories, []);
+});
+
+
+test('a year that is not a year is refused rather than searched for', async () => {
+  const account = await makeAccount();
+
+  const result = await call('GET', '/api/recap?year=20xx', { cookie: account.cookie });
+
+  assert.equal(result.status, 400);
+});
+
+
+test('one person\'s recap never contains another person\'s money', async () => {
+  const busy = await accountWithTwoMonths();
+  const empty = await makeAccount();
+
+  const theirs = await call('GET', '/api/recap?year=2026', { cookie: busy.cookie });
+  const mine = await call('GET', '/api/recap?year=2026', { cookie: empty.cookie });
+
+  assert.ok(theirs.data.recap.totals.spent > 0);
+  assert.equal(mine.data.recap.totals.spent, 0);
+});
+
+
+test('the recap does not call rent a habit', async () => {
+  /*
+    Rent is one fixed payment a month, so "you paid rent six times" is a fact
+    about the calendar rather than about the person. The panel exists to surface
+    the thing somebody has not noticed, and by count rent ties with everything
+    else that happens monthly.
+  */
+  const account = await accountWithTwoMonths();
+
+  // A third month, so something reaches the three-times floor.
+  const september = [
+    'Date,Narration,Withdrawal Amt.,Deposit Amt.,Closing Balance',
+    '01/09/2026,SALARY SEP 2026,,85000.00,120000.00',
+    '02/09/2026,UPI-SWIGGY ORDER,3000.00,,117000.00',
+    '03/09/2026,NEFT DR-RENT SEPTEMBER,24000.00,,93000.00',
+  ].join('\n');
+
+  await call('POST', '/api/transactions/import', { body: { csv: september }, cookie: account.cookie });
+
+  const result = await call('GET', '/api/recap?year=2026', { cookie: account.cookie });
+
+  assert.ok(result.data.recap.mostFrequent, 'expected a most frequent payment');
+  assert.equal(result.data.recap.mostFrequent.name, 'SWIGGY ORDER');
 });

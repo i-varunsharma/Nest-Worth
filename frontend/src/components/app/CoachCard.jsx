@@ -13,9 +13,12 @@ import * as api from '../../lib/api';
 
   Two things arrive from the server while an answer is being written. The text
   itself, a few words at a time, which is why it appears rather than landing.
-  And a line saying which calculation is running, because Claude does not do
+  And a line saying which calculation is running, because the model does not do
   the arithmetic: it asks the server to run the same functions the dashboard
   uses, and that takes a second worth explaining.
+
+  Which model that is, Gemini or Claude, is the server's business. It picks one
+  from whichever key is set, and nothing in the browser needs to know.
 
   The API key is not in this file, or anywhere else in frontend/. Anything the
   browser downloads can be read by anybody who opens the dev tools.
@@ -49,9 +52,8 @@ export default function CoachCard({ hasDebts }) {
   /*
     The conversation so far, as [{ role, text }].
 
-    'user' and 'assistant' are the words the Claude API uses for the two sides,
-    and keeping the same names here means nothing has to be translated on the
-    way out.
+    'user' and 'assistant' are the words the server's own conversation format
+    uses for the two sides, so nothing has to be renamed on the way out.
   */
   const [turns, setTurns] = useState([]);
 
@@ -316,9 +318,14 @@ export default function CoachCard({ hasDebts }) {
         ) : null}
       </form>
 
+      {/*
+        No provider is named here on purpose. The server decides whether it is
+        talking to Gemini or Claude from whichever key is set, so a name in the
+        browser would be a guess, and would be wrong the moment the key changes.
+      */}
       <p className="mt-5 text-2xs leading-relaxed text-muted">
-        Claude, running this app&rsquo;s own calculations on the numbers you entered.
-        Educational guidance, not regulated advice.
+        Written by an AI, running this app&rsquo;s own calculations on the numbers you
+        entered. Educational guidance, not regulated advice.
       </p>
     </div>
   );

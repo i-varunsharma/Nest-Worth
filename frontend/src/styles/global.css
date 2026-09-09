@@ -1,18 +1,14 @@
 /*
   Three things live in this file:
 
-  1. Base rules that apply to the whole document.
-  2. A handful of reusable classes that were easier to write here than in
+  1. The theme colours, as CSS variables, in a light set and a dark set.
+  2. Base rules that apply to the whole document.
+  3. A handful of reusable classes that were easier to write here than in
      Tailwind, usually because they need a pseudo-element like ::before.
 
-  Everything else, all the colours and spacing, is in tailwind.config.js. The
-  fonts are requested in index.html.
-*/
-
-/*
-  The fonts are requested in index.html rather than here. An @import at the top
-  of this file would not be found until the browser had already downloaded and
-  parsed the whole stylesheet, which delays every heading on the page.
+  The names and the reasoning behind each colour are in tailwind.config.js.
+  This file holds the actual values, because a CSS variable is the only kind of
+  value the browser can swap at runtime. The fonts are requested in index.html.
 */
 
 /* These three lines pull in Tailwind. Do not remove them. */
@@ -22,12 +18,164 @@
 
 
 @layer base {
+  /*
+    ------------------------------------------------------------------
+    THE THEME, IN TWO SETS
+    ------------------------------------------------------------------
+
+    :root is the light theme. The block below it is the dark one, and it only
+    lists the values that change. Setting data-theme="dark" on the <html> tag
+    swaps every colour on the site at once, because every Tailwind colour class
+    in the app reads from these variables rather than from a fixed hex code.
+    Nothing in any component has to know a dark mode exists.
+
+    The numbers look odd because they are red, green and blue as three separate
+    values instead of one "#RRGGBB". Tailwind needs them split up so that
+    classes like "border-accent/25" can put an opacity in the middle:
+    rgb(31 83 64 / 0.25). A hex code cannot be sliced open like that.
+  */
+  :root {
+    /* ---- Backgrounds ---- */
+    --color-paper: 247 244 239;
+    --color-paper-deep: 240 235 226;
+    --color-surface: 255 255 255;
+
+    /* ---- Text ---- */
+    --color-ink: 18 16 13;
+    --color-ink2: 61 55 47;
+    --color-muted: 122 113 104;
+
+    /* ---- Lines ---- */
+    --color-line: 228 221 210;
+    --color-line-soft: 238 232 222;
+    --color-line-strong: 214 204 190;
+
+    /* ---- The one accent ---- */
+    --color-accent: 31 83 64;
+    --color-accent-deep: 23 63 49;
+    --color-accent-soft: 231 239 234;
+    --color-mint: 143 192 169;
+
+    /* ---- Brass and clay ---- */
+    --color-brass: 169 124 44;
+    --color-brass-soft: 244 237 223;
+    --color-clay: 166 61 37;
+    --color-clay-soft: 247 233 228;
+
+    /* ---- The dark sections of the landing page ---- */
+    --color-night: 20 18 15;
+
+    /*
+      Text and lines that sit ON those dark sections. This one deliberately does
+      NOT change between the two themes. Those panels are near-black in both, so
+      the writing on them has to stay cream in both. Using "paper" there would
+      have looked right until the dark theme turned it near-black on near-black.
+    */
+    --color-on-night: 247 244 239;
+
+    /*
+      The writing printed inside a coloured chart bar. There are two, because
+      the committed segment is a quiet grey while the other three are strong
+      colours, and no single text colour reads on both. Each one is picked to
+      contrast with the fill it is printed on, in this theme.
+    */
+    --chart-label: #FFFFFF;
+    --chart-label-committed: #12100D;
+
+    /*
+      Chart colours are plain hex here rather than split into channels, because
+      nothing draws a chart at half opacity. They are read straight into SVG
+      attributes by the files in components/charts/.
+    */
+    --chart-spend: #3275B4;
+    --chart-save: #B07A00;
+    --chart-invest: #007654;
+    --chart-committed: #CFC6B8;
+    --chart-ramp-1: #80B9A1;
+    --chart-ramp-2: #439C7B;
+    --chart-ramp-3: #007C5A;
+    --chart-ramp-4: #005E40;
+    --chart-muted: #C8BFB2;
+    --chart-invest-quiet: #A6C7B8;
+
+    /*
+      The shadows are variables too. A soft warm shadow is what makes a card sit
+      above a pale page, and it is completely invisible on a dark one, so the
+      dark theme needs its own much heavier version rather than the same value.
+    */
+    --shadow-card: 0 1px 2px rgba(18, 16, 13, 0.04), 0 14px 34px -20px rgba(18, 16, 13, 0.22);
+    --shadow-lift: 0 1px 2px rgba(18, 16, 13, 0.04), 0 26px 50px -24px rgba(18, 16, 13, 0.30);
+    --shadow-float: 0 2px 4px rgba(18, 16, 13, 0.03), 0 40px 80px -40px rgba(18, 16, 13, 0.40);
+  }
+
+  /*
+    The dark theme.
+
+    It is not the light theme inverted. The page goes to a warm near-black
+    rather than pure black, and the accent goes the other way: the deep
+    evergreen would disappear against it, so it lifts to a mint that reads on a
+    dark card. Everything keeps its job, which is why no component changes.
+    "accentDeep" is still the hover state, it is just lighter here instead of
+    darker, because on a dark background lighter is what "more" looks like.
+  */
+  :root[data-theme='dark'] {
+    --color-paper: 19 18 16;
+    --color-paper-deep: 26 24 21;
+    --color-surface: 30 27 24;
+
+    --color-ink: 244 240 233;
+    --color-ink2: 198 190 178;
+    --color-muted: 140 132 120;
+
+    --color-line: 48 44 39;
+    --color-line-soft: 38 35 31;
+    --color-line-strong: 69 64 58;
+
+    --color-accent: 116 185 154;
+    --color-accent-deep: 144 207 177;
+    --color-accent-soft: 27 44 37;
+    --color-mint: 143 192 169;
+
+    --color-brass: 210 162 83;
+    --color-brass-soft: 42 35 24;
+    --color-clay: 224 128 95;
+    --color-clay-soft: 46 29 23;
+
+    --color-night: 13 12 10;
+    --color-on-night: 247 244 239;
+    --chart-label: #131210;
+    --chart-label-committed: #F4F0E9;
+
+    /* Same hues, lifted so they stay separable against a dark card. */
+    --chart-spend: #5FA8DC;
+    --chart-save: #DCA92E;
+    --chart-invest: #35BE8D;
+    --chart-committed: #4B443B;
+    --chart-ramp-1: #2E6B55;
+    --chart-ramp-2: #3D8F6F;
+    --chart-ramp-3: #4FB78C;
+    --chart-ramp-4: #6FDCAB;
+    --chart-muted: #4E473E;
+    --chart-invest-quiet: #2F6152;
+
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.40), 0 14px 34px -18px rgba(0, 0, 0, 0.70);
+    --shadow-lift: 0 1px 2px rgba(0, 0, 0, 0.45), 0 26px 50px -22px rgba(0, 0, 0, 0.80);
+    --shadow-float: 0 2px 4px rgba(0, 0, 0, 0.45), 0 40px 80px -36px rgba(0, 0, 0, 0.85);
+  }
+
   html {
     /* Makes clicking a "#section" link glide down instead of jumping. */
     scroll-behavior: smooth;
 
     /* Removes the grey flash when tapping something on a phone. */
     -webkit-tap-highlight-color: transparent;
+
+    /* Tells the browser to draw its own bits, scrollbars mainly, to match. */
+    color-scheme: light;
+  }
+
+  html[data-theme='dark'] {
+    color-scheme: dark;
   }
 
   body {
@@ -36,14 +184,14 @@
 
   /* The colour of highlighted text when someone selects it with the mouse. */
   ::selection {
-    background: #1F5340;
-    color: #F7F4EF;
+    background: rgb(var(--color-accent));
+    color: rgb(var(--color-paper));
   }
 
   /* The green ring around whatever is focused. It only shows for keyboard users,
      which is what :focus-visible means, so mouse clicks stay clean. */
   :focus-visible {
-    outline: 2px solid #1F5340;
+    outline: 2px solid rgb(var(--color-accent));
     outline-offset: 3px;
     border-radius: 4px;
   }
@@ -54,7 +202,8 @@
   /*
     tnum
     Makes every digit take the same width. Without it, numbers jump sideways
-    while they change, because a 1 is narrower than an 8 in most fonts.
+    while they change, because a 1 is narrower than an 8 in most fonts. It
+    matters far more now that the headline figures count up on load.
   */
   .tnum {
     font-variant-numeric: tabular-nums;
@@ -73,6 +222,37 @@
   .eyebrow::before {
     content: '';
     @apply block h-px w-6 bg-line;
+  }
+
+  /*
+    skeleton
+    The grey block shown in place of a number while it is still being fetched.
+    The moving highlight is a wide, mostly transparent gradient slid across the
+    box from left to right, which is why the background is 200% wide.
+
+    A skeleton is better than the word "Loading" because it is the same shape
+    and in the same place as the thing that replaces it, so the page does not
+    jump when the answer arrives.
+  */
+  .skeleton {
+    @apply rounded-md bg-lineSoft;
+    background-image: linear-gradient(
+      90deg,
+      rgb(var(--color-line-soft)) 0%,
+      rgb(var(--color-line)) 50%,
+      rgb(var(--color-line-soft)) 100%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-slide 1.4s ease-in-out infinite;
+  }
+
+  @keyframes skeleton-slide {
+    from {
+      background-position: 200% 0;
+    }
+    to {
+      background-position: -200% 0;
+    }
   }
 
   /*
@@ -118,16 +298,18 @@
   /*
     grid-texture
     A barely visible grid, made from two sets of thin lines crossing each other.
-    Large flat areas look dead without something like this.
+    Large flat areas look dead without something like this. It draws in the ink
+    colour, so it becomes pale lines on the dark theme without a second rule.
   */
   .grid-texture {
     background-image:
-      linear-gradient(to right, rgba(18, 16, 13, 0.035) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(18, 16, 13, 0.035) 1px, transparent 1px);
+      linear-gradient(to right, rgb(var(--color-ink) / 0.035) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(var(--color-ink) / 0.035) 1px, transparent 1px);
     background-size: 76px 76px;
   }
 
-  /* The same idea, but pale lines for use on the dark sections. */
+  /* The same idea, but always pale, for the sections that stay dark in both
+     themes. */
   .grid-texture-dark {
     background-image:
       linear-gradient(to right, rgba(247, 244, 239, 0.05) 1px, transparent 1px),
@@ -146,13 +328,13 @@
     @apply h-1 w-full cursor-pointer appearance-none rounded-full bg-line;
 
     /* The filled green part. Its width is set from JavaScript, in Planner.jsx. */
-    background-image: linear-gradient(#1F5340, #1F5340);
+    background-image: linear-gradient(rgb(var(--color-accent)), rgb(var(--color-accent)));
     background-repeat: no-repeat;
   }
 
   /* The round handle, in Chrome, Edge and Safari. */
   .range-track::-webkit-slider-thumb {
-    @apply h-5 w-5 cursor-grab appearance-none rounded-full border-2 border-accent bg-white;
+    @apply h-5 w-5 cursor-grab appearance-none rounded-full border-2 border-accent bg-surface;
     box-shadow: 0 2px 8px rgba(18, 16, 13, 0.22);
     transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
   }
@@ -168,7 +350,7 @@
 
   /* The same handle, in Firefox. */
   .range-track::-moz-range-thumb {
-    @apply h-5 w-5 cursor-grab rounded-full border-2 border-accent bg-white;
+    @apply h-5 w-5 cursor-grab rounded-full border-2 border-accent bg-surface;
     box-shadow: 0 2px 8px rgba(18, 16, 13, 0.22);
   }
 }
@@ -191,6 +373,10 @@
     opacity: 1;
     transform: none;
     transition: none;
+  }
+
+  .skeleton {
+    animation: none;
   }
 
   *,

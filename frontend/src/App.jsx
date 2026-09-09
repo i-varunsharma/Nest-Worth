@@ -10,6 +10,8 @@ import PlansPage from './pages/PlansPage';
 import DebtsPage from './pages/DebtsPage';
 import GoalsPage from './pages/GoalsPage';
 import NetWorthPage from './pages/NetWorthPage';
+import SpendingPage from './pages/SpendingPage';
+import RecapPage from './pages/RecapPage';
 import CheckInPage from './pages/CheckInPage';
 import SettingsPage from './pages/SettingsPage';
 import RequireAuth from './components/auth/RequireAuth';
@@ -35,6 +37,8 @@ import RequireAuth from './components/auth/RequireAuth';
     /debts        every debt, with payoff dates and the extra-payment slider
     /goals        what you are saving for, and what each costs per month
     /net-worth    what you own against what you owe
+    /spending     a bank statement, read and sorted into categories
+    /recap        a whole year of those, added up and looked back on
     /check-in     what actually happened this month
     /settings     your name, household and account
 
@@ -76,6 +80,8 @@ export default function App() {
         <Route path="/debts" element={privateRoute(DebtsPage)} />
         <Route path="/goals" element={privateRoute(GoalsPage)} />
         <Route path="/net-worth" element={privateRoute(NetWorthPage)} />
+        <Route path="/spending" element={privateRoute(SpendingPage)} />
+        <Route path="/recap" element={privateRoute(RecapPage)} />
         <Route path="/check-in" element={privateRoute(CheckInPage)} />
         <Route path="/settings" element={privateRoute(SettingsPage)} />
 

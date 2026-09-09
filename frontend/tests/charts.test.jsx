@@ -381,6 +381,16 @@ test('a debt that never clears is said in words, not drawn as a dot', () => {
 */
 vi.mock('../src/lib/api', () => {
   return {
+    // The page reads the household too, to find out which plan is being
+    // followed, so it can open on that one.
+    getHousehold: async () => {
+      return { ok: true, data: { household: { chosenPlan: null } } };
+    },
+
+    choosePlan: async (plan) => {
+      return { ok: true, data: { household: { chosenPlan: plan } } };
+    },
+
     getScenarios: async () => {
       return {
         ok: true,
@@ -476,4 +486,36 @@ test('regression: a short chart does not draw the same year label twice', () => 
   const unique = new Set(labels);
 
   expect(labels.length).toBe(unique.size);
+});
+
+
+test('following a plan is a separate step from reading one', async () => {
+  /*
+    Clicking through the plans must not change anything outside the page. Only
+    the button commits, and until it is pressed the dashboard carries on
+    showing the recommended split.
+  */
+  const { default: PlansPage } = await import('../src/pages/PlansPage');
+  const { MemoryRouter } = await import('react-router-dom');
+
+  const user = userEvent.setup();
+
+  render(
+    <MemoryRouter>
+      <PlansPage user={{ name: 'Varun' }} />
+    </MemoryRouter>,
+  );
+
+  await screen.findByText('The same money, two ways.');
+
+  // Reading a different plan does not follow it.
+  await user.click(screen.getByRole('button', { name: /Clear the expensive debt first/ }));
+
+  expect(screen.getByRole('button', { name: 'Follow this plan' })).toBeInTheDocument();
+
+  // Pressing the button does, and the button then offers the way back out.
+  await user.click(screen.getByRole('button', { name: 'Follow this plan' }));
+
+  expect(await screen.findByRole('button', { name: 'Stop following' })).toBeInTheDocument();
+  expect(screen.getByText('This is the plan your dashboard is showing.')).toBeInTheDocument();
 });

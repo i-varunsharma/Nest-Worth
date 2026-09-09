@@ -17,13 +17,18 @@
     monthsTarget  - what this household should be aiming for
 */
 
-// Copied from tailwind.config.js, because an inline style cannot take a class.
+/*
+  SVG and inline styles cannot take a Tailwind class, so colours have to be
+  written out here. They point at the same CSS variables the Tailwind classes
+  use, which is what keeps a chart in step with the rest of the page and lets it
+  follow the dark theme without this file knowing there is one.
+*/
 const COLOURS = {
-  low: '#80B9A1',     // chartRamp1
-  middle: '#439C7B',  // chartRamp2
-  full: '#007654',    // chartRamp3
-  track: '#F0EBE2',   // paperDeep
-  marker: '#12100D',  // ink
+  low: 'var(--chart-ramp-1)',
+  middle: 'var(--chart-ramp-2)',
+  full: 'var(--chart-ramp-3)',
+  track: 'rgb(var(--color-paper-deep))',
+  marker: 'rgb(var(--color-ink))',
 };
 
 export default function SafetyMeter({ monthsCovered, monthsTarget }) {

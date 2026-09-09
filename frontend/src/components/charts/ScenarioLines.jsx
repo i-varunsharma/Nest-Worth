@@ -64,15 +64,18 @@ function padBottomFor(labelSize) {
   return labelSize + 16;
 }
 
-// Copied from tailwind.config.js. An SVG stroke cannot take a Tailwind class,
-// so these are the one place colours are written by hand. If a chart colour
-// changes there, change it here.
+/*
+  SVG and inline styles cannot take a Tailwind class, so colours have to be
+  written out here. They point at the same CSS variables the Tailwind classes
+  use, which is what keeps a chart in step with the rest of the page and lets it
+  follow the dark theme without this file knowing there is one.
+*/
 const COLOURS = {
-  active: '#007654',   // chartInvest, the theme's evergreen
-  other: '#C8BFB2',    // chartMuted
-  grid: '#EEE8DE',     // lineSoft
-  axis: '#D6CCBE',     // lineStrong
-  surface: '#FFFFFF',
+  active: 'var(--chart-invest)',
+  other: 'var(--chart-muted)',
+  grid: 'rgb(var(--color-line-soft))',
+  axis: 'rgb(var(--color-line-strong))',
+  surface: 'rgb(var(--color-surface))',
 };
 
 // How many horizontal gridlines. Four is enough to read a value against and

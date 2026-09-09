@@ -296,6 +296,71 @@ export function deleteAsset(id) {
 
 
 // ---------------------------------------------------------------
+// Transactions, read out of a bank statement
+// ---------------------------------------------------------------
+//
+// The import is the one request in this app that carries something big. The
+// server keeps a separate, larger body limit for that one route; everything
+// else here is a short read.
+
+export function importStatement(csv) {
+  return request('/api/transactions/import', 'POST', { csv: csv });
+}
+
+// Which months have anything in them, newest first.
+export function getTransactionMonths() {
+  return request('/api/transactions/months', 'GET');
+}
+
+// One month, already added up by category on the server. The page never sees
+// the individual rows for this, because it has no use for four hundred of them
+// when the question is "how much on food".
+export function getSpendingSummary(month) {
+  return request('/api/transactions/summary?month=' + month, 'GET');
+}
+
+// One month, line by line. This is the list somebody scrolls to correct a
+// wrong category.
+export function getTransactions(month) {
+  return request('/api/transactions?month=' + month, 'GET');
+}
+
+export function setTransactionCategory(id, category) {
+  return request('/api/transactions/' + id, 'PATCH', { category: category });
+}
+
+export function deleteTransactionMonth(month) {
+  return request('/api/transactions/month/' + month, 'DELETE');
+}
+
+
+// ---------------------------------------------------------------
+// The note the dashboard writes without being asked
+// ---------------------------------------------------------------
+//
+// There is no "make me one" here on purpose. It is written the first time the
+// dashboard is opened on a given day and read from the database for the rest of
+// it, so asking for it is the same request as reading it.
+
+export function getBriefing() {
+  return request('/api/briefing', 'GET');
+}
+
+
+// ---------------------------------------------------------------
+// The year, looked back on
+// ---------------------------------------------------------------
+
+export function getRecapYears() {
+  return request('/api/recap/years', 'GET');
+}
+
+export function getRecap(year) {
+  return request('/api/recap?year=' + year, 'GET');
+}
+
+
+// ---------------------------------------------------------------
 // Insights
 // ---------------------------------------------------------------
 
@@ -325,6 +390,18 @@ export function getScenarios() {
 }
 
 
+/*
+  Chooses which plan to follow, or clears it by passing null.
+
+  The dashboard reads it back and shows that plan's split instead of the
+  default one, which is the point of the whole plans page: picking one has to
+  change something.
+*/
+export function choosePlan(plan) {
+  return request('/api/household/plan', 'PUT', { plan: plan });
+}
+
+
 export function getCheckins() {
   return request('/api/checkins', 'GET');
 }
@@ -340,7 +417,7 @@ export function saveCheckin(checkin) {
 // ---------------------------------------------------------------
 
 /*
-  Asks Claude about the signed-in person's own money, and reads the answer as
+  Asks the AI about the signed-in person's own money, and reads the answer as
   it is written rather than waiting for the whole thing.
 
   This is the only call in this file that does not use request() above, because

@@ -101,6 +101,18 @@ addColumnIfMissing('households', 'income_varies', 'INTEGER NOT NULL DEFAULT 0');
 addColumnIfMissing('households', 'essential_costs', 'INTEGER NOT NULL DEFAULT 0');
 
 /*
+  Which of the plans on /plans this person chose to follow.
+
+  NULL means they have not chosen, which is what every existing household gets
+  and what the app did before the choice existed: the dashboard falls back to
+  the split the model recommends. That is why there is no default here. A
+  default of 'balanced' would be indistinguishable from somebody who had
+  actively picked it, and the dashboard says "you chose this" only when they
+  really did.
+*/
+addColumnIfMissing('households', 'chosen_plan', 'TEXT');
+
+/*
   Throwing away what has expired.
 
   Three tables hold things with a deadline: sessions, one-time codes and reset

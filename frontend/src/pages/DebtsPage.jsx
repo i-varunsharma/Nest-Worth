@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import AppShell from '../components/app/AppShell';
+import { SkeletonPage } from '../components/shared/Skeleton';
 import DebtCard from '../components/app/DebtCard';
 import DebtForm from '../components/app/DebtForm';
 import Button from '../components/shared/Button';
@@ -103,7 +104,7 @@ export default function DebtsPage({ user }) {
   if (debts === null) {
     return (
       <AppShell user={user} title="Debts">
-        <p className="text-[14px] text-muted">Loading…</p>
+        <SkeletonPage label="Loading your debts" stats={3} cards={2} />
       </AppShell>
     );
   }

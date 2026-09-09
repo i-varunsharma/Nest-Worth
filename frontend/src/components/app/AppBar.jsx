@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import Container from '../shared/Container';
+import ThemeToggle from '../shared/ThemeToggle';
 import * as api from '../../lib/api';
 
 /*
@@ -22,7 +23,9 @@ const sections = [
   { to: '/debts', label: 'Debts' },
   { to: '/goals', label: 'Goals' },
   { to: '/net-worth', label: 'Net worth' },
+  { to: '/spending', label: 'Spending' },
   { to: '/check-in', label: 'Check in' },
+  { to: '/recap', label: 'Your year' },
 ];
 
 export default function AppBar({ name }) {
@@ -109,7 +112,9 @@ export default function AppBar({ name }) {
               Sign out
             </button>
 
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent text-[13px] font-semibold text-white">
+            <ThemeToggle />
+
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent text-[13px] font-semibold text-paper">
               {initial}
             </span>
 

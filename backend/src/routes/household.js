@@ -44,6 +44,9 @@ function publicHousehold(row) {
     incomeVaries: row.income_varies === 1,
     essentialCosts: row.essential_costs,
 
+    // Which plan from /plans they chose to follow, or null if they have not.
+    chosenPlan: row.chosen_plan,
+
     isSaved: true,
   };
 }
@@ -111,6 +114,53 @@ router.put('/', requireUser, (req, res) => {
     req.user.id, income, dependents, hasLoan, incomeVaries, essentialCosts,
     new Date().toISOString(),
   );
+
+  const row = db.prepare('SELECT * FROM households WHERE user_id = ?').get(req.user.id);
+
+  return res.json({ household: publicHousehold(row) });
+});
+
+
+// ---------------------------------------------------------------
+// PUT /api/household/plan
+// ---------------------------------------------------------------
+/*
+  Chooses which of the plans on /plans to follow, and the dashboard then shows
+  that one instead of the default split.
+
+  It is its own route rather than part of the household PUT above, because it
+  is a different action. Saving the household means "these are my numbers" and
+  needs every field; this means "I pick that one" and needs a single word.
+  Folding it in would mean sending the whole household back to change a plan,
+  and every page that did so would need to remember every other field.
+*/
+router.put('/plan', requireUser, (req, res) => {
+  const chosen = req.body.plan;
+
+  /*
+    The keys the app can actually produce. Anything else is a browser sending
+    something the page never offered, and storing it would leave the dashboard
+    looking for a plan that does not exist.
+
+    null is allowed and means "go back to the recommended split".
+  */
+  const KNOWN_PLANS = ['balanced', 'debt', 'buffer', 'invest'];
+
+  if (chosen !== null && KNOWN_PLANS.includes(chosen) === false) {
+    return res.status(400).json({ error: 'That is not one of the plans.' });
+  }
+
+  const result = db.prepare(`
+    UPDATE households SET chosen_plan = ?, updated_at = ? WHERE user_id = ?
+  `).run(chosen, new Date().toISOString(), req.user.id);
+
+  // No row means they never answered the onboarding questions, so there is no
+  // household to attach a plan to yet.
+  if (result.changes === 0) {
+    return res.status(400).json({
+      error: 'Answer the household questions first, then you can choose a plan.',
+    });
+  }
 
   const row = db.prepare('SELECT * FROM households WHERE user_id = ?').get(req.user.id);
 

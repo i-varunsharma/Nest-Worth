@@ -39,7 +39,7 @@ function Step({ step, number, isLast }) {
     + 'text-[12px] font-semibold transition-all duration-500 ease-smooth ';
 
   if (isVisible === true) {
-    circleClasses = circleClasses + 'border-accent bg-accent text-white';
+    circleClasses = circleClasses + 'border-accent bg-accent text-paper';
   } else {
     circleClasses = circleClasses + 'border-line bg-paper text-muted';
   }

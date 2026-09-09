@@ -41,8 +41,8 @@ Open <http://localhost:5173> and create an account.
 To run the tests:
 
 ```bash
-cd backend  && npm test    # 126 tests: the API, the SQL, the simulation, transactions, the coach
-cd frontend && npm test    # 76 tests: the money maths, the components and the charts
+cd backend  && npm test    # 183 tests: the API, the SQL, the statement reader, the AI providers
+cd frontend && npm test    # 85 tests: the money maths, the components and the charts
 ```
 
 To look at what the app has stored:
@@ -69,11 +69,13 @@ text messages, real email, and what to do before putting this on the internet.
 | `/signup`, `/login` | Three ways in: email and password, a code by text, or Google. |
 | `/forgot-password`, `/reset-password` | Setting a new password, by a one-time link. |
 | `/onboarding` | The questions everything else is calculated from. |
-| `/dashboard` | The overview: what to do this month, and why. Includes the AI coach. |
-| `/plans` | The same money spent four ways, each played out fifteen years, in charts. |
+| `/dashboard` | The overview: what to do this month, and why. The AI coach, and the note it writes without being asked. |
+| `/plans` | The same money spent several ways, each played out fifteen years, in charts. Pick one and the dashboard follows it. |
 | `/debts` | Every debt, with payoff dates and an extra-payment slider. |
 | `/goals` | What you are saving for, and what each costs per month. |
 | `/net-worth` | What you own against what you owe. |
+| `/spending` | A bank statement, read line by line and sorted into categories. |
+| `/recap` | A whole year of those, added up and looked back on. |
 | `/check-in` | What actually happened this month, as opposed to the plan, with the totals the database works out. |
 | `/settings` | Name, household, password, and closing the account. |
 
@@ -102,7 +104,16 @@ Nest-Worth/
 │   │   │   ├── rateLimit.js  refusing somebody who is asking far too often
 │   │   │   ├── insights.js   the reporting SQL: aggregates, GROUP BY, windows
 │   │   │   ├── logger.js     request ids, timings, and what to never log
-│   │   │   ├── advice.js     the agent loop. The only file that talks to Claude
+│   │   │   ├── advice.js     the agent loop, in one neutral conversation shape
+│   │   │   ├── statement.js  reading a bank CSV: any layout, any date format
+│   │   │   ├── categorise.js which category a bank line belongs to
+│   │   │   ├── signals.js    what changed, found in SQL before any AI is involved
+│   │   │   ├── briefing.js   turning those findings into the note on the dashboard
+│   │   │   ├── recap.js      a whole year, added up
+│   │   │   ├── ai/           the only files that reach a model
+│   │   │   │   ├── gemini.js   Google's Gemini, over plain fetch. Free tier
+│   │   │   │   ├── claude.js   Anthropic's Claude, over the SDK
+│   │   │   │   └── index.js    picks whichever key is set
 │   │   │   ├── tools.js      the calculations Claude is allowed to run
 │   │   │   └── validate.js   the server's own copy of the form checks
 │   │   └── routes/           one file per thing the app stores
@@ -114,12 +125,16 @@ Nest-Worth/
 │   │       ├── checkins.js   ┘
 │   │       ├── advice.js     the AI coach, streamed as it is written
 │   │       ├── insights.js   GET /api/insights, the reporting endpoint
-│   │       └── scenarios.js  GET /api/scenarios, the plan comparison
+│   │       ├── scenarios.js  GET /api/scenarios, the plan comparison
+│   │       ├── transactions.js  importing a statement, and reading it back
+│   │       ├── briefing.js   GET /api/briefing, today's note
+│   │       └── recap.js      GET /api/recap, the year
 │   └── tests/                run with npm test
 │
 ├── frontend/                 the app. React, Vite and Tailwind
 │   ├── tailwind.config.js    every colour, font, shadow and timing. One source of truth
 │   └── src/
+│       ├── styles/global.css the actual colour values, in a light set and a dark one
 │       ├── App.jsx           which page shows at which address
 │       ├── lib/              the browser's own code, plus shims into shared/
 │       │   ├── api.js        every request to the backend goes through here
@@ -128,7 +143,7 @@ Nest-Worth/
 │       │   └── debt.js, goals.js, networth.js, plan.js
 │       │                     one line each, re-exporting shared/ below
 │       ├── components/
-│       │   ├── charts/       the four charts, hand-drawn. No chart library
+│       │   ├── charts/       the five charts, hand-drawn. No chart library
 │       │   ├── shared/       Button, TextField, ErrorBoundary. Used everywhere
 │       │   ├── layout/       navbar and footer
 │       │   ├── landing/      the marketing page
@@ -138,6 +153,7 @@ Nest-Worth/
 │   └── tests/                the money maths and the components, npm test
 │
 ├── shared/                   the money maths, used by BOTH sides
+│   ├── categories.js         the transaction categories, agreed by both sides
 │   ├── plan.js               the recommendation model
 │   ├── debt.js               payoff dates, avalanche ordering, interest saved
 │   ├── goals.js              what each goal costs, and the emergency fund
@@ -210,6 +226,119 @@ anybody can skip the form entirely and post straight at the API with `curl`.
 
 ---
 
+---
+
+## Reading a bank statement
+
+Everything else in this app is built from numbers somebody typed. `/spending`
+is built from their bank's own record, which is the only honest way to know
+what a month actually cost. Nobody remembers what they spent on food.
+
+Upload a CSV and it is parsed, sorted into categories, and added up. There is a
+sample month behind a button, because nobody has a statement to hand the first
+time they open the page and an upload box with nothing to upload is a dead end.
+
+**The parser assumes no layout.** Every bank exports a different shape. Some
+have one Amount column and a separate Dr/Cr marker, some have Withdrawal and
+Deposit as two columns, and the date is `05/01/2026` or `05-Jan-26` or
+`2026-01-05`. The header row is rarely the first line, because banks print the
+account number and a date range above it. So `lib/statement.js` hunts for the
+header, works out which column is which from the words in it, and reads the rest
+against that.
+
+**Day comes before month.** `05/01/2026` is read as the fifth of January. There
+is no way to tell from the text, so it is a decision rather than a deduction,
+and it is written down in a comment and in a test because a silently wrong month
+pushes transactions into the wrong check-in with nothing on screen looking odd.
+
+**Importing the same file twice adds nothing.** Each line gets a fingerprint:
+a hash of its date, description, amount, direction, and how many identical lines
+came before it in the same file. That last part is what keeps two ₹420 Swiggy
+orders on the same day as two payments rather than one. The column has a UNIQUE
+index and the insert says `INSERT OR IGNORE`, so the database enforces it rather
+than a check-then-insert, which has a gap between the two halves.
+
+**Categories are rules, not an AI.** It would be one prompt to hand every line
+to a model. Rules win here: they are instant where a model is a network round
+trip per statement, they cost nothing, and they give the same answer every time,
+so a category somebody corrects once is not guessed differently next month. The
+trade is that an unknown merchant falls through to "everything else", and the
+answer to that is to let people fix it rather than to guess harder.
+
+**Investing is not spending.** A SIP leaving the account is money moved into
+something you still own. Counting it as an expense would report the worst
+spending month on the month somebody saved the most, which is the opposite of
+useful. The spending total is built from the spending categories only.
+
+---
+
+## The note nobody asked for
+
+The coach card answers questions. Useful, and it only ever tells you what you
+already thought to ask. A month where the food spend doubled is not a question
+anybody types.
+
+So there is a second thing on the dashboard that writes itself, and the way it
+is split in two is the whole design.
+
+`lib/signals.js` finds what is true. Each finding is a query with a number
+attached: a category up or down against last month, a debt over 15%, one payment
+that was a quarter of everything that left the account, a check-in where almost
+nothing was kept. It either happened or it did not, and the same data gives the
+same findings every time, which is what makes it testable.
+
+`lib/briefing.js` turns those findings into sentences, and that is the only job
+the model has.
+
+A model asked to do both would decide what is true and how to say it at the same
+time, so a misreading and a well-written sentence would arrive together and be
+indistinguishable. It would also say something different on every run against
+identical data.
+
+It is written once a day and stored, not on every page load, because writing it
+costs a call to a model and wording that changed on every refresh would read as
+noise rather than as something that had been noticed. With no key configured the
+findings are shown as they are, which is why they are written as whole sentences
+with their amounts formatted: the no-model version should not be the rough
+draft.
+
+---
+
+## Two themes
+
+Every colour on the site is a CSS variable, defined twice in
+`frontend/src/styles/global.css`: once on `:root` and once under
+`[data-theme="dark"]`. `tailwind.config.js` still owns the names and the
+reasoning, and every class points at a variable.
+
+That means `data-theme="dark"` on the `<html>` tag changes the whole app, and
+not one component knows a dark theme exists. A `bg-accent text-paper` button is
+dark green with cream text in one and mint with near-black text in the other,
+because both halves flip together.
+
+Three things did not come free.
+
+**The values had to leave the config file.** A hex code written in
+`tailwind.config.js` is baked into the stylesheet at build time, and a baked
+value cannot be changed while the page is open.
+
+**They are stored split into red, green and blue** rather than as `#1F5340`,
+because that is what lets `border-accent/25` work: Tailwind substitutes the
+opacity into the middle of `rgb(31 83 64 / 0.25)`, and a hex code cannot be
+sliced open like that.
+
+**Some colours must not flip.** The dark panels on the landing page are
+near-black in both themes, so the writing on them stays cream in both. That is a
+separate name, `onNight`, rather than `paper`, which would have looked correct
+until the dark theme turned it near-black on near-black.
+
+The theme is applied by a small script in `index.html` that runs before the
+page is drawn. Waiting for React would paint the cream page first and repaint it
+black a moment later, and that white flash is the most noticeable bug a dark
+mode can have.
+
+---
+
 ## The security decisions, in short
 
 These are the parts worth being able to explain out loud.
@@ -249,11 +378,12 @@ These are the parts worth being able to explain out loud.
   links are each destroyed when somebody tries to use an expired one, but that
   never cleans up after people who do not come back. `db.js` clears them when
   the server starts.
-- **The Claude API key never leaves the server.** It lives in `backend/.env`,
-  which git ignores, and only `backend/src/lib/advice.js` reads it. A key in
-  frontend code is a key anybody can read in their browser and spend money with.
-  The AI route is rate limited to 20 questions an hour per person, because it is
-  the only route in the app that costs real money to answer.
+- **The AI key never leaves the server.** It lives in `backend/.env`, which git
+  ignores, and only the files in `backend/src/lib/ai/` read it. A key in frontend
+  code is a key anybody can read in their browser and spend money with. Nothing
+  in the browser even names which model is answering, because the server decides
+  that from whichever key is set. The AI route is rate limited to 20 questions an
+  hour per person.
 - **A session that ends mid-use sends you to the login screen.** `requireUser`
   answers with a `no_session` code, which is what the browser reacts to rather
   than the bare 401. That distinction matters: a wrong password and a wrong
@@ -267,10 +397,38 @@ These are the parts worth being able to explain out loud.
 
 ---
 
+## Which AI
+
+Two are supported and the app behaves the same with either. **Gemini has a free
+allowance, so it is the default**; Claude is there because it was first and
+because having two proves the seam is real.
+
+The interesting part is that the agent loop is written once. `lib/advice.js`
+keeps the conversation in a shape neither provider uses:
+
+```
+{ role, text }          somebody said something
+{ toolCalls: [...] }    the model asked for a calculation
+{ toolResults: [...] }  we ran it, here is the answer
+```
+
+`lib/ai/gemini.js` and `lib/ai/claude.js` translate that to their own wire
+formats, which differ more than you would expect: Gemini calls the two sides
+"user" and "model" where Claude says "assistant", puts the system prompt in its
+own field, needs UPPERCASE type names in a tool schema, and rejects a tool whose
+parameters are an empty object rather than absent. All of that is in the
+translators; none of it is in the loop.
+
+The Gemini tests run against a stand-in server rather than Google, so they cost
+nothing, need no key, and still catch a wrongly shaped request, which is the
+thing most likely to be wrong.
+
+---
+
 ## The charts
 
-`/plans` shows the same income arranged four ways. Four charts, and the type of
-each was picked from the job it does rather than from what looks impressive.
+Five, and the type of each was picked from the job it does rather than from what
+looks impressive.
 
 | What the reader has to do | The chart |
 |---|---|
@@ -278,6 +436,14 @@ each was picked from the job it does rather than from what looks impressive.
 | Compare four plans over fifteen years | multi-line, one axis |
 | See how much sooner the debt clears | a dumbbell, before against after |
 | Judge one number against a target | a meter, not a chart |
+| Compare twelve spending categories | sorted horizontal bars |
+
+The last one is a bar chart and not a pie for a specific reason. The question is
+"which of these is biggest, and by how much", and length along a shared baseline
+is the one thing the eye compares accurately. Angles are not: two slices within
+a few per cent of each other are indistinguishable, and twelve categories is far
+past the three or four a pie can carry. All twelve bars are one colour, because
+each is named beside itself, so colour has no work left to do.
 
 Three rules the colours follow, and they are why the chart colours in
 `tailwind.config.js` are not the UI colours:
@@ -296,6 +462,12 @@ colour would make it compete with the parts somebody can act on.
 is green and the other three are one grey. Four coloured lines is a chart where
 the eye has nowhere to land.
 
+Every chart colour has a dark-theme version, and they are not the light ones
+dimmed. Each was lifted separately into the band where it stays separable
+against a dark card. The percentage printed inside a bar has two colours for the
+same reason: the fills deep enough to need white text on the light theme are
+lifted light enough on the dark one to need near-black.
+
 Every chart has a legend, and the page ends with a table of every figure on it,
 so nothing is available only as a picture.
 
@@ -313,6 +485,13 @@ legend was rendered and that no width came out as NaN; it cannot say a label was
 cut in half, or that the comparison chart collapsed to six pixels tall on a
 phone. Both of those were really here, and both were found by looking at what
 this script produced rather than by a test.
+
+It shoots four pages, at three widths, in both themes. Both themes matter: the
+dark one is not a filter over the light one, every colour in it was chosen
+separately, and it can break on its own. Text vanishing into its own background,
+a shadow that was doing the work of a border, a chart label on a fill it no
+longer contrasts with. All three happened while it was being built and none of
+them is something a component test can see.
 
 It reports horizontal overflow and text clipped by its own box, and it scrolls
 each page before shooting, because several things here only draw once they have
@@ -363,8 +542,20 @@ Worth saying plainly, since this is a learning project rather than a product.
   reset link are printed in the terminal running the API. `SETUP.md` explains
   what to connect and what paperwork India requires first.
 - **Google sign-in needs a client id** before the button does anything.
-- **The AI coach needs an Anthropic API key** in `backend/.env`. Without one the
-  card on the dashboard says so, and everything else works as normal.
+- **The AI needs a key** in `backend/.env`, either Gemini's or Anthropic's.
+  Without one the coach card says so, and the daily note falls back to showing
+  its findings as they are, which is why they are written as whole sentences.
+- **The daily note is written on the first dashboard load of the day**, not by a
+  job running overnight. A nightly job would have to write a note for every
+  account whether or not anybody was going to read it, and would need something
+  to run it. The cost of doing it this way is that one page load a day waits for
+  the model.
+- **Statements are imported by hand.** The real version of this is India's
+  Account Aggregator framework, where a bank sends the data directly with the
+  account holder's consent. That needs a licensed aggregator and paperwork, so
+  what is here is the same idea with a CSV in the middle.
+- **A merchant nobody has written a rule for** lands in "everything else". The
+  page says how many did and lets them be corrected one at a time.
 - **A language model can be confidently wrong.** Every figure it is shown is read
   out of the database and summed in JavaScript first, and it is told never to
   invent one, but nothing stops it drawing a poor conclusion from correct

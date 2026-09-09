@@ -83,7 +83,7 @@ export default function FAQ() {
               // bars. Rotating the whole circle 45 degrees turns it into a cross.
               let circleClasses = 'relative grid h-8 w-8 shrink-0 place-items-center rounded-full border transition-all duration-500 ease-smooth ';
               if (isOpen === true) {
-                circleClasses = circleClasses + 'rotate-45 border-accent bg-accent text-white';
+                circleClasses = circleClasses + 'rotate-45 border-accent bg-accent text-paper';
               } else {
                 circleClasses = circleClasses + 'border-line text-muted group-hover:border-ink group-hover:text-ink';
               }

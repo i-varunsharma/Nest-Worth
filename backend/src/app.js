@@ -10,6 +10,9 @@ import checkinRoutes from './routes/checkins.js';
 import adviceRoutes from './routes/advice.js';
 import insightRoutes from './routes/insights.js';
 import scenarioRoutes from './routes/scenarios.js';
+import transactionRoutes from './routes/transactions.js';
+import briefingRoutes from './routes/briefing.js';
+import recapRoutes from './routes/recap.js';
 import { attachUser } from './lib/sessions.js';
 import { log, requestLogger, safeForLogging } from './lib/logger.js';
 import { isDatabaseHealthy } from './database/db.js';
@@ -52,8 +55,20 @@ export function createApp() {
     credentials: true,
   }));
 
+  /*
+    One route accepts something large: a bank statement, which is a few hundred
+    lines of CSV. Everything else on this API is a short form, so the general
+    limit below stays small and this one exception is named out loud.
+
+    It has to be mounted BEFORE the general parser. Body parsers mark a request
+    as read once they have read it and later ones leave it alone, so whichever
+    runs first is the one whose limit applies. The other way round, the 16kb
+    parser would reject a statement before this line was ever reached.
+  */
+  app.use('/api/transactions/import', express.json({ limit: '2mb' }));
+
   // Without this, req.body is undefined on every POST. The limit is small
-  // because nothing this API accepts is large.
+  // because nothing else this API accepts is large.
   app.use(express.json({ limit: '16kb' }));
 
   app.use(cookieParser());
@@ -74,6 +89,9 @@ export function createApp() {
   app.use('/api/advice', adviceRoutes);
   app.use('/api/insights', insightRoutes);
   app.use('/api/scenarios', scenarioRoutes);
+  app.use('/api/transactions', transactionRoutes);
+  app.use('/api/briefing', briefingRoutes);
+  app.use('/api/recap', recapRoutes);
 
   /*
     Is this server actually working?

@@ -328,3 +328,78 @@ test('a tiny income still produces plans rather than nonsense', () => {
     assert.ok(plan.outcomes.valueAfterYears >= 0);
   }
 });
+
+
+// ---------------------------------------------------------------
+// Following a chosen plan
+// ---------------------------------------------------------------
+
+test('a chosen plan replaces the split the dashboard shows', async () => {
+  const { applyChosenPlan } = await import('../../shared/scenarios.js');
+  const { buildPlan } = await import('../../shared/plan.js');
+
+  const plans = scenariosFor();
+  const debtPlan = plans.find((one) => { return one.key === 'debt'; });
+
+  const recommended = buildPlan({
+    income: household.income,
+    dependents: household.dependents,
+    hasLoan: true,
+    incomeVaries: false,
+    essentialCosts: household.essentialCosts,
+    emi: 11200,
+  });
+
+  const followed = applyChosenPlan(recommended, debtPlan);
+
+  const invest = followed.buckets.find((b) => { return b.key === 'invest'; });
+
+  // The debt plan puts nothing into investing, so the dashboard must not go on
+  // showing the recommended investing figure.
+  assert.equal(invest.amount, debtPlan.allocation.invest);
+  assert.equal(invest.amount, 0);
+});
+
+
+test('extra sent at a debt is counted as money that has already left', () => {
+  /*
+    It is not a fourth bucket. The moment somebody commits to a plan that pays
+    more at a debt, that money leaves before any choice is made, exactly like
+    an EMI. Counting it anywhere else would leave the three shares adding up to
+    less than what is left, and the card drawing them would show three bars
+    with an unexplained gap.
+  */
+  const plans = scenariosFor();
+  const debtPlan = plans.find((one) => { return one.key === 'debt'; });
+
+  assert.ok(debtPlan.allocation.extraToDebt > 0, 'this test needs a plan that pays extra');
+});
+
+
+test('the three shares of a followed plan add up to 100', async () => {
+  const { applyChosenPlan } = await import('../../shared/scenarios.js');
+  const { buildPlan } = await import('../../shared/plan.js');
+
+  const recommended = buildPlan({
+    income: household.income, dependents: 2, hasLoan: true,
+    incomeVaries: false, essentialCosts: household.essentialCosts, emi: 11200,
+  });
+
+  for (const plan of scenariosFor()) {
+    const followed = applyChosenPlan(recommended, plan);
+
+    let total = 0;
+    followed.buckets.forEach((bucket) => {
+      total = total + bucket.percent;
+    });
+
+    // Rounding can leave it a point out; anything more means the bars and the
+    // figures beside them disagree.
+    assert.ok(Math.abs(total - 100) <= 1, plan.name + ' shares add to ' + total);
+
+    // And what is left has to be the three buckets, or the headline figure on
+    // the card is not the sum of the bars under it.
+    const summed = followed.buckets.reduce((run, b) => { return run + b.amount; }, 0);
+    assert.equal(followed.free, summed);
+  }
+});

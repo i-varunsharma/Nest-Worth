@@ -24,14 +24,14 @@ const buttonStyles = {
   primary: 'bg-ink text-paper px-6 py-3.5 shadow-card hover:bg-accent hover:shadow-lift hover:-translate-y-0.5',
 
   // Green button, for the single most important action on a screen.
-  accent: 'bg-accent text-white px-6 py-3.5 shadow-card hover:bg-accentDeep hover:shadow-lift hover:-translate-y-0.5',
+  accent: 'bg-accent text-paper px-6 py-3.5 shadow-card hover:bg-accentDeep hover:shadow-lift hover:-translate-y-0.5',
 
   // Outlined button, for the quieter second option next to a primary one.
   outline: 'border border-line bg-surface/60 text-ink px-6 py-3.5 hover:border-ink hover:bg-surface hover:-translate-y-0.5',
 
   // The two below are only used on the dark sections, where the page is nearly black.
-  lightOnDark: 'bg-paper text-ink px-6 py-3.5 hover:bg-white hover:-translate-y-0.5 hover:shadow-float',
-  ghostOnDark: 'border border-white/15 text-paper px-6 py-3.5 hover:border-white/40 hover:bg-white/5 hover:-translate-y-0.5',
+  lightOnDark: 'bg-onNight text-night px-6 py-3.5 hover:bg-white hover:-translate-y-0.5 hover:shadow-float',
+  ghostOnDark: 'border border-white/15 text-onNight px-6 py-3.5 hover:border-white/40 hover:bg-white/5 hover:-translate-y-0.5',
 };
 
 export default function Button({ children, to, href, onClick, variant, arrow, type, className, disabled }) {

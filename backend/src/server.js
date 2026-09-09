@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { createApp } from './app.js';
 import { closeDatabase } from './database/db.js';
 import { log } from './lib/logger.js';
+import { describeProvider } from './lib/ai/index.js';
 
 /*
   Starts the API, and stops it properly. Everything about how it behaves while
@@ -28,9 +29,7 @@ const server = app.listen(PORT, () => {
     console.log('  Google sign-in: not configured (see SETUP.md)');
   }
 
-  if (!process.env.ANTHROPIC_API_KEY) {
-    console.log('  AI coach: not configured (see SETUP.md)');
-  }
+  console.log('  AI coach: ' + describeProvider());
 
   console.log('');
 });

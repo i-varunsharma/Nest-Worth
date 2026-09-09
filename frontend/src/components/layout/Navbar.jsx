@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Container from '../shared/Container';
+import ThemeToggle from '../shared/ThemeToggle';
 
 /*
   The bar across the top of the landing page.
@@ -133,6 +134,8 @@ export default function Navbar() {
 
           {/* Sign in, sign up, and the phone menu button */}
           <div className="flex items-center gap-2.5">
+            <ThemeToggle className="mr-1" />
+
             <Link to="/login" className="sweep hidden text-[14px] font-medium text-muted transition-colors hover:text-ink sm:block">
               Log in
             </Link>
