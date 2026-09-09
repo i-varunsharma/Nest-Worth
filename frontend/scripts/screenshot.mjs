@@ -1,6 +1,7 @@
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 import path from 'node:path';
+import { SAMPLE_STATEMENT } from '../src/lib/sampleStatement.js';
 
 /*
   Opens the app in a real browser, at three screen sizes, and saves pictures.
@@ -49,6 +50,8 @@ const OUT = path.join(process.cwd(), 'screenshots');
 const PAGES = [
   { path: '/plans', waitFor: 'The same money' },
   { path: '/dashboard', waitFor: 'Your coach' },
+  { path: '/spending', waitFor: 'Where it went' },
+  { path: '/recap', waitFor: 'Came in' },
 ];
 
 const SIZES = [
@@ -56,6 +59,18 @@ const SIZES = [
   { name: 'laptop', width: 1024, height: 900 },
   { name: 'phone', width: 390, height: 844 },
 ];
+
+/*
+  Both themes, every time.
+
+  The dark theme is not a filter over the light one. Every colour in it was
+  chosen separately, so it can break on its own: text that vanishes into its own
+  background, a shadow that was doing the work of a border and is now invisible,
+  a chart label printed on a fill it no longer contrasts with. All three of
+  those happened while it was being built, and none of them is a thing the
+  component tests can see.
+*/
+const THEMES = ['light', 'dark'];
 
 const account = {
   name: 'Screenshot Test',
@@ -118,6 +133,18 @@ async function seed() {
     essentialCosts: 24000,
   }, cookie);
 
+  /*
+    The statement, so the spending and recap pages have something on them.
+
+    It is the same sample the import box offers, which means these pictures show
+    what somebody actually sees when they press "try a sample month" rather than
+    a set of numbers invented only for the screenshots.
+
+    Importing it twice adds nothing the second time, so unlike the debts below
+    this needs no guard: that is the whole point of the fingerprint.
+  */
+  await call('/api/transactions/import', 'POST', { csv: SAMPLE_STATEMENT }, cookie);
+
   // Adding these twice would double the debts and quietly change every figure
   // on the page, so an existing list is left alone.
   const existing = await call('/api/debts', 'GET', null, cookie);
@@ -152,6 +179,7 @@ async function run() {
   const problems = [];
 
   for (const size of SIZES) {
+   for (const theme of THEMES) {
     const context = await browser.newContext({
       viewport: { width: size.width, height: size.height },
     });
@@ -166,10 +194,18 @@ async function run() {
       { name: cookieName, value: cookieValue, domain: 'localhost', path: '/' },
     ]);
 
+    /*
+      Choose the theme the same way a person would, by writing the choice into
+      localStorage, and do it with addInitScript so it lands before the page's
+      own code runs. Setting it after the page loaded would photograph the
+      light theme flipping to dark, which is not what either one looks like.
+    */
+    await context.addInitScript('localStorage.setItem("nestworth-theme", "' + theme + '")');
+
     const page = await context.newPage();
 
     page.on('pageerror', (error) => {
-      problems.push(size.name + ' crashed: ' + error.message);
+      problems.push(size.name + ' ' + theme + ' crashed: ' + error.message);
     });
 
     for (const target of PAGES) {
@@ -200,7 +236,7 @@ async function run() {
       // every bar halfway through growing.
       await page.waitForTimeout(1500);
 
-      const label = target.path.replace('/', '') + '-' + size.name;
+      const label = target.path.replace('/', '') + '-' + size.name + '-' + theme;
 
       await page.screenshot({ path: path.join(OUT, label + '.png'), fullPage: true });
 
@@ -216,13 +252,37 @@ async function run() {
         problems.push(label + ' scrolls sideways: ' + box.scrollWidth + ' > ' + box.clientWidth);
       }
 
-      // Is any text bigger than the box it was given?
+      /*
+        Is any text bigger than the box it was given?
+
+        Two kinds of element are skipped, because both look like clipping to a
+        measurement and neither is a fault.
+
+        An element with no text in it is a decoration: a dot, a rule, a spacer.
+        There is nothing there to be cut off.
+
+        An element carrying Tailwind's "truncate" class has asked to be cut off,
+        with an ellipsis, because it holds something long and unpredictable. The
+        bank narrations in the spending table are the case here. Flagging those
+        would mean nine known-good lines in every report, and a report with
+        known-good lines in it is one people stop reading.
+      */
       const clipped = await page.evaluate(() => {
         const found = [];
 
         document.querySelectorAll('p, span, h1, h2, h3, td, th, button').forEach((node) => {
+          const text = node.textContent.trim();
+
+          if (text.length === 0) {
+            return;
+          }
+
+          if (node.classList.contains('truncate') === true) {
+            return;
+          }
+
           if (node.clientWidth > 0 && node.scrollWidth > node.clientWidth + 2) {
-            found.push(node.textContent.trim().slice(0, 40));
+            found.push(text.slice(0, 40));
           }
         });
 
@@ -237,6 +297,7 @@ async function run() {
     }
 
     await context.close();
+   }
   }
 
   await browser.close();

@@ -48,10 +48,13 @@ export default function AllocationBar({ allocation, income }) {
   const committedTotal = allocation.committed + allocation.extraToDebt;
 
   const pieces = [
-    { key: 'committed', label: 'Already committed', amount: committedTotal, fill: '#CFC6B8' },
-    { key: 'spend', label: 'Spend', amount: allocation.spend, fill: '#3275B4' },
-    { key: 'save', label: 'Save', amount: allocation.save, fill: '#B07A00' },
-    { key: 'invest', label: 'Invest', amount: allocation.invest, fill: '#007654' },
+    // Each piece carries the colour its own percentage is printed in. The
+    // committed grey needs a different one from the three strong colours,
+    // because no single text colour is readable on both.
+    { key: 'committed', label: 'Already committed', amount: committedTotal, fill: 'var(--chart-committed)', labelClass: 'text-chartLabelCommitted' },
+    { key: 'spend', label: 'Spend', amount: allocation.spend, fill: 'var(--chart-spend)', labelClass: 'text-chartLabel' },
+    { key: 'save', label: 'Save', amount: allocation.save, fill: 'var(--chart-save)', labelClass: 'text-chartLabel' },
+    { key: 'invest', label: 'Invest', amount: allocation.invest, fill: 'var(--chart-invest)', labelClass: 'text-chartLabel' },
   ];
 
   // Never divide by zero, however odd the data.
@@ -74,6 +77,7 @@ export default function AllocationBar({ allocation, income }) {
       label: piece.label,
       amount: piece.amount,
       fill: piece.fill,
+      labelClass: piece.labelClass,
       share: share,
       // A label inside a narrow segment gets cut in half, so it is left out.
       showLabelInside: share >= MIN_SHARE_FOR_INSIDE_LABEL,
@@ -97,7 +101,7 @@ export default function AllocationBar({ allocation, income }) {
               style={{ width: segment.share + '%', backgroundColor: segment.fill }}
             >
               {segment.showLabelInside === true ? (
-                <span className="tnum px-2 text-2xs font-semibold text-white/90">
+                <span className={'tnum px-2 text-2xs font-semibold ' + segment.labelClass}>
                   {Math.round(segment.share)}%
                 </span>
               ) : null}

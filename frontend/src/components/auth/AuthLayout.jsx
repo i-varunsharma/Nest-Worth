@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import ThemeToggle from '../shared/ThemeToggle';
 
 /*
   The frame around the login and signup screens.
@@ -30,12 +31,16 @@ export default function AuthLayout({ title, subtitle, children, footer }) {
             <span className="font-display text-[21px] leading-none tracking-tight">Nestworth</span>
           </Link>
 
-          <Link
-            to="/"
-            className="sweep text-[13.5px] font-medium text-muted transition-colors hover:text-ink"
-          >
-            Back to home
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link
+              to="/"
+              className="sweep text-[13.5px] font-medium text-muted transition-colors hover:text-ink"
+            >
+              Back to home
+            </Link>
+
+            <ThemeToggle />
+          </div>
         </div>
       </header>
 

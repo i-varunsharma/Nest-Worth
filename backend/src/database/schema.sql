@@ -195,6 +195,86 @@ CREATE TABLE IF NOT EXISTS checkins (
 );
 
 
+
+-- Lines read out of a bank statement.
+--
+-- This is the only table the app does not ask anybody to type. Everything else
+-- here is answers to questions; these arrive a few hundred at a time from a CSV
+-- and are sorted into categories by lib/categorise.js.
+CREATE TABLE IF NOT EXISTS transactions (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id     INTEGER NOT NULL,
+
+  -- 'YYYY-MM-DD'. Text in a format that sorts correctly, like every other date
+  -- in this file, which is what lets one month be found with LIKE '2026-08%'.
+  occurred_on TEXT    NOT NULL,
+
+  -- The narration exactly as the bank wrote it. Kept unedited so a category can
+  -- be argued with later, and so a new rule can be tried against old rows.
+  description TEXT    NOT NULL,
+
+  -- Always a positive number. Which way the money went is in direction, not in
+  -- the sign. Storing a negative for money out would mean every SUM has to
+  -- remember to flip it, and one that forgets is a wrong total that still looks
+  -- like a perfectly good number.
+  amount      REAL    NOT NULL,
+
+  -- 'debit' for money leaving, 'credit' for money arriving.
+  direction   TEXT    NOT NULL,
+
+  -- One of the keys in shared/categories.js.
+  category    TEXT    NOT NULL,
+
+  -- 1 once a person has set the category themselves. A guess is never as good
+  -- as being told, and re-running the rules must not overwrite an answer
+  -- somebody gave.
+  is_confirmed INTEGER NOT NULL DEFAULT 0,
+
+  -- A hash of the date, description, amount, direction and how many identical
+  -- lines came before it. See lib/statement.js. The UNIQUE line below is what
+  -- makes importing the same statement twice add nothing the second time.
+  fingerprint TEXT    NOT NULL,
+
+  created_at  TEXT    NOT NULL,
+
+  UNIQUE (user_id, fingerprint),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+
+
+-- The short note on the dashboard that nobody asked for.
+--
+-- One row per person per day. It is stored rather than worked out on every page
+-- load for two reasons: writing it costs a call to a language model, and a
+-- coach whose wording changed every time you refreshed would read as noise
+-- rather than as a thing that was noticed.
+CREATE TABLE IF NOT EXISTS briefings (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id    INTEGER NOT NULL,
+
+  -- 'YYYY-MM-DD'. One a day, which the UNIQUE line below enforces.
+  made_on    TEXT    NOT NULL,
+
+  -- The sentences to show.
+  body       TEXT    NOT NULL,
+
+  -- The findings it was written from, as JSON. Kept so the note can be shown
+  -- next to the numbers behind it, and so a bad note can be traced back to
+  -- whether the detection or the wording was at fault.
+  signals    TEXT    NOT NULL,
+
+  -- Which model wrote it, or 'rules' when none was configured and the plain
+  -- findings were shown as they are.
+  written_by TEXT    NOT NULL,
+
+  created_at TEXT    NOT NULL,
+
+  UNIQUE (user_id, made_on),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+
 -- ---------------------------------------------------------------
 -- Indexes
 -- ---------------------------------------------------------------
@@ -225,3 +305,11 @@ CREATE INDEX IF NOT EXISTS idx_sessions_user  ON sessions(user_id);
 
 -- For the startup sweep in db.js, which deletes everything already expired.
 CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);
+
+-- Every screen that reads transactions asks for one person's rows in one month,
+-- so this index covers both columns, in that order. user_id has to come first:
+-- an index on (occurred_on, user_id) could not answer "this person's rows" on
+-- its own, because the column being filtered would not be the leading one. The
+-- UNIQUE (user_id, fingerprint) line builds a second index of its own, and that
+-- is the one the import checks against.
+CREATE INDEX IF NOT EXISTS idx_transactions_user_date ON transactions(user_id, occurred_on);

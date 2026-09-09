@@ -6,10 +6,14 @@ import PriorityCard from '../components/app/PriorityCard';
 import OutflowCard from '../components/app/OutflowCard';
 import ConsistencyCard from '../components/app/ConsistencyCard';
 import CoachCard from '../components/app/CoachCard';
+import BriefingCard from '../components/app/BriefingCard';
 import ProjectionChart from '../components/landing/ProjectionChart';
 import Eyebrow from '../components/shared/Eyebrow';
+import CountUp from '../components/shared/CountUp';
+import { Skeleton, SkeletonCard, SkeletonScreen, SkeletonStat } from '../components/shared/Skeleton';
 import * as api from '../lib/api';
 import { buildPlan, buildProjectionRows, bucketAmount, formatRupees } from '../lib/plan';
+import { applyChosenPlan } from '../lib/scenarios';
 import { formatDuration, formatMonthYear, orderByRate, summariseDebts } from '../lib/debt';
 import { safetyNet, summariseGoals } from '../lib/goals';
 import { summariseNetWorth } from '../lib/networth';
@@ -49,12 +53,13 @@ export default function DashboardPage({ user }) {
     let stillMounted = true;
 
     const load = async () => {
-      const [household, debts, goals, assets, checkins] = await Promise.all([
+      const [household, debts, goals, assets, checkins, scenarios] = await Promise.all([
         api.getHousehold(),
         api.getDebts(),
         api.getGoals(),
         api.getAssets(),
         api.getCheckins(),
+        api.getScenarios(),
       ]);
 
       if (!stillMounted) {
@@ -72,6 +77,11 @@ export default function DashboardPage({ user }) {
         goals: goals.ok ? goals.data.goals : [],
         assets: assets.ok ? assets.data.assets : [],
         checkins: checkins.ok ? checkins.data.checkins : [],
+
+        // Only needed when a plan has been chosen. It failing is not worth
+        // stopping the dashboard for: the page falls back to the recommended
+        // split, which is what it always showed.
+        scenarios: scenarios.ok ? scenarios.data.scenarios : [],
       });
     };
 
@@ -82,6 +92,10 @@ export default function DashboardPage({ user }) {
     };
   }, []);
 
+  // Needed by both the loading screen and the real one, so it is worked out
+  // before either of them.
+  const thisMonth = new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+
   if (loadError) {
     return (
       <div className="grid min-h-screen place-items-center bg-paper px-6">
@@ -90,11 +104,42 @@ export default function DashboardPage({ user }) {
     );
   }
 
+  /*
+    Still fetching.
+
+    This draws the real page frame with grey blocks where the numbers will go,
+    rather than a "Loading…" line in the middle of an empty screen. The heading
+    and the top bar are already correct, because neither needs anything from the
+    server, so only the part that is genuinely unknown looks unknown.
+  */
   if (data === null) {
+    let loadingGreeting = greetingForNow() + '.';
+    if (user.name) {
+      loadingGreeting = greetingForNow() + ', ' + user.name + '.';
+    }
+
     return (
-      <div className="grid min-h-screen place-items-center bg-paper">
-        <p className="text-[14px] text-muted">Loading your plan…</p>
-      </div>
+      <AppShell user={user} title={loadingGreeting} subtitle={thisMonth}>
+        <SkeletonScreen label="Loading your plan">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <SkeletonStat />
+            <SkeletonStat />
+            <SkeletonStat />
+            <SkeletonStat />
+          </div>
+
+          <div className="mt-6 grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+            <SkeletonCard />
+
+            <div className="space-y-6">
+              <SkeletonCard />
+              <SkeletonCard />
+            </div>
+          </div>
+
+          <Skeleton className="mt-6 h-40 w-full rounded-[18px]" />
+        </SkeletonScreen>
+      </AppShell>
     );
   }
 
@@ -117,7 +162,7 @@ export default function DashboardPage({ user }) {
   const orderedDebts = orderByRate(data.debts);
   const worstDebt = orderedDebts[0];
 
-  const plan = buildPlan({
+  const recommendedPlan = buildPlan({
     income: data.household.income,
     dependents: data.household.dependents,
     hasLoan: data.debts.length > 0,
@@ -127,6 +172,31 @@ export default function DashboardPage({ user }) {
     topRate: worstDebt ? worstDebt.annualRate : undefined,
     topDebtName: worstDebt ? worstDebt.name.toLowerCase() : undefined,
   });
+
+  /*
+    Which plan this dashboard is actually showing.
+
+    By default it is the one the model recommends. If they chose a different
+    one on /plans, that choice replaces the three buckets here, and every
+    number further down follows automatically: the goals check, the emergency
+    fund, the projection, and the comparison against what they really did.
+
+    Only the buckets are swapped. Nothing else on this page had to learn that
+    plans exist.
+  */
+  let followedPlan = null;
+
+  data.scenarios.forEach((scenario) => {
+    if (scenario.key === data.household.chosenPlan) {
+      followedPlan = scenario;
+    }
+  });
+
+  let plan = recommendedPlan;
+
+  if (followedPlan) {
+    plan = applyChosenPlan(recommendedPlan, followedPlan);
+  }
 
   const monthlyInvestment = bucketAmount(plan, 'invest');
   const monthlySaving = bucketAmount(plan, 'save');
@@ -147,8 +217,6 @@ export default function DashboardPage({ user }) {
 
   const projectionRows = buildProjectionRows(monthlyInvestment, PROJECTION_YEARS);
   const finalValue = projectionRows[projectionRows.length - 1].value;
-
-  const thisMonth = new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
 
   // Has this month already been checked in? Both helpers live in lib/checkins.js
   // so this page and the check-in page cannot disagree about what a month is.
@@ -178,6 +246,20 @@ export default function DashboardPage({ user }) {
   if (hasCheckedIn === true) {
     checkInLabel = 'This month is recorded';
     checkInClasses = 'border-accent/30 bg-accentSoft text-accentDeep hover:border-accent';
+  }
+
+  /*
+    Why there is nothing to project. Two quite different reasons, and telling
+    somebody following the debt plan that they "have nothing left over" would
+    be wrong: they chose this, and it is the right choice for a card at 42%.
+  */
+  let noInvestingNote = 'There is nothing left to invest once your household and your debts '
+    + 'are paid. That changes as soon as either of those does.';
+
+  if (followedPlan) {
+    noInvestingNote = 'This plan sends that money somewhere else first, which is the point '
+      + 'of it. The investing starts once that job is done, and everything freed up by then '
+      + 'goes into it.';
   }
 
   let greeting = greetingForNow() + '.';
@@ -222,11 +304,24 @@ export default function DashboardPage({ user }) {
     }
   }
 
+  /*
+    Each card has either a countTo, meaning the figure is a number and should
+    run up to itself, or a plain value for the ones that are not numbers. A
+    date cannot be counted up to, and pretending otherwise would give you
+    "March 2027" flickering through months that mean nothing.
+
+    "format" is how the counting number is turned back into the text on screen,
+    and it has to be a function rather than a finished string, because CountUp
+    calls it again on every frame with a different number.
+  */
   const headlines = [
     {
       to: '/net-worth',
       label: 'Net worth',
-      value: formatRupees(netWorth.netWorth, { short: true }),
+      countTo: netWorth.netWorth,
+      format: (amount) => {
+        return formatRupees(amount, { short: true });
+      },
       note: formatRupees(netWorth.totalAssets, { short: true }) + ' owned, '
         + formatRupees(netWorth.totalDebts, { short: true }) + ' owed',
       isNegative: netWorth.netWorth < 0,
@@ -241,7 +336,10 @@ export default function DashboardPage({ user }) {
     {
       to: '/net-worth',
       label: 'Safety net',
-      value: safety.monthsCovered.toFixed(1) + ' mo',
+      countTo: safety.monthsCovered,
+      format: (months) => {
+        return months.toFixed(1) + ' mo';
+      },
       note: 'target ' + safety.monthsTarget + ' months',
       isNegative: !safety.isEnough,
     },
@@ -276,6 +374,37 @@ export default function DashboardPage({ user }) {
       }
     >
 
+      {/* ---------- What the app noticed on its own ---------- */}
+      {/* It draws nothing when there is nothing to say, and it fetches itself
+          rather than waiting on the load above, so the page never sits still
+          for it. */}
+      <BriefingCard />
+
+      {/* ---------- Which plan this is showing ---------- */}
+      {/*
+        Only when they have chosen one. Without this the dashboard would
+        quietly show different numbers from the ones the model recommends,
+        with nothing on screen to say why.
+      */}
+      {followedPlan ? (
+        <Link
+          to="/plans"
+          className="group mb-6 flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-accent/25 bg-accentSoft px-5 py-4 transition-colors duration-300 hover:border-accent/50"
+        >
+          <p className="text-[14px] leading-relaxed text-ink2">
+            <span className="font-semibold text-accentDeep">Following: {followedPlan.name}.</span>{' '}
+            {followedPlan.idea}
+          </p>
+
+          <span className="shrink-0 text-2xs font-semibold uppercase tracking-widest2 text-accentDeep">
+            Change
+            <span aria-hidden="true" className="ml-1.5 inline-block transition-transform duration-300 group-hover:translate-x-0.5">
+              &#8594;
+            </span>
+          </span>
+        </Link>
+      ) : null}
+
       {/* ---------- Four numbers, each a door to its own page ---------- */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {headlines.map((item) => {
@@ -283,6 +412,12 @@ export default function DashboardPage({ user }) {
           let valueColour = 'text-accent';
           if (item.isNegative === true) {
             valueColour = 'text-clay';
+          }
+
+          // Either a number that counts up to itself, or plain text.
+          let valueContent = item.value;
+          if (item.countTo !== undefined) {
+            valueContent = <CountUp to={item.countTo} format={item.format} />;
           }
 
           return (
@@ -295,7 +430,7 @@ export default function DashboardPage({ user }) {
                 {item.label}
               </p>
               <p className={'tnum mt-2.5 font-display text-[28px] leading-none ' + valueColour}>
-                {item.value}
+                {valueContent}
               </p>
               <p className="mt-2 text-2xs text-muted">{item.note}</p>
             </Link>
@@ -328,21 +463,45 @@ export default function DashboardPage({ user }) {
       </div>
 
       {/* ---------- The long view ---------- */}
+      {/*
+        A plan that invests nothing has nothing to project, and drawing an
+        empty chart under a headline of "₹0" looks like a page that failed
+        rather than a deliberate choice. It says what is happening instead, and
+        the chart comes back the month the debt does.
+      */}
       <div id="future" className="mt-16">
         <Eyebrow>Future you</Eyebrow>
 
-        <div className="mt-5 flex flex-wrap items-end justify-between gap-5">
-          <h2 className="max-w-md font-display text-[clamp(1.7rem,3vw,2.3rem)] leading-[1.1] tracking-[-0.02em]">
-            {formatRupees(monthlyInvestment)} a month, for {PROJECTION_YEARS} years.
-          </h2>
-          <p className="tnum font-display text-[clamp(2rem,4vw,2.8rem)] leading-none text-accent">
-            {formatRupees(finalValue, { short: true })}
-          </p>
-        </div>
+        {monthlyInvestment > 0 ? (
+          <>
+            <div className="mt-5 flex flex-wrap items-end justify-between gap-5">
+              <h2 className="max-w-md font-display text-[clamp(1.7rem,3vw,2.3rem)] leading-[1.1] tracking-[-0.02em]">
+                {formatRupees(monthlyInvestment)} a month, for {PROJECTION_YEARS} years.
+              </h2>
+              <p className="tnum font-display text-[clamp(2rem,4vw,2.8rem)] leading-none text-accent">
+                {formatRupees(finalValue, { short: true })}
+              </p>
+            </div>
 
-        <div className="mt-7">
-          <ProjectionChart rows={projectionRows} years={PROJECTION_YEARS} />
-        </div>
+            <div className="mt-7">
+              <ProjectionChart rows={projectionRows} years={PROJECTION_YEARS} />
+            </div>
+          </>
+        ) : (
+          <div className="mt-5 rounded-[26px] border border-line bg-surface p-6 shadow-card sm:p-8">
+            <h2 className="max-w-lg font-display text-[clamp(1.5rem,2.6vw,2rem)] leading-[1.15] tracking-[-0.02em]">
+              Nothing is being invested this month, and that is the plan.
+            </h2>
+
+            <p className="mt-4 max-w-lg text-[15px] leading-relaxed text-ink2">
+              {noInvestingNote}
+            </p>
+
+            <Link to="/plans" className="sweep mt-5 inline-block text-[14px] font-semibold text-ink">
+              See what each plan is worth
+            </Link>
+          </div>
+        )}
       </div>
 
       <p className="mt-14 border-t border-line pt-7 text-2xs text-muted">

@@ -268,7 +268,7 @@ export default function Planner({ household, onChange }) {
                   the middle rather than at the edge. */}
               <span
                 className={
-                  'absolute left-[3px] top-[3px] h-5 w-5 rounded-full bg-white shadow-sm '
+                  'absolute left-[3px] top-[3px] h-5 w-5 rounded-full bg-surface shadow-sm '
                   + 'transition-transform duration-300 ease-smooth '
                   + (household.hasLoan ? 'translate-x-[20px]' : 'translate-x-0')
                 }
@@ -294,7 +294,7 @@ export default function Planner({ household, onChange }) {
 
               <span
                 className={
-                  'absolute left-[3px] top-[3px] h-5 w-5 rounded-full bg-white shadow-sm '
+                  'absolute left-[3px] top-[3px] h-5 w-5 rounded-full bg-surface shadow-sm '
                   + 'transition-transform duration-300 ease-smooth '
                   + variesKnobClasses
                 }

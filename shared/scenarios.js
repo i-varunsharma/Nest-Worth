@@ -400,3 +400,63 @@ export function buildScenarios(options) {
     };
   });
 }
+
+
+/*
+  Rewrites a plan so it shows the split somebody actually chose.
+
+  The dashboard builds the recommended plan the way it always has, and then
+  passes it through here when a plan has been chosen on /plans. Everything
+  downstream, the goals check, the emergency fund, the projection, the
+  comparison against the check-ins, reads its numbers out of the plan object,
+  so replacing the buckets here is enough to make the whole screen follow the
+  choice. Nothing else had to learn about plans.
+
+  Extra sent at a debt is folded into the EMI rather than left as a fourth
+  bucket. That is what it becomes the moment somebody commits to this plan:
+  money that leaves before any choice is made. It also keeps the three shares
+  adding up to what is left, which the card drawing them relies on.
+
+    plan     what buildPlan returned
+    chosen   one scenario from buildScenarios
+
+  Returns a new plan. The original is not touched, because a caller that still
+  wants the recommended split for comparison should still have it.
+*/
+export function applyChosenPlan(plan, chosen) {
+  const allocation = chosen.allocation;
+
+  const emi = plan.emi + allocation.extraToDebt;
+  const free = allocation.spend + allocation.save + allocation.invest;
+
+  /*
+    The percentages have to be worked out again from the new amounts. Carrying
+    the old ones over would draw bars that disagree with the figures printed
+    next to them, which is worse than either being wrong on its own.
+  */
+  function shareOf(amount) {
+    if (free <= 0) {
+      return 0;
+    }
+
+    return Math.round((amount / free) * 100);
+  }
+
+  return {
+    income: plan.income,
+    support: plan.support,
+    emi: emi,
+    essentialCosts: plan.essentialCosts,
+    free: free,
+
+    buckets: [
+      { key: 'spend', label: 'Spend', percent: shareOf(allocation.spend), amount: allocation.spend },
+      { key: 'save', label: 'Save', percent: shareOf(allocation.save), amount: allocation.save },
+      { key: 'invest', label: 'Invest', percent: shareOf(allocation.invest), amount: allocation.invest },
+    ],
+
+    // The sentence stays as it was: the reasoning behind the recommendation is
+    // still true, and still worth reading, even when somebody chose otherwise.
+    reasoning: plan.reasoning,
+  };
+}

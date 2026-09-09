@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import AppShell from '../components/app/AppShell';
+import { SkeletonPage } from '../components/shared/Skeleton';
 import AssetForm from '../components/app/AssetForm';
 import Button from '../components/shared/Button';
 import * as api from '../lib/api';
@@ -128,7 +129,7 @@ export default function NetWorthPage({ user }) {
   if (assets === null) {
     return (
       <AppShell user={user} title="Net worth">
-        <p className="text-[14px] text-muted">Loading…</p>
+        <SkeletonPage label="Loading what you own and owe" stats={3} cards={2} />
       </AppShell>
     );
   }

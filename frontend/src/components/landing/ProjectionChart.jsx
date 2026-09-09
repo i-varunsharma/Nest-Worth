@@ -31,15 +31,15 @@ const CANVAS_HEIGHT = 240;
 const TOP_PADDING = 12;
 
 /*
-  SVG needs real colour values, because a stroke cannot take a Tailwind class.
-  These three are copied from the theme in tailwind.config.js. If you change a
-  colour there, change it here too. They are the only hand-written colours in
-  the whole project.
+  SVG and inline styles cannot take a Tailwind class, so colours have to be
+  written out here. They point at the same CSS variables the Tailwind classes
+  use, which is what keeps a chart in step with the rest of the page and lets it
+  follow the dark theme without this file knowing there is one.
 */
 const COLOURS = {
-  valueLine: '#1F5340',    // the "accent" green
-  investedLine: '#D6CCBE', // "lineStrong"
-  gridLine: '#EEE8DE',     // "lineSoft"
+  valueLine: 'rgb(var(--color-accent))',
+  investedLine: 'rgb(var(--color-line-strong))',
+  gridLine: 'rgb(var(--color-line-soft))',
 };
 
 export default function ProjectionChart({ rows, years }) {

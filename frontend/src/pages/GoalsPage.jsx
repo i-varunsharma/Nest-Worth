@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import AppShell from '../components/app/AppShell';
+import { SkeletonPage } from '../components/shared/Skeleton';
 import GoalForm from '../components/app/GoalForm';
 import Button from '../components/shared/Button';
 import * as api from '../lib/api';
@@ -124,7 +125,7 @@ export default function GoalsPage({ user }) {
   if (goals === null) {
     return (
       <AppShell user={user} title="Goals">
-        <p className="text-[14px] text-muted">Loading…</p>
+        <SkeletonPage label="Loading your goals" stats={3} cards={2} />
       </AppShell>
     );
   }

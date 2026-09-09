@@ -38,13 +38,27 @@ export default function PlansPage({ user }) {
   // becomes the selection.
   const [activeKey, setActiveKey] = useState(null);
 
+  /*
+    Which plan they are actually following, as opposed to which one they are
+    currently looking at. Those are different: you can read all four without
+    committing to any, and the dashboard only changes when you commit.
+  */
+  const [followingKey, setFollowingKey] = useState(null);
+
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+
   useEffect(() => {
     // Set to false when this page is left, so a slow answer arriving afterwards
     // does not try to update state that has gone.
     let stillMounted = true;
 
     const load = async () => {
-      const result = await api.getScenarios();
+      // Both at once, since neither waits on the other.
+      const [result, householdResult] = await Promise.all([
+        api.getScenarios(),
+        api.getHousehold(),
+      ]);
 
       if (!stillMounted) {
         return;
@@ -57,7 +71,22 @@ export default function PlansPage({ user }) {
 
       setData(result.data);
 
-      if (result.data.scenarios.length > 0) {
+      let chosen = null;
+
+      if (householdResult.ok) {
+        chosen = householdResult.data.household.chosenPlan;
+      }
+
+      setFollowingKey(chosen);
+
+      /*
+        Open on the plan they are following, if they have chosen one. Landing
+        on the first one instead would mean somebody who picked "clear the
+        debt" comes back to a page showing them a different plan.
+      */
+      if (chosen) {
+        setActiveKey(chosen);
+      } else if (result.data.scenarios.length > 0) {
         setActiveKey(result.data.scenarios[0].key);
       }
     };
@@ -156,6 +185,61 @@ export default function PlansPage({ user }) {
   // Whether anything on this page needs to talk about debt at all.
   const hasDebts = today.debtCount > 0;
 
+  const isFollowingThisOne = followingKey === active.key;
+
+  /*
+    Saves the choice, or clears it when they press it on the plan they are
+    already following.
+
+    followingKey is set from what the server sent back rather than from what we
+    asked for, so if the save fails the button does not pretend it worked.
+  */
+  const handleFollow = async () => {
+    setIsSaving(true);
+    setSaveError('');
+
+    let wanted = active.key;
+
+    if (isFollowingThisOne === true) {
+      wanted = null;
+    }
+
+    const result = await api.choosePlan(wanted);
+
+    setIsSaving(false);
+
+    if (result.ok === false) {
+      setSaveError(result.error);
+      return;
+    }
+
+    setFollowingKey(result.data.household.chosenPlan);
+  };
+
+  let followNote = 'Following this changes your dashboard to show this split instead of the '
+    + 'recommended one. Nothing else changes, and you can switch back any time.';
+
+  let followButtonLabel = 'Follow this plan';
+
+  let followButtonClasses = 'shrink-0 rounded-full bg-ink px-6 py-3 text-[14px] font-semibold '
+    + 'text-paper transition-all duration-300 ease-smooth hover:bg-accent '
+    + 'disabled:cursor-not-allowed disabled:opacity-50';
+
+  if (isFollowingThisOne === true) {
+    followNote = 'This is the plan your dashboard is showing.';
+    followButtonLabel = 'Stop following';
+    followButtonClasses = 'shrink-0 rounded-full border border-line bg-surface px-6 py-3 '
+      + 'text-[14px] font-semibold text-ink2 transition-all duration-300 ease-smooth '
+      + 'hover:border-ink hover:text-ink disabled:cursor-not-allowed disabled:opacity-50';
+  } else if (followingKey) {
+    followNote = 'You are following a different plan at the moment. Following this one '
+      + 'replaces it.';
+  }
+
+  if (isSaving === true) {
+    followButtonLabel = 'Saving…';
+  }
+
   return (
     <AppShell
       user={user}
@@ -176,7 +260,7 @@ export default function PlansPage({ user }) {
           let classes = 'rounded-full border px-5 py-2.5 text-[13.5px] font-semibold transition-all duration-300 ease-smooth ';
 
           if (isActive === true) {
-            classes = classes + 'border-accent bg-accent text-white shadow-card';
+            classes = classes + 'border-accent bg-accent text-paper shadow-card';
           } else {
             classes = classes + 'border-line bg-surface text-ink2 hover:border-ink hover:text-ink';
           }
@@ -190,6 +274,18 @@ export default function PlansPage({ user }) {
               className={classes}
             >
               {scenario.name}
+
+              {/* A dot on the one being followed, so it is findable without
+                  opening each in turn. */}
+              {followingKey === scenario.key ? (
+                <span
+                  aria-label="you are following this"
+                  className={
+                    'ml-2 inline-block h-1.5 w-1.5 rounded-full align-middle '
+                    + (isActive === true ? 'bg-paper' : 'bg-accent')
+                  }
+                />
+              ) : null}
             </button>
           );
         })}
@@ -225,6 +321,30 @@ export default function PlansPage({ user }) {
             <AllocationBar allocation={active.allocation} income={today.income} />
           </div>
         </div>
+
+        {/* ---------- Committing to one ---------- */}
+        {/*
+          Reading a plan and following one are different things, and the button
+          is what separates them. Until it is pressed nothing outside this page
+          changes; after it, the dashboard shows this plan's split instead of
+          the default one.
+        */}
+        <div className="mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-lineSoft pt-7">
+          <p className="max-w-md text-[14px] leading-relaxed text-ink2">{followNote}</p>
+
+          <button
+            type="button"
+            onClick={handleFollow}
+            disabled={isSaving}
+            className={followButtonClasses}
+          >
+            {followButtonLabel}
+          </button>
+        </div>
+
+        {saveError ? (
+          <p className="mt-4 text-[13.5px] text-clay">{saveError}</p>
+        ) : null}
       </div>
 
       {/* ---------- The comparison ---------- */}

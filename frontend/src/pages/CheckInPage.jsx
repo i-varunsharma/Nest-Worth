@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import AppShell from '../components/app/AppShell';
+import { SkeletonPage } from '../components/shared/Skeleton';
 import Button from '../components/shared/Button';
 import TextField from '../components/shared/TextField';
 import * as api from '../lib/api';
@@ -26,15 +28,40 @@ import { currentMonth, monthLabel } from '../lib/checkins';
 
 
 export default function CheckInPage({ user }) {
+  /*
+    The spending page can send somebody here with the month already worked out
+    from their bank statement, as ?month=2026-08&income=85000&spent=64381.
+
+    useSearchParams reads the part of the address after the question mark. The
+    figures only fill the boxes in; nothing is saved until the button is pressed,
+    which matters because a statement rarely covers everything. Somebody paying
+    rent in cash has to add it, and they can only do that if it is a starting
+    point rather than an answer.
+  */
+  const [searchParams] = useSearchParams();
+
   const [checkins, setCheckins] = useState(null);
   const [plan, setPlan] = useState(null);
   const [loadError, setLoadError] = useState('');
 
-  const [month, setMonth] = useState(currentMonth());
-  const [income, setIncome] = useState('');
-  const [spent, setSpent] = useState('');
+  const [month, setMonth] = useState(() => {
+    return readParam(searchParams, 'month', currentMonth());
+  });
+
+  const [income, setIncome] = useState(() => {
+    return readParam(searchParams, 'income', '');
+  });
+
+  const [spent, setSpent] = useState(() => {
+    return readParam(searchParams, 'spent', '');
+  });
+
   const [saved, setSaved] = useState('');
-  const [invested, setInvested] = useState('');
+
+  const [invested, setInvested] = useState(() => {
+    return readParam(searchParams, 'invested', '');
+  });
+
   const [note, setNote] = useState('');
 
   // What the database worked out about the months already recorded. Null until
@@ -144,7 +171,7 @@ export default function CheckInPage({ user }) {
   if (checkins === null) {
     return (
       <AppShell user={user} title="Check in">
-        <p className="text-[14px] text-muted">Loading…</p>
+        <SkeletonPage label="Loading your check-ins" stats={3} cards={1} />
       </AppShell>
     );
   }
@@ -408,4 +435,22 @@ function HistorySummary({ insights }) {
       })}
     </div>
   );
+}
+
+
+/*
+  Reads one value out of the address bar, or returns the fallback.
+
+  Everything in a URL is text somebody can edit, so nothing here is trusted:
+  the values only ever land in a form box, and the server checks them again when
+  the form is submitted.
+*/
+function readParam(searchParams, name, fallback) {
+  const value = searchParams.get(name);
+
+  if (value === null || value === '') {
+    return fallback;
+  }
+
+  return value;
 }

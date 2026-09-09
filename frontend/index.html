@@ -42,6 +42,39 @@
       defer  run it after the page has been parsed
     -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+    <!--
+      The theme, applied before anything is drawn.
+
+      This has to be a plain script here rather than React code, and it has to
+      run before the <body> below. If we waited for React, the browser would
+      paint the cream page first and then repaint it black a moment later, and
+      that white flash is the single most noticeable bug a dark mode can have.
+
+      It repeats the small rule in src/hooks/useTheme.js on purpose: a saved
+      choice wins, and somebody who has never chosen gets what their computer
+      is set to.
+    -->
+    <script>
+      (function () {
+        var saved = localStorage.getItem('nestworth-theme');
+        var theme = saved;
+
+        if (theme !== 'dark' && theme !== 'light') {
+          if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            theme = 'dark';
+          } else {
+            theme = 'light';
+          }
+        }
+
+        document.documentElement.setAttribute('data-theme', theme);
+
+        if (theme === 'dark') {
+          document.documentElement.style.colorScheme = 'dark';
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

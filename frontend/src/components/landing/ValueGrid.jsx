@@ -91,7 +91,7 @@ export default function ValueGrid() {
               </p>
 
               {/* A sample of the real thing. On the dashboard this card is
-                  wired to Claude, which answers from your own numbers. */}
+                  wired to a real model, which answers from your own numbers. */}
               <div className="mt-auto space-y-2.5 pt-8">
                 <div className="ml-auto w-fit rounded-2xl rounded-br-sm bg-ink px-3.5 py-2 text-[12.5px] text-paper">
                   Why so little going into equity?

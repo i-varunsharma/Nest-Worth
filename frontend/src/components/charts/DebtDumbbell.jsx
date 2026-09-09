@@ -20,12 +20,17 @@ import { formatDuration } from '../../lib/debt';
     activeKey - which plan is being read, drawn darker than the rest
 */
 
-// Copied from tailwind.config.js. Inline styles cannot take a class.
+/*
+  SVG and inline styles cannot take a Tailwind class, so colours have to be
+  written out here. They point at the same CSS variables the Tailwind classes
+  use, which is what keeps a chart in step with the rest of the page and lets it
+  follow the dark theme without this file knowing there is one.
+*/
 const COLOURS = {
-  before: '#C8BFB2',   // chartMuted, where you finish as things stand
-  after: '#007654',    // chartInvest, where this plan finishes
-  afterQuiet: '#A6C7B8',
-  bar: '#E4DDD2',      // line
+  before: 'var(--chart-muted)',        // where you finish as things stand
+  after: 'var(--chart-invest)',        // where this plan finishes
+  afterQuiet: 'var(--chart-invest-quiet)', // the same, for a plan not being read
+  bar: 'rgb(var(--color-line))',
 };
 
 export default function DebtDumbbell({ scenarios, activeKey }) {
@@ -130,7 +135,7 @@ export default function DebtDumbbell({ scenarios, activeKey }) {
               {monthsSaved !== 0 ? (
                 <span
                   aria-hidden="true"
-                  className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white"
+                  className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-surface"
                   style={{ left: shareFor(baselineMonths) + '%', backgroundColor: COLOURS.before }}
                 />
               ) : null}
@@ -138,7 +143,7 @@ export default function DebtDumbbell({ scenarios, activeKey }) {
               {/* Where this plan finishes. */}
               <span
                 aria-hidden="true"
-                className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white transition-[left] duration-700 ease-smooth"
+                className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-surface transition-[left] duration-700 ease-smooth"
                 style={{ left: shareFor(months) + '%', backgroundColor: dotColour }}
               />
             </div>
