@@ -2,20 +2,13 @@ import { Link } from 'react-router-dom';
 import ThemeToggle from '../shared/ThemeToggle';
 
 /*
-  The frame around the login and signup screens.
-
-  Deliberately plain: a thin bar with the logo, one column of form in the
-  middle, and small print at the bottom. No split screen or marketing panel.
-
-  Somebody on this screen has already decided to use the product, so selling to
-  them again only puts distance between them and the box they are trying to
-  type in. Narrow also means the same layout works on a phone.
+  The frame around the login and signup screens: logo, one narrow column for the
+  form, and small print. Plain, so nothing stands between the person and the form.
 
   Props:
-    title    - the heading above the form
-    subtitle - the line under the heading
-    children - the form itself
-    footer   - the "no account yet?" line under the form
+    title, subtitle  the heading and the line under it
+    children         the form
+    footer           the line under the form
 */
 export default function AuthLayout({ title, subtitle, children, footer }) {
   return (

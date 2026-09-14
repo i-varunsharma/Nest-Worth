@@ -1,37 +1,21 @@
 import { useEffect, useState } from 'react';
 
 /*
-  A number that counts up to its real value instead of just being there.
+  A number that counts up to its value when it first appears.
 
-  This is the cheapest thing on the site that makes it feel alive. A net worth
-  that lands at 4,20,000 says nothing; one that runs up to it makes the reader
-  watch it. It runs once, when the number first appears.
-
-  How the animation is done, since this is the interesting part:
-
-  requestAnimationFrame asks the browser "call me back just before you draw the
-  next frame". Doing it that way rather than with setInterval means the steps
-  line up with the screen's refresh rate, so it stays smooth, and the browser
-  stops calling us entirely if the tab is in the background. A setInterval would
-  carry on firing into a tab nobody is looking at.
+  requestAnimationFrame calls back just before each frame is drawn, so the count
+  stays in step with the screen and pauses in a background tab.
 
   Props:
-    to       - the real number to land on
-    format   - a function turning a number into the text on screen
-    duration - milliseconds, optional
+    to        the number to land on
+    format    turns a number into the text shown
+    duration  milliseconds, optional
 */
 
 // Long enough to be noticed, short enough that nobody is waiting on it.
 const DEFAULT_DURATION = 900;
 
-/*
-  The easing curve. It takes "how far through the animation are we", from 0 to
-  1, and returns "how far along the number should be", also 0 to 1.
-
-  A straight line would count at a constant speed, which looks mechanical. This
-  one starts fast and slows into the final value, which is the same feel as the
-  ease-smooth used everywhere else in the theme.
-*/
+// Starts fast and slows into the final value, like ease-smooth in the theme.
 function easeOut(progress) {
   const remaining = 1 - progress;
   return 1 - remaining * remaining * remaining;
@@ -46,13 +30,8 @@ export default function CountUp({ to, format, duration }) {
   }
 
   useEffect(() => {
-    /*
-      Somebody who has asked their computer for less motion gets no count at
-      all: the animation is given a length of zero, so the very first frame
-      lands on the final number. The same question the reduced-motion block in
-      global.css asks, but CSS cannot switch off an animation that is being
-      driven from JavaScript, so it has to be asked again here.
-    */
+    // People who ask their system for reduced motion get the final number immediately.
+    // CSS cannot stop an animation driven from JavaScript, so it is checked here.
     const prefersLessMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     let runFor = totalTime;
@@ -94,11 +73,7 @@ export default function CountUp({ to, format, duration }) {
 
     frameId = window.requestAnimationFrame(step);
 
-    /*
-      Cancel the pending frame if this disappears mid-count, by navigating away
-      or by the number changing. Without it the browser would still call back
-      into a component that is no longer on screen.
-    */
+    // Cancels the pending frame if the component goes away or the number changes.
     return () => {
       if (frameId !== null) {
         window.cancelAnimationFrame(frameId);

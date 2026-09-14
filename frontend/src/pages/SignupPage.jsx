@@ -11,17 +11,9 @@ import * as api from '../lib/api';
 import { checkEmail, checkName, checkPassword } from '../lib/validation';
 
 /*
-  The screen at /signup. It mirrors the login page, with three ways to start.
-
-  Two things differ from signing in:
-
-    1. A brand new password has to be at least 8 characters. The server insists
-       on this too, and refuses anything over 72 characters, because bcrypt
-       ignores everything past that length.
-
-    2. It goes to /onboarding rather than /dashboard. Somebody who has just made
-       an account has told us nothing about their household, so there is no plan
-       to show them yet. The three questions come first.
+  /signup: the same three ways in as login. A new password needs at least 8
+  characters, and a new account goes to /onboarding, because there is no household
+  to plan from yet.
 */
 
 export default function SignupPage() {
@@ -91,14 +83,8 @@ export default function SignupPage() {
   };
 
 
-  /*
-    Google gives us a token, and also the person's name and email, so signing up
-    this way needs no form at all. The server checks the token with Google,
-    makes the account, and signs them in.
-
-    Somebody who already has an account and presses this by mistake is simply
-    signed in and sent to their dashboard, rather than told off.
-  */
+  // Google provides the name and email, so this needs no form. An existing account
+  // is simply signed in.
   const handleGoogleCredential = async (credential) => {
     setFormError('');
     setIsBusy(true);

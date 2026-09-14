@@ -107,7 +107,7 @@ DELETE FROM debts WHERE id = 3;
 
 Two things to know before you do. The app does not notice until the page is
 reloaded, since it only reads the database when asked. And nothing here runs
-the checks in `lib/validate.js`, so you can write an income of -5 by hand where
+the checks in `validation/`, so you can write an income of -5 by hand where
 the API would refuse it, and then wonder why a page looks broken.
 
 ---
@@ -139,8 +139,8 @@ the API would refuse it, and then wonder why a page looks broken.
 | Plan subtracts real rent and bills before splitting | Working |
 | Family circle: real support amounts replace the estimate | Working, on `/family` |
 | Stress test: four shocks, month by month | Working, on `/stress-test` and the dashboard |
-| Backend tests (`npm test` in `backend/`) | Working, 234 of them |
-| Frontend tests (`npm test` in `frontend/`) | Working, 95 of them |
+| Backend tests (`npm test` in `backend/`) | Working, 246 of them |
+| Frontend tests (`npm test` in `frontend/`) | Working, 110 of them |
 | CI on every push | Working, `.github/workflows/ci.yml` |
 | AI coach (Gemini free, or Claude) | Working, needs an API key: section 4 |
 | Continue with Google | Code is finished, needs a client id: section 5 |
@@ -213,7 +213,7 @@ Whichever key is filled in. With both, Gemini wins, because it is the free one.
 
 ### The rules this follows
 
-**The key stays on the server.** It is read in `backend/src/lib/ai/` and nowhere
+**The key stays on the server.** It is read in `backend/src/ai/providers/` and nowhere
 else. Putting it in `frontend/` would publish it: anything the browser downloads,
 anybody can read. This is the same reason `GOOGLE_CLIENT_ID` is fine in the
 frontend and a client *secret* would not be.
@@ -227,10 +227,10 @@ draws with, so the coach cannot tell you a payoff date the debts page disagrees
 with. A language model states a wrong number with total confidence, so it is
 given the calculator rather than asked to be one.
 
-**One conversation, two translators.** `lib/advice.js` keeps the conversation in
-its own shape and `lib/ai/gemini.js` and `lib/ai/claude.js` translate it. The
+**One conversation, two translators.** `ai/advice.js` keeps the conversation in
+its own shape and `ai/providers/gemini.js` and `ai/providers/claude.js` translate it. The
 agent loop is written once. Adding a third model means one more file there and
-one line in `lib/ai/index.js`.
+one line in `ai/providers/index.js`.
 
 `ai-integration/README.md` explains the loop in more detail.
 
@@ -334,7 +334,7 @@ For an Indian product, **MSG91 is usually the right choice**.
 
 ### The code change
 
-One function. Open `backend/src/lib/otp.js` and replace the body of `deliver()`
+One function. Open `backend/src/services/otpService.js` and replace the body of `deliver()`
 with a call to your provider. Everything else, the hashing, the expiry, the
 attempt limit and the resend wait, already works and does not change.
 
@@ -365,7 +365,7 @@ For a project this size, **Resend** is usually the right choice.
 
 ### The code change
 
-One function, exactly as with SMS. Open `backend/src/lib/passwordReset.js` and
+One function, exactly as with SMS. Open `backend/src/services/passwordResetService.js` and
 replace the body of `deliver()` with a call to your provider. Everything else —
 the hashing, the one hour expiry, the resend wait, destroying the token after
 use and signing out every other browser — already works and does not change.
@@ -434,8 +434,8 @@ about deployment.
 - [ ] Create an account and check the dashboard appears
 - [ ] Try the Phone tab and read the code from the API terminal
 - [ ] Try "Forgot password?" and read the link from the API terminal
-- [ ] `cd backend && npm test` and see 234 passing
-- [ ] `cd frontend && npm test` and see 95 passing
+- [ ] `cd backend && npm test` and see 246 passing
+- [ ] `cd frontend && npm test` and see 110 passing
 
 **AI coach (section 4)**
 
@@ -454,14 +454,14 @@ about deployment.
 
 - [ ] DLT entity, header and template registered
 - [ ] SMS provider account created, API key in `backend/.env`
-- [ ] `deliver()` in `backend/src/lib/otp.js` calls the provider
+- [ ] `deliver()` in `backend/src/services/otpService.js` calls the provider
 
 **Email (section 7)**
 
 - [ ] Email provider account created, domain added
 - [ ] SPF, DKIM and DMARC records added to your DNS
 - [ ] API key in `backend/.env`
-- [ ] `deliver()` in `backend/src/lib/passwordReset.js` calls the provider
+- [ ] `deliver()` in `backend/src/services/passwordResetService.js` calls the provider
 
 **Deploying (section 8)**
 

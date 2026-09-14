@@ -1,28 +1,15 @@
 /*
-  How close one plan gets the emergency fund to where it should be.
-
-  A single ratio against a limit is a meter, not a chart. There is one number
-  and one target, and a bar chart of one bar, or a pie of two slices, is a
-  picture of nothing. The meter says it in a shape somebody reads in a second.
-
-  The fill uses the same evergreen ramp as everything else that measures "how
-  much" rather than "which one", so a fuller bar is a darker bar and the colour
-  carries the same meaning it does elsewhere on the page.
-
-  The target line is the point of the whole thing. A bar with no marker on it
-  invites "is that good?", which is the question the component exists to answer.
+  Months of emergency cover against the target, as a meter with a target line.
+  One ratio against a limit needs a meter, not a chart. The fill uses the one-hue
+  ramp, darker as it fills.
 
   Props:
-    monthsCovered - months of costs this plan would cover after a year
-    monthsTarget  - what this household should be aiming for
+    monthsCovered  months of costs covered after a year on this plan
+    monthsTarget   the target for this household
 */
 
-/*
-  SVG and inline styles cannot take a Tailwind class, so colours have to be
-  written out here. They point at the same CSS variables the Tailwind classes
-  use, which is what keeps a chart in step with the rest of the page and lets it
-  follow the dark theme without this file knowing there is one.
-*/
+// SVG attributes cannot use Tailwind classes, so colours point at the same CSS
+// variables the theme uses, which also makes the dark theme work here.
 const COLOURS = {
   low: 'var(--chart-ramp-1)',
   middle: 'var(--chart-ramp-2)',
@@ -32,12 +19,7 @@ const COLOURS = {
 };
 
 export default function SafetyMeter({ monthsCovered, monthsTarget }) {
-  /*
-    The bar runs to a bit past the target rather than to the target itself.
-
-    A bar that ends exactly at the goal has nowhere to show somebody who has
-    passed it, and "full" and "twice what you needed" would look identical.
-  */
+  // The bar runs past the target, so passing it looks different from just reaching it.
   const scaleTo = monthsTarget * 1.5;
 
   let fillShare = (monthsCovered / scaleTo) * 100;
@@ -51,11 +33,7 @@ export default function SafetyMeter({ monthsCovered, monthsTarget }) {
 
   const targetShare = (monthsTarget / scaleTo) * 100;
 
-  /*
-    Darker as it fills, which is what a one-hue ramp is for. This is magnitude,
-    not identity, so the colour is allowed to encode the value: unlike a
-    categorical chart, there is nothing else for it to mean.
-  */
+  // Darker as it fills: the colour shows how much, not which one.
   let fillColour = COLOURS.low;
 
   if (monthsCovered >= monthsTarget) {

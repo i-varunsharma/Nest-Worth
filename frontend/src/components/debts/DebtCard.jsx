@@ -7,18 +7,12 @@ import { formatRupees } from '../../lib/plan';
 import { DEBT_KINDS, labelForKind } from '../../lib/networth';
 
 /*
-  One debt, with everything worth knowing about it.
-
-  The slider at the bottom is the point of this whole screen. "Your loan charges
-  11.2%" is a fact nobody acts on. "Put ₹3,000 more in each month and you are
-  free seventeen months sooner and ₹37,800 better off" is a decision somebody
-  can actually make on a Tuesday evening.
+  One debt, with a slider showing what paying extra each month would change.
 
   Props:
-    debt      - { id, name, kind, principal, annualRate, emi }
-    isPriority- true for the highest-rate debt, which gets a marker
-    onEdit    - open the edit form
-    onDelete  - remove it
+    debt        { id, name, kind, principal, annualRate, emi }
+    isPriority  true for the highest-rate debt
+    onEdit, onDelete
 */
 
 // The slider for the extra monthly payment runs from nothing to this.
@@ -32,14 +26,8 @@ export default function DebtCard({ debt, isPriority, onEdit, onDelete }) {
 
   const sliderPercent = (extra / MAX_EXTRA) * 100;
 
-  /*
-    A debt does not always clear, and the figures below have to say so.
-
-    When payoff returns clears: false it also returns zeros for months and
-    interest, because there is no honest number to give. Printing those anyway
-    produces "now left, you will pay ₹0 in interest" for a loan that grows every
-    month, which is the most misleading thing this card could say.
-  */
+  // When the debt never clears, payoff() returns zeros for months and interest.
+  // Those must not be printed as if they were real figures.
   const clears = base.clears === true;
 
   let clearByText = formatMonthYear(base.payoffDate);
@@ -86,13 +74,7 @@ export default function DebtCard({ debt, isPriority, onEdit, onDelete }) {
     clearByTone = 'clay';
   }
 
-  /*
-    What the slider says before it has been moved.
-
-    On a debt that does not clear, "drag it to see what a little more is worth"
-    is not quite right: dragging far enough turns a hopeless debt into a real
-    payoff date, and saying that is more useful than a nudge.
-  */
+  // On a debt that never clears, dragging far enough makes it clear, so the hint says that.
   let sliderNote = 'Drag it to see what a little more each month is worth.';
 
   if (clears === false) {
@@ -101,14 +83,8 @@ export default function DebtCard({ debt, isPriority, onEdit, onDelete }) {
     sliderNote = 'That is not enough extra to change the payoff month.';
   }
 
-  /*
-    What the slider shows once it has been moved.
-
-    There are two different answers, because there are two different starting
-    points. A debt that already clears gets months and interest saved. A debt
-    that never cleared has no "sooner" to compare against, so what it gets is
-    the fact that it now finishes at all, and the date.
-  */
+  // A debt that already clears shows months and interest saved. One that never
+  // cleared has nothing to compare, so it shows that it now clears, and when.
   let answerPanel = null;
 
   if (effect.possible === true && effect.turnsAround === true) {
