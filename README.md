@@ -1,9 +1,20 @@
 # Nest-Worth
 
-A personal finance planner for Indian households. You tell it what you earn,
-what you owe, what you own and what you are saving for; it works out which debt
-to clear first, what each goal costs per month, and whether the plan actually
-fits in your income.
+A personal finance planner for Indian households where one salary supports a
+family. You list who you support and what each person costs, along with what you
+earn, owe, own and are saving for. It builds a plan from those real amounts,
+works out which debt to clear first and what each goal costs, and stress tests
+the whole thing: what happens to your cash if the income stops for four months,
+or a parent without health cover needs a ₹3,00,000 hospital stay.
+
+### What makes it different
+
+- **Family circle.** Most budgeting apps assume the salary is yours alone. Here
+  you name the people it carries, and the plan uses the real amounts.
+- **Stress test.** Four common shocks, walked month by month, with the month the
+  cash runs out and exactly how much more would need to be put by.
+- **One set of numbers.** The dashboard, every page and the AI coach get their
+  figures from the same function, so they never disagree.
 
 Built as a learning project, so the code is written to be read. Files open with
 a comment explaining what they are for and why they are built the way they are,
@@ -41,8 +52,8 @@ Open <http://localhost:5173> and create an account.
 To run the tests:
 
 ```bash
-cd backend  && npm test    # 183 tests: the API, the SQL, the statement reader, the AI providers
-cd frontend && npm test    # 85 tests: the money maths, the components and the charts
+cd backend  && npm test    # 234 tests: the API, the SQL, the money maths, the AI tools
+cd frontend && npm test    # 95 tests: the money maths, the components and the charts
 ```
 
 To look at what the app has stored:
@@ -59,6 +70,10 @@ Or install the **SQLite Viewer** extension for VS Code and click
 `SETUP.md` covers the rest: reading and editing the data, Google sign-in, real
 text messages, real email, and what to do before putting this on the internet.
 
+`docs/SYSTEM_DESIGN.md` explains the architecture, the data model and the
+decisions behind them. `docs/DEBUGGING.md` shows how to trace a wrong number or
+a failing request to the line that causes it.
+
 ---
 
 ## What it does
@@ -69,8 +84,10 @@ text messages, real email, and what to do before putting this on the internet.
 | `/signup`, `/login` | Three ways in: email and password, a code by text, or Google. |
 | `/forgot-password`, `/reset-password` | Setting a new password, by a one-time link. |
 | `/onboarding` | The questions everything else is calculated from. |
-| `/dashboard` | The overview: what to do this month, and why. The AI coach, and the note it writes without being asked. |
+| `/dashboard` | The overview: what to do this month, and why. How many shocks the household survives. The AI coach, and the note it writes without being asked. |
+| `/family` | The people this salary supports, what each costs, and who has no health cover. |
 | `/plans` | The same money spent several ways, each played out fifteen years, in charts. Pick one and the dashboard follows it. |
+| `/stress-test` | A job loss, pay cut, hospital bill or family need, walked month by month for a year. |
 | `/debts` | Every debt, with payoff dates and an extra-payment slider. |
 | `/goals` | What you are saving for, and what each costs per month. |
 | `/net-worth` | What you own against what you owe. |
@@ -98,6 +115,8 @@ Nest-Worth/
 │   │   │   ├── schema.sql    every table and index, in one readable file
 │   │   │   └── db.js         opens the database, runs the schema, migrates
 │   │   ├── lib/              the thinking. No HTTP in here
+│   │   │   ├── snapshot.js   reads one person's data and runs shared/finances.js on it
+│   │   │   ├── rows.js       turns database rows into app objects, in one place
 │   │   │   ├── sessions.js   who is signed in, and the cookie that says so
 │   │   │   ├── otp.js        the six digit code: making, sending, checking
 │   │   │   ├── passwordReset.js  the reset link, built the same way as the OTP
@@ -114,11 +133,12 @@ Nest-Worth/
 │   │   │   │   ├── gemini.js   Google's Gemini, over plain fetch. Free tier
 │   │   │   │   ├── claude.js   Anthropic's Claude, over the SDK
 │   │   │   │   └── index.js    picks whichever key is set
-│   │   │   ├── tools.js      the calculations Claude is allowed to run
+│   │   │   ├── tools.js      the calculations the AI is allowed to run
 │   │   │   └── validate.js   the server's own copy of the form checks
 │   │   └── routes/           one file per thing the app stores
 │   │       ├── auth.js       signup, login, OTP, Google, reset, logout
 │   │       ├── household.js  the onboarding answers
+│   │       ├── family.js     the people the salary supports
 │   │       ├── debts.js      ┐
 │   │       ├── goals.js      │ all four are the same four routes:
 │   │       ├── assets.js     │ list, add, change, remove
@@ -138,6 +158,7 @@ Nest-Worth/
 │       ├── App.jsx           which page shows at which address
 │       ├── lib/              the browser's own code, plus shims into shared/
 │       │   ├── api.js        every request to the backend goes through here
+│       │   ├── loadFinances.js  fetches what the plan needs and builds it, for every page
 │       │   ├── checkins.js   what actually happened, against what was planned
 │       │   ├── validation.js the browser's copy of the form checks
 │       │   └── debt.js, goals.js, networth.js, plan.js
@@ -153,12 +174,17 @@ Nest-Worth/
 │   └── tests/                the money maths and the components, npm test
 │
 ├── shared/                   the money maths, used by BOTH sides
+│   ├── finances.js           the one function every number comes from
+│   ├── family.js             family totals and the family member checks
+│   ├── shocks.js             the stress test
 │   ├── categories.js         the transaction categories, agreed by both sides
 │   ├── plan.js               the recommendation model
 │   ├── debt.js               payoff dates, avalanche ordering, interest saved
 │   ├── goals.js              what each goal costs, and the emergency fund
 │   └── networth.js           assets against debts
 │
+├── docs/                     system design and the debugging guide
+├── .github/workflows/ci.yml  runs every test, lint and build on each push
 └── ai-integration/           notes on how the AI coach is wired up
 ```
 
@@ -198,6 +224,13 @@ disagree about a payoff date, with no way to tell which was right. The four file
 left behind in `frontend/src/lib/` are one line each, re-exporting it, so every
 import in the app still reads `../lib/debt`.
 
+**Every number comes from one function.** `summariseFinances` in
+`shared/finances.js` builds the plan, the monthly costs, the safety net and the
+chosen scenario. The browser reaches it through `lib/loadFinances.js` and the
+server through `lib/snapshot.js`. Before this, five places built the plan and
+they had drifted: the goals page could show a different monthly saving from the
+dashboard, and the safety net left out rent. Both are now regression tests.
+
 **`lib/` thinks, `routes/` talks.** The files in `backend/src/lib/` know nothing
 about HTTP: no `req`, no `res`, no status codes. They take values and return
 values, which is why they can be tested directly, without a server. The route
@@ -223,8 +256,6 @@ one product.
 `lib/validation.js` exists to be helpful, catching a missing `@` before anyone
 waits on the network. The backend's `lib/validate.js` exists to be true, because
 anybody can skip the form entirely and post straight at the API with `curl`.
-
----
 
 ---
 
@@ -554,6 +585,10 @@ Worth saying plainly, since this is a learning project rather than a product.
   Account Aggregator framework, where a bank sends the data directly with the
   account holder's consent. That needs a licensed aggregator and paperwork, so
   what is here is the same idea with a CSV in the middle.
+- **The stress test is a model, not a forecast.** It assumes everyday spending
+  halves in a crisis, investing pauses, and health cover leaves 20% of a bill
+  to pay. Each assumption is a named constant in `shared/shocks.js` and is
+  printed on the page.
 - **A merchant nobody has written a rule for** lands in "everything else". The
   page says how many did and lets them be corrected one at a time.
 - **A language model can be confidently wrong.** Every figure it is shown is read
@@ -562,10 +597,10 @@ Worth saying plainly, since this is a learning project rather than a product.
   numbers. It is a second opinion on the arithmetic, not the arithmetic.
 - **Rate limit counts live in memory**, so they reset when the server restarts
   and would need Redis if the app ever ran as more than one copy.
-- **No test drives a real browser.** The component tests run in jsdom, which is
-  a fake browser: it can say what was rendered and what a click does, but not
-  whether anything looks right. Catching a layout that breaks at 380px still
-  means opening the page yourself.
+- **The browser check is not a test.** The component tests run in jsdom, which
+  cannot see layout. `npm run shots` does drive a real browser and reports
+  overflow and clipped text, but it is not part of `npm test`, and deciding
+  whether a page looks right still means looking at the screenshots.
 
 ---
 

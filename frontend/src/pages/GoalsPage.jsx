@@ -5,8 +5,8 @@ import GoalForm from '../components/app/GoalForm';
 import Button from '../components/shared/Button';
 import * as api from '../lib/api';
 import { describeGoal, summariseGoals } from '../lib/goals';
-import { buildPlan, bucketAmount, formatRupees } from '../lib/plan';
-import { summariseDebts } from '../lib/debt';
+import { bucketAmount, formatRupees } from '../lib/plan';
+import { loadFinances } from '../lib/loadFinances';
 
 /*
   The screen at /goals. Each goal, what it needs every month, and whether all of
@@ -51,10 +51,9 @@ export default function GoalsPage({ user }) {
     let stillMounted = true;
 
     const load = async () => {
-      const [goalsResult, householdResult, debtsResult] = await Promise.all([
+      const [goalsResult, loaded] = await Promise.all([
         api.getGoals(),
-        api.getHousehold(),
-        api.getDebts(),
+        loadFinances(),
       ]);
 
       if (!stillMounted) {
@@ -68,19 +67,10 @@ export default function GoalsPage({ user }) {
         return;
       }
 
-      if (householdResult.ok && debtsResult.ok) {
-        const debts = debtsResult.data.debts;
-
-        const plan = buildPlan({
-          income: householdResult.data.household.income,
-          dependents: householdResult.data.household.dependents,
-          hasLoan: debts.length > 0,
-          incomeVaries: householdResult.data.household.incomeVaries,
-          essentialCosts: householdResult.data.household.essentialCosts,
-          emi: summariseDebts(debts).totalEmi,
-        });
-
-        setMonthlySaving(bucketAmount(plan, 'save'));
+      // The same plan the dashboard shows, including a plan chosen on /plans.
+      // This page used to build its own and could show a different saving.
+      if (loaded.ok === true && loaded.finances !== null) {
+        setMonthlySaving(bucketAmount(loaded.finances.plan, 'save'));
       }
     };
 

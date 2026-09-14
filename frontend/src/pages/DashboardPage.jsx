@@ -11,13 +11,14 @@ import ProjectionChart from '../components/landing/ProjectionChart';
 import Eyebrow from '../components/shared/Eyebrow';
 import CountUp from '../components/shared/CountUp';
 import { Skeleton, SkeletonCard, SkeletonScreen, SkeletonStat } from '../components/shared/Skeleton';
+import ResilienceCard from '../components/app/ResilienceCard';
 import * as api from '../lib/api';
-import { buildPlan, buildProjectionRows, bucketAmount, formatRupees } from '../lib/plan';
-import { applyChosenPlan } from '../lib/scenarios';
-import { formatDuration, formatMonthYear, orderByRate, summariseDebts } from '../lib/debt';
-import { safetyNet, summariseGoals } from '../lib/goals';
-import { summariseNetWorth } from '../lib/networth';
+import { buildProjectionRows, bucketAmount, formatRupees } from '../lib/plan';
+import { formatDuration, formatMonthYear } from '../lib/debt';
+import { summariseGoals } from '../lib/goals';
 import { greetingForNow } from '../lib/household';
+import { loadFinances } from '../lib/loadFinances';
+import { runStandardShocks } from '../lib/shocks';
 import { currentMonth, hasCheckinFor, summariseCheckins } from '../lib/checkins';
 
 /*
@@ -45,43 +46,46 @@ export default function DashboardPage({ user }) {
   /*
     Fetch everything the overview needs, all at once.
 
-    Promise.all sends all five requests together rather than waiting for each
-    before starting the next. None of them depends on another, so queueing them
-    would make the page five times slower for no reason.
+    loadFinances brings the household, debts, assets and family and works out
+    the plan with shared/finances.js, the same way every other page does.
+    Goals and check-ins are only needed here, so they are fetched alongside.
   */
   useEffect(() => {
     let stillMounted = true;
 
     const load = async () => {
-      const [household, debts, goals, assets, checkins, scenarios] = await Promise.all([
-        api.getHousehold(),
-        api.getDebts(),
+      const [loaded, goals, checkins] = await Promise.all([
+        loadFinances(),
         api.getGoals(),
-        api.getAssets(),
         api.getCheckins(),
-        api.getScenarios(),
       ]);
 
       if (!stillMounted) {
         return;
       }
 
-      if (!household.ok) {
-        setLoadError(household.error);
+      if (loaded.ok === false) {
+        setLoadError(loaded.error);
+        return;
+      }
+
+      if (goals.ok === false) {
+        setLoadError(goals.error);
+        return;
+      }
+
+      if (checkins.ok === false) {
+        setLoadError(checkins.error);
         return;
       }
 
       setData({
-        household: household.data.household,
-        debts: debts.ok ? debts.data.debts : [],
-        goals: goals.ok ? goals.data.goals : [],
-        assets: assets.ok ? assets.data.assets : [],
-        checkins: checkins.ok ? checkins.data.checkins : [],
-
-        // Only needed when a plan has been chosen. It failing is not worth
-        // stopping the dashboard for: the page falls back to the recommended
-        // split, which is what it always showed.
-        scenarios: scenarios.ok ? scenarios.data.scenarios : [],
+        household: loaded.household,
+        debts: loaded.debts,
+        family: loaded.family,
+        finances: loaded.finances,
+        goals: goals.data.goals,
+        checkins: checkins.data.checkins,
       });
     };
 
@@ -149,71 +153,29 @@ export default function DashboardPage({ user }) {
   }
 
   // ---------------------------------------------------------------
-  // The maths, once.
+  // The numbers. All of them come from shared/finances.js.
   // ---------------------------------------------------------------
 
-  const debtSummary = summariseDebts(data.debts);
-
-  // The plan uses the real total EMI from the debts page rather than an
-  // estimate, so what is left each month comes from money that genuinely
-  // leaves the account.
-  //
-  // The most expensive debt is passed in too, so the reasoning can name it.
-  const orderedDebts = orderByRate(data.debts);
-  const worstDebt = orderedDebts[0];
-
-  const recommendedPlan = buildPlan({
-    income: data.household.income,
-    dependents: data.household.dependents,
-    hasLoan: data.debts.length > 0,
-    incomeVaries: data.household.incomeVaries,
-    essentialCosts: data.household.essentialCosts,
-    emi: debtSummary.totalEmi,
-    topRate: worstDebt ? worstDebt.annualRate : undefined,
-    topDebtName: worstDebt ? worstDebt.name.toLowerCase() : undefined,
-  });
+  const finances = data.finances;
+  const debtSummary = finances.debtSummary;
+  const netWorth = finances.netWorth;
+  const safety = finances.safety;
 
   /*
-    Which plan this dashboard is actually showing.
-
-    By default it is the one the model recommends. If they chose a different
-    one on /plans, that choice replaces the three buckets here, and every
-    number further down follows automatically: the goals check, the emergency
-    fund, the projection, and the comparison against what they really did.
-
-    Only the buckets are swapped. Nothing else on this page had to learn that
-    plans exist.
+    Which plan this dashboard is showing. By default the recommended one. If
+    they chose a different one on /plans, finances.plan is already that one,
+    and followedPlan says which so the banner below can name it.
   */
-  let followedPlan = null;
-
-  data.scenarios.forEach((scenario) => {
-    if (scenario.key === data.household.chosenPlan) {
-      followedPlan = scenario;
-    }
-  });
-
-  let plan = recommendedPlan;
-
-  if (followedPlan) {
-    plan = applyChosenPlan(recommendedPlan, followedPlan);
-  }
+  const plan = finances.plan;
+  const followedPlan = finances.followedScenario;
 
   const monthlyInvestment = bucketAmount(plan, 'invest');
   const monthlySaving = bucketAmount(plan, 'save');
-  const monthlySpend = bucketAmount(plan, 'spend');
 
-  const netWorth = summariseNetWorth(data.assets, data.debts);
   const goalSummary = summariseGoals(data.goals, monthlySaving);
 
-  // The emergency fund compares cash you can actually reach against what one
-  // month costs you: living costs plus everything that leaves before that.
-  const monthlyOutgoings = monthlySpend + plan.support + plan.emi;
-  const safety = safetyNet(
-    netWorth.liquidAssets,
-    monthlyOutgoings,
-    data.household.dependents,
-    data.household.incomeVaries,
-  );
+  // The four standard shocks, for the resilience card.
+  const shocks = runStandardShocks({ finances: finances, family: data.family });
 
   const projectionRows = buildProjectionRows(monthlyInvestment, PROJECTION_YEARS);
   const finalValue = projectionRows[projectionRows.length - 1].value;
@@ -448,11 +410,17 @@ export default function DashboardPage({ user }) {
         </div>
       </div>
 
+      {/* ---------- What a bad month would do ---------- */}
+      <div className="mt-6">
+        <ResilienceCard summary={shocks} familyListed={finances.family.hasList} />
+      </div>
+
       {/* ---------- Where the money goes ---------- */}
       <div className="mt-6">
         <OutflowCard
           plan={plan}
-          dependents={data.household.dependents}
+          dependents={finances.dependents}
+          familyListed={finances.family.hasList}
           hasLoan={data.debts.length > 0}
         />
       </div>

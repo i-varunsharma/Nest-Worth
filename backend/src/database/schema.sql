@@ -173,6 +173,33 @@ CREATE TABLE IF NOT EXISTS assets (
 );
 
 
+-- The people this salary supports. See shared/family.js.
+--
+-- Once a person has at least one row here, the plan uses the real monthly
+-- amounts instead of guessing from the dependents count in households.
+CREATE TABLE IF NOT EXISTS family_members (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id         INTEGER NOT NULL,
+  name            TEXT    NOT NULL,
+
+  -- 'parent', 'spouse', 'child', 'sibling', 'grandparent' or 'other'.
+  relation        TEXT    NOT NULL DEFAULT 'other',
+
+  -- Money sent or spent on them in a normal month. 0 is allowed: a child
+  -- living at home is supported even when no money moves.
+  monthly_support REAL    NOT NULL DEFAULT 0,
+
+  -- 1 if they have health insurance. The stress test sends a hospital bill to
+  -- the first person without it.
+  has_health_cover INTEGER NOT NULL DEFAULT 0,
+
+  created_at      TEXT    NOT NULL,
+  updated_at      TEXT    NOT NULL,
+
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+
 -- What actually happened each month, as opposed to what the plan said.
 CREATE TABLE IF NOT EXISTS checkins (
   id       INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -291,6 +318,7 @@ CREATE TABLE IF NOT EXISTS briefings (
 CREATE INDEX IF NOT EXISTS idx_debts_user     ON debts(user_id);
 CREATE INDEX IF NOT EXISTS idx_goals_user     ON goals(user_id);
 CREATE INDEX IF NOT EXISTS idx_assets_user    ON assets(user_id);
+CREATE INDEX IF NOT EXISTS idx_family_user    ON family_members(user_id);
 
 -- checkins needs no index of its own. Its "UNIQUE (user_id, month)" line makes
 -- SQLite build one over those two columns already, and a lookup by user_id

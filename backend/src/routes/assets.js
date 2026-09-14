@@ -1,6 +1,7 @@
 import express from 'express';
 import db from '../database/db.js';
 import { requireUser } from '../lib/sessions.js';
+import { assetFromRow } from '../lib/rows.js';
 
 /*
     GET    /api/assets      list mine
@@ -15,16 +16,6 @@ import { requireUser } from '../lib/sessions.js';
 const router = express.Router();
 
 const KINDS = ['cash', 'fd', 'mutual_fund', 'stocks', 'epf', 'gold', 'property', 'other'];
-
-
-function publicAsset(row) {
-  return {
-    id: row.id,
-    name: row.name,
-    kind: row.kind,
-    value: row.value,
-  };
-}
 
 
 function checkAsset(body) {
@@ -58,7 +49,7 @@ router.get('/', requireUser, (req, res) => {
     SELECT * FROM assets WHERE user_id = ? ORDER BY value DESC, id ASC
   `).all(req.user.id);
 
-  return res.json({ assets: rows.map(publicAsset) });
+  return res.json({ assets: rows.map(assetFromRow) });
 });
 
 
@@ -81,7 +72,7 @@ router.post('/', requireUser, (req, res) => {
 
   const row = db.prepare('SELECT * FROM assets WHERE id = ?').get(result.lastInsertRowid);
 
-  return res.status(201).json({ asset: publicAsset(row) });
+  return res.status(201).json({ asset: assetFromRow(row) });
 });
 
 
@@ -119,7 +110,7 @@ router.put('/:id', requireUser, (req, res) => {
   const row = db.prepare('SELECT * FROM assets WHERE id = ? AND user_id = ?')
     .get(req.params.id, req.user.id);
 
-  return res.json({ asset: publicAsset(row) });
+  return res.json({ asset: assetFromRow(row) });
 });
 
 

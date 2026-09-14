@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { buildScenarios, simulate } from '../../shared/scenarios.js';
+import { buildHouseholdPlan } from '../../shared/finances.js';
 
 /*
   Tests for the plan comparison. Run with: npm test
@@ -31,7 +32,7 @@ const household = {
 
 function scenariosFor(overrides) {
   return buildScenarios({
-    household: household,
+    basePlan: buildHouseholdPlan(household, debts, []),
     debts: debts,
     liquidSavings: 95000,
     monthsTarget: 6,
@@ -172,7 +173,7 @@ test('somebody with no debt is never told to clear one', () => {
   // Offering all four choices to everybody is a brochure. Offering the ones
   // that apply is advice.
   const plans = buildScenarios({
-    household: { ...household, hasLoan: false },
+    basePlan: buildHouseholdPlan(household, [], []),
     debts: [],
     liquidSavings: 95000,
     monthsTarget: 6,
@@ -313,8 +314,10 @@ test('a value never goes down over time', () => {
 test('a tiny income still produces plans rather than nonsense', () => {
   // The plan model floors what is left at zero, so there may be nothing to
   // allocate. That has to come out as zeros, not as negative numbers.
+  const tinyHousehold = { income: 12000, dependents: 3, incomeVaries: true, essentialCosts: 11000 };
+
   const plans = buildScenarios({
-    household: { income: 12000, dependents: 3, hasLoan: false, incomeVaries: true, essentialCosts: 11000 },
+    basePlan: buildHouseholdPlan(tinyHousehold, [], []),
     debts: [],
     liquidSavings: 0,
     monthsTarget: 9,

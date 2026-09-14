@@ -2,6 +2,7 @@ import express from 'express';
 import db from '../database/db.js';
 import { requireUser } from '../lib/sessions.js';
 import { checkHousehold } from '../lib/validate.js';
+import { householdFromRow } from '../lib/rows.js';
 
 /*
   Reading and saving the onboarding answers.
@@ -29,26 +30,18 @@ const DEFAULTS = {
 };
 
 
-/* Turns a database row into the shape the frontend uses. */
+/*
+  Turns a database row into the shape the frontend uses. The translation itself
+  lives in lib/rows.js; this only adds isSaved and the defaults.
+*/
 function publicHousehold(row) {
-  if (!row) {
-    return { ...DEFAULTS, isSaved: false };
+  const household = householdFromRow(row);
+
+  if (household === null) {
+    return { ...DEFAULTS, chosenPlan: null, isSaved: false };
   }
 
-  return {
-    income: row.income,
-    dependents: row.dependents,
-
-    // SQLite stores 1 and 0, but the frontend wants true and false.
-    hasLoan: row.has_loan === 1,
-    incomeVaries: row.income_varies === 1,
-    essentialCosts: row.essential_costs,
-
-    // Which plan from /plans they chose to follow, or null if they have not.
-    chosenPlan: row.chosen_plan,
-
-    isSaved: true,
-  };
+  return { ...household, isSaved: true };
 }
 
 

@@ -50,6 +50,8 @@ const OUT = path.join(process.cwd(), 'screenshots');
 const PAGES = [
   { path: '/plans', waitFor: 'The same money' },
   { path: '/dashboard', waitFor: 'Your coach' },
+  { path: '/family', waitFor: 'Share of income' },
+  { path: '/stress-test', waitFor: 'What would help' },
   { path: '/spending', waitFor: 'Where it went' },
   { path: '/recap', waitFor: 'Came in' },
 ];
@@ -162,6 +164,20 @@ async function seed() {
 
     await call('/api/assets', 'POST', {
       name: 'HDFC Savings', kind: 'cash', value: 95000,
+    }, cookie);
+  }
+
+  // Two people, one without health cover, so the family page shows its warning
+  // and the stress test has somebody to send the hospital bill to.
+  const family = await call('/api/family', 'GET', null, cookie);
+
+  if (family.data.family.length === 0) {
+    await call('/api/family', 'POST', {
+      name: 'Papa', relation: 'parent', monthlySupport: 9000, hasHealthCover: false,
+    }, cookie);
+
+    await call('/api/family', 'POST', {
+      name: 'Riya', relation: 'sibling', monthlySupport: 6000, hasHealthCover: true,
     }, cookie);
   }
 

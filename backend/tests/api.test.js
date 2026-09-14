@@ -236,6 +236,8 @@ test('every private route refuses a request with no cookie', async () => {
     '/api/goals',
     '/api/assets',
     '/api/checkins',
+    '/api/family',
+    '/api/scenarios',
   ];
 
   for (const path of privatePaths) {
@@ -1324,4 +1326,131 @@ test('the recap does not call rent a habit', async () => {
 
   assert.ok(result.data.recap.mostFrequent, 'expected a most frequent payment');
   assert.equal(result.data.recap.mostFrequent.name, 'SWIGGY ORDER');
+});
+
+
+// ---------------------------------------------------------------
+// The family circle
+// ---------------------------------------------------------------
+
+const PAPA = { name: 'Papa', relation: 'parent', monthlySupport: 9000, hasHealthCover: false };
+
+
+test('a family member can be added, changed and removed', async () => {
+  const account = await makeAccount();
+
+  const added = await call('POST', '/api/family', { cookie: account.cookie, body: PAPA });
+
+  assert.equal(added.status, 201);
+  assert.equal(added.data.member.name, 'Papa');
+  assert.equal(added.data.member.hasHealthCover, false);
+
+  const id = added.data.member.id;
+
+  const changed = await call('PUT', '/api/family/' + id, {
+    cookie: account.cookie,
+    body: { ...PAPA, monthlySupport: 12000, hasHealthCover: true },
+  });
+
+  assert.equal(changed.status, 200);
+  assert.equal(changed.data.member.monthlySupport, 12000);
+  assert.equal(changed.data.member.hasHealthCover, true);
+
+  const removed = await call('DELETE', '/api/family/' + id, { cookie: account.cookie });
+  assert.equal(removed.status, 200);
+
+  const list = await call('GET', '/api/family', { cookie: account.cookie });
+  assert.equal(list.data.family.length, 0);
+});
+
+
+test('a family member with a bad amount or relation is refused', async () => {
+  const account = await makeAccount();
+
+  const negative = await call('POST', '/api/family', {
+    cookie: account.cookie,
+    body: { ...PAPA, monthlySupport: -100 },
+  });
+
+  assert.equal(negative.status, 400);
+
+  const unknown = await call('POST', '/api/family', {
+    cookie: account.cookie,
+    body: { ...PAPA, relation: 'landlord' },
+  });
+
+  assert.equal(unknown.status, 400);
+
+  const list = await call('GET', '/api/family', { cookie: account.cookie });
+  assert.equal(list.data.family.length, 0, 'nothing should have been saved');
+});
+
+
+test('one account cannot read, change or delete another account\'s family', async () => {
+  const owner = await makeAccount();
+  const stranger = await makeAccount();
+
+  const added = await call('POST', '/api/family', { cookie: owner.cookie, body: PAPA });
+  const id = added.data.member.id;
+
+  const strangerList = await call('GET', '/api/family', { cookie: stranger.cookie });
+  assert.equal(strangerList.data.family.length, 0);
+
+  const edit = await call('PUT', '/api/family/' + id, {
+    cookie: stranger.cookie,
+    body: { ...PAPA, monthlySupport: 1 },
+  });
+  assert.equal(edit.status, 404);
+
+  const remove = await call('DELETE', '/api/family/' + id, { cookie: stranger.cookie });
+  assert.equal(remove.status, 404);
+
+  const ownerList = await call('GET', '/api/family', { cookie: owner.cookie });
+  assert.equal(ownerList.data.family.length, 1);
+  assert.equal(ownerList.data.family[0].monthlySupport, 9000);
+});
+
+
+test('listing family replaces the estimated support in the plans', async () => {
+  const account = await makeAccount();
+
+  await call('PUT', '/api/household', {
+    cookie: account.cookie,
+    body: { income: 80000, dependents: 2, hasLoan: false, essentialCosts: 20000 },
+  });
+
+  const before = await call('GET', '/api/scenarios', { cookie: account.cookie });
+  const committedBefore = before.data.scenarios[0].allocation.committed;
+
+  await call('POST', '/api/family', { cookie: account.cookie, body: PAPA });
+
+  const after = await call('GET', '/api/scenarios', { cookie: account.cookie });
+  const committedAfter = after.data.scenarios[0].allocation.committed;
+
+  // Before: 20000 living costs plus the estimate for two dependents.
+  // After: 20000 living costs plus Papa's real 9000.
+  assert.equal(committedAfter, 20000 + 9000);
+  assert.notEqual(committedBefore, committedAfter);
+});
+
+
+test('deleting an account takes the family list with it', async () => {
+  const account = await makeAccount();
+
+  await call('POST', '/api/family', { cookie: account.cookie, body: PAPA });
+
+  const gone = await call('DELETE', '/api/auth/account', {
+    cookie: account.cookie,
+    body: { password: account.password },
+  });
+
+  assert.equal(gone.status, 200);
+
+  // Signing up again with the same email starts from nothing.
+  const again = await call('POST', '/api/auth/signup', {
+    body: { name: 'Tester again', email: account.email, password: account.password },
+  });
+
+  const list = await call('GET', '/api/family', { cookie: again.cookie });
+  assert.equal(list.data.family.length, 0);
 });

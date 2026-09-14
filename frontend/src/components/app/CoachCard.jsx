@@ -31,14 +31,14 @@ import * as api from '../../lib/api';
 // The suggestions under the box. Kept short so the row does not wrap.
 const DEBT_SUGGESTIONS = [
   'What if I paid ₹3,000 more on my worst debt?',
+  'What if I lose my job?',
   'Can I afford my goals?',
-  'Is my emergency fund enough?',
 ];
 
 const NO_DEBT_SUGGESTIONS = [
+  'What if I lose my job?',
   'What if my rent went up ₹5,000?',
   'Can I afford my goals?',
-  'Is my emergency fund enough?',
 ];
 
 // Anything longer than this is a paste, not a question. The server checks the

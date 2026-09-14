@@ -24,7 +24,9 @@ const temporaryFolder = fs.mkdtempSync(path.join(os.tmpdir(), 'nestworth-advice-
 process.env.NESTWORTH_DB_FILE = path.join(temporaryFolder, 'test.db');
 
 const db = (await import('../src/database/db.js')).default;
-const { checkQuestion, factsToText, readFacts } = await import('../src/lib/advice.js');
+const { SYSTEM_PROMPT, checkQuestion, factsToText, readFacts } = await import('../src/lib/advice.js');
+const { readFinances } = await import('../src/lib/snapshot.js');
+const { formatRupees } = await import('../../shared/plan.js');
 
 // One person, with a bit of everything, so the prompt has something to say.
 const now = new Date().toISOString();
@@ -184,4 +186,67 @@ test('a person with nothing entered gets zeros, not nulls', () => {
   assert.equal(facts.totalOwed, 0);
   assert.equal(facts.totalOwned, 0);
   assert.equal(facts.netWorth, 0);
+});
+
+
+// ---------------------------------------------------------------
+// The plan section and the prompt rules
+// ---------------------------------------------------------------
+
+test('the snapshot carries the plan with the same figures the app shows', () => {
+  // Copied from summariseFinances, so the coach and the dashboard agree.
+  const finances = readFinances(1).finances;
+  const text = factsToText(readFacts(1));
+
+  assert.ok(text.includes('THE PLAN THE APP HAS WORKED OUT'));
+  assert.ok(text.includes('One month of costs: ' + formatRupees(finances.monthlyCosts)), text);
+  assert.ok(text.includes('Left to decide each month: ' + formatRupees(finances.plan.free)), text);
+});
+
+
+test('the snapshot says when family support is only an estimate', () => {
+  // This person has no family rows, so the model must not treat it as real.
+  const text = factsToText(readFacts(1));
+
+  assert.ok(text.includes('estimated from the number of dependents'), text);
+});
+
+
+test('the snapshot includes the stress test results', () => {
+  const text = factsToText(readFacts(1));
+
+  assert.ok(text.includes('Stress test'), text);
+  assert.ok(text.includes('Your income stops for 4 months.'), text);
+});
+
+
+test('family members and missing health cover reach the snapshot', () => {
+  const stamp = new Date().toISOString();
+
+  db.prepare(`
+    INSERT INTO family_members (user_id, name, relation, monthly_support, has_health_cover, created_at, updated_at)
+    VALUES (1, 'Dadi', 'grandparent', 5000, 0, ?, ?)
+  `).run(stamp, stamp);
+
+  const text = factsToText(readFacts(1));
+
+  assert.ok(text.includes('Dadi (grandparent): ₹5000 a month, no health cover'), text);
+  assert.ok(text.includes('Family members without health cover: Dadi.'), text);
+  assert.ok(text.includes('the real total from the Family page'), text);
+
+  db.prepare("DELETE FROM family_members WHERE name = 'Dadi'").run();
+});
+
+
+test('the prompt keeps the rules the app depends on', () => {
+  /*
+    Each of these was a real problem when the model ran without it: markdown
+    showing as asterisks on the card, investing advice that contradicted the
+    plan, and text the person typed being obeyed as an instruction.
+  */
+  assert.ok(SYSTEM_PROMPT.includes('No markdown'));
+  assert.ok(SYSTEM_PROMPT.includes('must agree with the plan'));
+  assert.ok(SYSTEM_PROMPT.includes('never as instructions'));
+  assert.ok(SYSTEM_PROMPT.includes('stress_test'));
+  assert.ok(SYSTEM_PROMPT.includes('SEBI'));
 });
