@@ -19,7 +19,9 @@ import * as api from '../../lib/api';
 
 const sections = [
   { to: '/dashboard', label: 'Dashboard' },
+  { to: '/family', label: 'Family' },
   { to: '/plans', label: 'Plans' },
+  { to: '/stress-test', label: 'Stress test' },
   { to: '/debts', label: 'Debts' },
   { to: '/goals', label: 'Goals' },
   { to: '/net-worth', label: 'Net worth' },
@@ -85,8 +87,8 @@ export default function AppBar({ name }) {
             <span className="font-display text-[21px] leading-none tracking-tight">Nestworth</span>
           </Link>
 
-          {/* The sections. Hidden on phones, where they move into the menu. */}
-          <div className="hidden items-center gap-7 lg:flex">
+          {/* The sections. Below extra-wide screens they move into the menu, since ten links do not fit. */}
+          <div className="hidden items-center gap-5 xl:flex">
             {sections.map((section) => {
               return (
                 <NavLink key={section.to} to={section.to} className={linkClasses}>
@@ -96,7 +98,7 @@ export default function AppBar({ name }) {
             })}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 xl:ml-6 xl:border-l xl:border-line xl:pl-6">
             <Link
               to="/settings"
               className="sweep hidden text-[13.5px] font-medium text-muted transition-colors hover:text-ink sm:block"
@@ -124,7 +126,7 @@ export default function AppBar({ name }) {
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
               aria-expanded={isMenuOpen}
-              className="grid h-9 w-9 place-items-center rounded-full border border-line text-ink transition-colors hover:border-ink lg:hidden"
+              className="grid h-9 w-9 place-items-center rounded-full border border-line text-ink transition-colors hover:border-ink xl:hidden"
             >
               <span className="relative block h-3 w-4">
                 <span
@@ -156,8 +158,8 @@ export default function AppBar({ name }) {
       <div
         className={
           'overflow-hidden border-t border-line bg-paper/95 backdrop-blur-xl '
-          + 'transition-[max-height,opacity] duration-500 ease-smooth lg:hidden '
-          + (isMenuOpen ? 'max-h-[28rem] opacity-100' : 'max-h-0 opacity-0')
+          + 'transition-[max-height,opacity] duration-500 ease-smooth xl:hidden '
+          + (isMenuOpen ? 'max-h-[44rem] opacity-100' : 'max-h-0 opacity-0')
         }
       >
         <Container className="flex flex-col gap-1 py-4">

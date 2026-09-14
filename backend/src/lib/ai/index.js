@@ -1,5 +1,5 @@
 import { isClaudeConfigured, runClaudeRound } from './claude.js';
-import { isGeminiConfigured, runGeminiRound } from './gemini.js';
+import { DEFAULT_MODEL as GEMINI_DEFAULT_MODEL, isGeminiConfigured, runGeminiRound } from './gemini.js';
 
 /*
   Which model this server talks to.
@@ -57,7 +57,8 @@ export function describeProvider() {
   }
 
   if (provider.name === 'gemini') {
-    return 'Gemini (' + (process.env.GEMINI_MODEL || 'gemini-2.0-flash') + ')';
+    // Read from gemini.js so the startup line cannot name a different model.
+    return 'Gemini (' + (process.env.GEMINI_MODEL || GEMINI_DEFAULT_MODEL) + ')';
   }
 
   return 'Claude (' + (process.env.ANTHROPIC_MODEL || 'claude-opus-5') + ')';

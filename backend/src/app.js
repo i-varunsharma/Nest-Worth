@@ -6,6 +6,7 @@ import householdRoutes from './routes/household.js';
 import debtRoutes from './routes/debts.js';
 import goalRoutes from './routes/goals.js';
 import assetRoutes from './routes/assets.js';
+import familyRoutes from './routes/family.js';
 import checkinRoutes from './routes/checkins.js';
 import adviceRoutes from './routes/advice.js';
 import insightRoutes from './routes/insights.js';
@@ -85,6 +86,7 @@ export function createApp() {
   app.use('/api/debts', debtRoutes);
   app.use('/api/goals', goalRoutes);
   app.use('/api/assets', assetRoutes);
+  app.use('/api/family', familyRoutes);
   app.use('/api/checkins', checkinRoutes);
   app.use('/api/advice', adviceRoutes);
   app.use('/api/insights', insightRoutes);

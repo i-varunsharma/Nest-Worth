@@ -29,9 +29,9 @@ import { findSignals, latestImportedMonth } from './signals.js';
 // nine things to think about is a list nobody acts on.
 const MOST_SIGNALS_TO_USE = 3;
 
-// Short. This is a note on a card, not an essay, and a long one stops being
-// read after the first week.
-const MAX_TOKENS = 300;
+// The note is kept short by the prompt, not by this number. The limit also
+// covers the model's thinking, and at 300 the note was cut off mid-word.
+const MAX_TOKENS = 1500;
 
 const SYSTEM_PROMPT = [
   'You write a short daily note for somebody using a personal finance app in India.',

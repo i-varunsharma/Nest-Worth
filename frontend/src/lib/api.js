@@ -295,6 +295,25 @@ export function deleteAsset(id) {
 }
 
 
+// The people this salary supports. The same four routes as above.
+
+export function getFamily() {
+  return request('/api/family', 'GET');
+}
+
+export function addFamilyMember(member) {
+  return request('/api/family', 'POST', member);
+}
+
+export function updateFamilyMember(id, member) {
+  return request('/api/family/' + id, 'PUT', member);
+}
+
+export function deleteFamilyMember(id) {
+  return request('/api/family/' + id, 'DELETE');
+}
+
+
 // ---------------------------------------------------------------
 // Transactions, read out of a bank statement
 // ---------------------------------------------------------------

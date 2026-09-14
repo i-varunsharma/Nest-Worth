@@ -1,0 +1,49 @@
+# Runs on every push and pull request. If any step fails, GitHub marks the
+# commit with a red cross, so a broken change is caught before it is merged.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      # npm ci installs exactly what the lock files say, so CI tests the same
+      # versions that were tested locally.
+      - name: Install backend
+        run: npm ci
+        working-directory: backend
+
+      - name: Install frontend
+        run: npm ci
+        working-directory: frontend
+
+      - name: Backend tests
+        run: npm test
+        working-directory: backend
+
+      - name: Frontend tests
+        run: npm test
+        working-directory: frontend
+
+      - name: Lint
+        run: npm run lint
+        working-directory: frontend
+
+      - name: Build
+        run: npm run build
+        working-directory: frontend

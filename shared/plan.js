@@ -126,9 +126,14 @@ export function formatRupees(value, options) {
   The heart of the product.
 
   You pass in a household:
-    income      - monthly take-home pay, a number like 62000
-    dependents  - how many people this salary supports, 0 to 3
-    hasLoan     - true or false, is an education loan still running
+    income        - monthly take-home pay, a number like 62000
+    dependents    - how many people this salary supports, 0 to 3
+    hasLoan       - true or false, is an education loan still running
+    supportCosts  - optional, the real monthly total sent to family
+    extraSupport  - optional, added on top, for "what if" questions
+
+  Most callers should not call this directly. shared/finances.js builds the
+  input from the stored data, so every page gets the same plan.
 
   You get back a full plan: what leaves the account, what is left,
   how the leftover should be split, and a sentence explaining why.
@@ -159,13 +164,26 @@ export function buildPlan(household) {
   // Step 1: work out the money that leaves before it is really yours.
   // ---------------------------------------------------------------
 
-  // We assume each dependent costs about 12% of income, capped at 34% in total
-  // so that a large family never eats the entire salary in this demo.
+  // With no real figure we assume each dependent costs about 12% of income,
+  // capped at 34% in total so a large family never eats the entire salary.
   let supportPercent = dependents * 0.12;
   if (supportPercent > 0.34) {
     supportPercent = 0.34;
   }
-  const support = roundToNearest500(income * supportPercent);
+  let support = roundToNearest500(income * supportPercent);
+
+  // Once the person has listed the family they support, the real total
+  // replaces the guess. Zero is a real answer here, so only a missing value
+  // falls back to the estimate.
+  if (Number.isFinite(household.supportCosts) && household.supportCosts >= 0) {
+    support = Math.round(household.supportCosts);
+  }
+
+  // Used by "what if" questions, such as a parent who starts needing help.
+  // It adds to whichever support figure is in use, real or estimated.
+  if (Number.isFinite(household.extraSupport) && household.extraSupport > 0) {
+    support = support + Math.round(household.extraSupport);
+  }
 
   /*
     The EMI.

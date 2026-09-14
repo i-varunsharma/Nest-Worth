@@ -8,9 +8,10 @@ import { formatRupees } from '../../lib/plan';
   persuading, just the numbers.
 
   Props:
-    plan       - the object buildPlan() returned
-    dependents - how many people are supported, used for the small print
-    hasLoan    - whether a loan is running, used for the small print
+    plan          - the plan from summariseFinances
+    dependents    - how many people are supported, used for the small print
+    familyListed  - true once the family page has people on it
+    hasLoan       - whether a loan is running, used for the small print
 */
 
 const barColours = {
@@ -20,7 +21,7 @@ const barColours = {
   accent: 'bg-accent',
 };
 
-export default function OutflowCard({ plan, dependents, hasLoan }) {
+export default function OutflowCard({ plan, dependents, familyListed, hasLoan }) {
   // Work the changing sentences out first, so the JSX below stays readable.
   let supportNote = 'Nobody depends on you yet';
   if (dependents === 1) {
@@ -29,9 +30,14 @@ export default function OutflowCard({ plan, dependents, hasLoan }) {
     supportNote = dependents + ' people depend on this salary';
   }
 
+  // Until the family page has people on it, the support figure is a guess.
+  if (familyListed === false && dependents > 0) {
+    supportNote = supportNote + '. Estimated: add them on the Family page for the real figure';
+  }
+
   let emiNote = 'No loan running';
   if (hasLoan === true) {
-    emiNote = 'Clearing this beats investing right now';
+    emiNote = 'Paid before anything else, every month';
   }
 
   /*
@@ -40,8 +46,8 @@ export default function OutflowCard({ plan, dependents, hasLoan }) {
   */
   const rows = [
     { label: 'Take-home income', amount: plan.income, colour: 'ink', note: 'What lands in your account' },
-    { label: 'Household support', amount: plan.support, colour: 'brass', note: supportNote },
-    { label: 'Education loan EMI', amount: plan.emi, colour: 'clay', note: emiNote },
+    { label: 'Family support', amount: plan.support, colour: 'brass', note: supportNote },
+    { label: 'Loan EMIs', amount: plan.emi, colour: 'clay', note: emiNote },
   ];
 
   if (plan.essentialCosts > 0) {

@@ -1,6 +1,7 @@
 import express from 'express';
 import db from '../database/db.js';
 import { requireUser } from '../lib/sessions.js';
+import { goalFromRow } from '../lib/rows.js';
 
 /*
     GET    /api/goals      list mine
@@ -13,17 +14,6 @@ import { requireUser } from '../lib/sessions.js';
 */
 
 const router = express.Router();
-
-
-function publicGoal(row) {
-  return {
-    id: row.id,
-    name: row.name,
-    targetAmount: row.target_amount,
-    savedAmount: row.saved_amount,
-    targetDate: row.target_date,
-  };
-}
 
 
 /*
@@ -73,7 +63,7 @@ router.get('/', requireUser, (req, res) => {
     SELECT * FROM goals WHERE user_id = ? ORDER BY target_date ASC, id ASC
   `).all(req.user.id);
 
-  return res.json({ goals: rows.map(publicGoal) });
+  return res.json({ goals: rows.map(goalFromRow) });
 });
 
 
@@ -104,7 +94,7 @@ router.post('/', requireUser, (req, res) => {
 
   const row = db.prepare('SELECT * FROM goals WHERE id = ?').get(result.lastInsertRowid);
 
-  return res.status(201).json({ goal: publicGoal(row) });
+  return res.status(201).json({ goal: goalFromRow(row) });
 });
 
 
@@ -143,7 +133,7 @@ router.put('/:id', requireUser, (req, res) => {
   const row = db.prepare('SELECT * FROM goals WHERE id = ? AND user_id = ?')
     .get(req.params.id, req.user.id);
 
-  return res.json({ goal: publicGoal(row) });
+  return res.json({ goal: goalFromRow(row) });
 });
 
 

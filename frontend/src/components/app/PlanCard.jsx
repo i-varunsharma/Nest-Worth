@@ -16,7 +16,7 @@ import { formatRupees } from '../../lib/plan';
 const bucketLooks = {
   spend: {
     barColour: 'bg-ink/25',
-    note: 'Rent, food, the life you are living now',
+    note: 'Eating out, shopping, trips: the part you choose',
   },
   save: {
     barColour: 'bg-brass',
