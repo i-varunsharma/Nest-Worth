@@ -1,39 +1,15 @@
-/*
-  The maths behind a savings goal: how much is left, how long there is, and
-  therefore how much has to go in every month.
-
-  A goal here is:
-    { id, name, targetAmount, savedAmount, targetDate }
-
-  targetDate is text in 'YYYY-MM-DD' form, the way it comes out of the database
-  and the way a date input gives it back.
-*/
+// Savings goal maths. A goal is { id, name, targetAmount, savedAmount, targetDate },
+// with targetDate as 'YYYY-MM-DD'.
 
 
-/*
-  How many whole months there are between now and a date.
-
-  Working in months rather than days is on purpose. Somebody saving for a
-  wedding thinks in months, not in 431 days, and the answer they want is a
-  monthly amount.
-
-  Returns 0 for a date in the past, because a goal whose date has gone still
-  needs its remaining amount, just now rather than later.
-*/
+// Whole months from now until a date, or 0 when the date has passed.
 export function monthsUntil(targetDate) {
   if (typeof targetDate !== 'string') {
     return 0;
   }
 
-  /*
-    The date is read out of the text rather than handed to new Date().
-
-    new Date('2027-06-01') is not the 1st of June where you are standing. The
-    browser reads a plain date like that as midnight UTC, and then getDate()
-    gives it back in your own timezone, so anybody west of London sees the 31st
-    of May and every goal is a month out. Splitting the text avoids the whole
-    problem, because these three numbers are all this function needs.
-  */
+  // The date is split from the text, not passed to new Date(). new Date('2027-06-01')
+  // means midnight UTC, which is still 31 May in timezones west of London.
   const parts = targetDate.split('-');
 
   if (parts.length !== 3) {
@@ -67,17 +43,8 @@ export function monthsUntil(targetDate) {
 }
 
 
-/*
-  Works out everything the interface needs to show about one goal.
-
-  Returns:
-    remaining     how much is still to be found
-    months        how long there is
-    monthlyNeeded what has to go in each month to arrive on time
-    percentDone   0 to 100, for the progress bar
-    isComplete    the target has been reached
-    isOverdue     the date has passed and it is not complete
-*/
+// What the page shows for one goal:
+//   remaining, months, monthlyNeeded, percentDone, isComplete, isOverdue
 export function describeGoal(goal) {
   const target = goal.targetAmount;
   const saved = goal.savedAmount;
@@ -90,11 +57,8 @@ export function describeGoal(goal) {
   const months = monthsUntil(goal.targetDate);
   const isComplete = remaining === 0;
 
-  /*
-    How much per month. Dividing by zero months would give Infinity, which
-    would print as "₹Infinity" on the page, so the no-time-left case is handled
-    separately: the whole remaining amount is needed right now.
-  */
+  // With no months left the whole remaining amount is needed now, rather than
+  // dividing by zero.
   let monthlyNeeded = 0;
   if (!isComplete) {
     if (months <= 0) {
@@ -125,14 +89,8 @@ export function describeGoal(goal) {
 }
 
 
-/*
-  Adds up every goal, and compares the total monthly requirement against what
-  the plan actually sets aside each month.
-
-  This comparison is the honest part. It is easy to write down five goals and
-  never notice that together they need more than you save. Saying so plainly is
-  more useful than five green progress bars.
-*/
+// Adds up all goals and compares what they need each month with what the plan
+// saves, so goals that do not fit together are reported.
 export function summariseGoals(goals, monthlyCapacity) {
   let totalTarget = 0;
   let totalSaved = 0;
@@ -171,19 +129,9 @@ export function summariseGoals(goals, monthlyCapacity) {
 
 
 /*
-  How many months of spending an emergency fund would cover.
-
-  The usual advice is three to six months. We suggest six for anybody supporting
-  other people, because a household that depends on one salary has no second
-  income to fall back on while a job is found.
-
-  A variable income adds three more on top. The standard advice quietly assumes
-  a salary that either arrives or stops; for a freelancer the gap between two
-  contracts is not an emergency, it is a Tuesday, and the fund has to absorb
-  that as well as the real emergencies.
-
-  incomeVaries is optional, so an older caller that does not pass it gets the
-  same answer it always did.
+  Months of costs the cash savings would cover, against a target: 3 months, 6 when
+  supporting anyone, and 3 more for a variable income, where a gap between contracts
+  is normal rather than an emergency.
 */
 export function safetyNet(cashSavings, monthlyOutgoings, dependents, incomeVaries) {
   let monthsTarget = 3;

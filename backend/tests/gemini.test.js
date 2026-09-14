@@ -22,7 +22,7 @@ process.env.GEMINI_API_KEY = 'fake-key-for-tests';
 process.env.GEMINI_BASE_URL = 'http://localhost:4455/';
 
 const { DEFAULT_MODEL, FALLBACK_MODELS, runGeminiRound, toGeminiContents, toGeminiTools } =
-  await import('../src/lib/ai/gemini.js');
+  await import('../src/ai/providers/gemini.js');
 
 // Every request the stand-in received, so the tests can look at them.
 const received = [];

@@ -2,9 +2,9 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import TextField from '../src/components/shared/TextField';
-import DebtCard from '../src/components/app/DebtCard';
-import DebtForm from '../src/components/app/DebtForm';
-import ConsistencyCard from '../src/components/app/ConsistencyCard';
+import DebtCard from '../src/components/debts/DebtCard';
+import DebtForm from '../src/components/debts/DebtForm';
+import ConsistencyCard from '../src/components/dashboard/ConsistencyCard';
 import ErrorBoundary from '../src/components/shared/ErrorBoundary';
 
 /*

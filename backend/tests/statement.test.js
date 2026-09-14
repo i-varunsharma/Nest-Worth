@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseAmount, parseDate, parseStatement, splitCsvLine } from '../src/lib/statement.js';
-import { categorise } from '../src/lib/categorise.js';
+import { parseAmount, parseDate, parseStatement, splitCsvLine } from '../src/services/statementParser.js';
+import { categorise } from '../src/services/categorise.js';
 
 /*
   The statement reader, one function at a time. No server and no database here.
@@ -205,7 +205,7 @@ test('a file with no recognisable headings is refused with a reason', () => {
 // ---------------------------------------------------------------
 
 test('the payment rail and the routing junk are dropped from a merchant name', async () => {
-  const { merchantName } = await import('../src/lib/statement.js');
+  const { merchantName } = await import('../src/services/statementParser.js');
 
   assert.equal(merchantName('UPI-SWIGGY-SWIGGY@YBL-YESB0000001-4839201-PAYMENT'), 'SWIGGY');
   assert.equal(merchantName('NEFT DR-RENT AUGUST-K RAMESH'), 'RENT AUGUST');
@@ -215,7 +215,7 @@ test('the payment rail and the routing junk are dropped from a merchant name', a
 test('a narration that is only a reference number keeps the whole line', async () => {
   // "4839201" as the name of something you paid forty times would be worse
   // than an untidy label. At least the full line can be recognised.
-  const { merchantName } = await import('../src/lib/statement.js');
+  const { merchantName } = await import('../src/services/statementParser.js');
 
   assert.equal(merchantName('UPI-483920175-PAYMENT'), '483920175-PAYMENT');
 });

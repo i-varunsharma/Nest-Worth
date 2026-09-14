@@ -2,43 +2,20 @@ import { useEffect, useRef, useState } from 'react';
 import { formatRupees } from '../../lib/plan';
 
 /*
-  Every plan's money, drawn on one set of axes over fifteen years.
+  Every plan's total (invested plus cash) over fifteen years, on one scale.
 
-  It is the TOTAL that is drawn: what is invested plus what is held as cash.
-  Charting only the investments made the plan that saves rather than invests
-  look as though it destroyed the money, when what it really does is trade
-  growth for money you can reach on a bad Tuesday.
-
-  This is the chart the whole page is built around, because it is the only place
-  the choices can be compared honestly. Two splits of the same money look nearly
-  identical as percentages and land tens of lakhs apart.
-
-  One decision shapes everything else here: the plan being looked at is drawn in
-  the theme's green, and every other plan is drawn in one grey. That is called
-  emphasis, and it is deliberate. Four coloured lines is a chart where the eye
-  has nowhere to land and the reader has to keep checking a legend to remember
-  which is which. One line and its context is a chart that answers a question.
-
-  Nothing here is dual-axis. Rupees are the only thing measured, so there is one
-  scale. Two scales on one plot invent a relationship the data does not contain,
-  and the reader has no way to know where the second scale was pinned.
+  Totals rather than investments alone, or the plan that holds cash would look
+  like it lost money. The plan being read is green and the others are one grey,
+  so the eye has one line to follow.
 
   Props:
-    scenarios  - the list from the API, each with rows of { year, total }
-    activeKey  - which one is being looked at
-    onHover    - optional, called with a scenario key or null
+    scenarios  from the API, each with rows of { year, total }
+    activeKey  the plan being read
+    onHover    optional, called with a scenario key or null
 */
 
-/*
-  The made-up canvas everything is measured against. The browser stretches it to
-  whatever width the card happens to be, keeping the shape.
-
-  There are two heights because keeping the shape is the problem on a phone. A
-  640 by 260 box squeezed into a 340px card renders 138px tall, and at that size
-  the axis labels are unreadable and the four lines sit on top of each other.
-  Making the box TALLER in its own units means the browser scales it to
-  something legible instead.
-*/
+// The SVG's own units; the browser scales it to the card's width. A phone gets a
+// taller box, otherwise the chart would render about 140px tall with unreadable labels.
 const WIDTH = 640;
 const HEIGHT_WIDE = 260;
 const HEIGHT_NARROW = 430;
@@ -47,15 +24,8 @@ const HEIGHT_NARROW = 430;
 // "sm" breakpoint, which is where the rest of the page changes its mind too.
 const NARROW_BELOW = 640;
 
-/*
-  Room at the top for the highest point not to touch the edge, and at the
-  bottom for the year labels.
-
-  Both are worked out from the label size rather than fixed, because they only
-  exist to make room for those labels. Left at a constant while the labels grew
-  for the narrow canvas, the top one was cut in half by the edge of the chart
-  and the bottom one sat on top of "today".
-*/
+// Room above the highest point and below for the year labels, sized from the label
+// size so larger labels on phones are not cut off.
 function padTopFor(labelSize) {
   return labelSize + 10;
 }
@@ -64,12 +34,8 @@ function padBottomFor(labelSize) {
   return labelSize + 16;
 }
 
-/*
-  SVG and inline styles cannot take a Tailwind class, so colours have to be
-  written out here. They point at the same CSS variables the Tailwind classes
-  use, which is what keeps a chart in step with the rest of the page and lets it
-  follow the dark theme without this file knowing there is one.
-*/
+// SVG attributes cannot use Tailwind classes, so colours point at the same CSS
+// variables the theme uses, which also makes the dark theme work here.
 const COLOURS = {
   active: 'var(--chart-invest)',
   other: 'var(--chart-muted)',
@@ -88,16 +54,8 @@ export default function ScenarioLines({ scenarios, activeKey, onHover }) {
 
   const plotRef = useRef(null);
 
-  /*
-    Is the card narrow enough to need the taller canvas?
-
-    matchMedia is the browser's own way of asking a CSS question from
-    JavaScript, and it tells us when the answer changes rather than making us
-    listen to every resize event and work it out each time.
-
-    Not every environment has it. jsdom does not, and a crash here would take
-    the whole page down rather than just the chart.
-  */
+  // Whether the narrow canvas is needed, asked with matchMedia, which reports
+  // changes without listening to every resize. jsdom has no matchMedia.
   function askIfNarrow() {
     if (typeof window === 'undefined' || !window.matchMedia) {
       return null;
@@ -106,15 +64,8 @@ export default function ScenarioLines({ scenarios, activeKey, onHover }) {
     return window.matchMedia('(max-width: ' + (NARROW_BELOW - 1) + 'px)');
   }
 
-  /*
-    The answer is read here, during the first render, rather than set from
-    inside the effect afterwards.
-
-    Passing a function to useState runs it once, for the initial value only.
-    Setting this from an effect instead would render the chart at the wrong
-    height first and then immediately render it again at the right one, which
-    is a visible jump and what the linter warns about.
-  */
+  // Read during the first render, so the chart does not draw at the wrong height and
+  // then jump.
   const [isNarrow, setIsNarrow] = useState(() => {
     const query = askIfNarrow();
 
@@ -157,13 +108,8 @@ export default function ScenarioLines({ scenarios, activeKey, onHover }) {
 
   const years = scenarios[0].rows[scenarios[0].rows.length - 1].year;
 
-  /*
-    The tallest value across every scenario, not just the active one.
-
-    All the lines have to be drawn against the same scale or the comparison is
-    meaningless. Scaling each to its own maximum would make every plan look
-    identically successful, which is the opposite of what this chart is for.
-  */
+  // One scale for every line, taken from the tallest value across all plans, or the
+  // comparison would mean nothing.
   let tallest = 1;
 
   scenarios.forEach((scenario) => {
@@ -174,12 +120,8 @@ export default function ScenarioLines({ scenarios, activeKey, onHover }) {
     });
   });
 
-  /*
-    Text inside an SVG scales with the box, so a label that is 11 units tall in
-    a 640-wide box is 11 units tall in the narrow one too, and gets squeezed to
-    about six real pixels. Growing it with the box keeps it the same size on
-    screen whatever the card is doing.
-  */
+  // SVG text scales with the box, so labels are larger on the taller narrow canvas
+  // to stay readable.
   let labelSize = 11;
   if (isNarrow === true) {
     labelSize = 19;
@@ -219,13 +161,7 @@ export default function ScenarioLines({ scenarios, activeKey, onHover }) {
     return pieces.join(' ');
   }
 
-  /*
-    Turns a pointer position into a year.
-
-    The chart is drawn on a 640-wide canvas but displayed at whatever width the
-    card is, so the pointer's real pixel position has to be turned back into a
-    share of the width before it means anything.
-  */
+  // The pointer's pixel position as a year, using its share of the displayed width.
   function handlePointerMove(event) {
     if (!plotRef.current) {
       return;
@@ -233,13 +169,8 @@ export default function ScenarioLines({ scenarios, activeKey, onHover }) {
 
     const box = plotRef.current.getBoundingClientRect();
 
-    /*
-      A width of zero means the chart is not laid out yet, or is hidden. It
-      happens in a test environment and it can happen for a frame in a browser.
-      Dividing by it gives Infinity, which rounds to NaN, and NaN passes both
-      the checks below untouched: the crosshair is then drawn at NaN and simply
-      vanishes, with nothing in the console to say why.
-    */
+    // A zero width (not laid out yet) would give NaN, and the crosshair would vanish
+    // silently.
     if (box.width <= 0) {
       return;
     }
@@ -402,14 +333,8 @@ export default function ScenarioLines({ scenarios, activeKey, onHover }) {
           })}
 
           {/* ---------- The year labels ---------- */}
-          {/*
-            Four evenly spaced years, with any repeats removed.
-
-            Over fifteen years the quarters are 0, 5, 10 and 15 and nothing
-            collides. Over two years they round to 0, 1, 1 and 2, and drawing
-            the same label twice makes React complain about duplicate keys and
-            quietly drop one of them.
-          */}
+          {/* Four evenly spaced year labels, without repeats: over two years the quarters
+              round to 0, 1, 1, 2, and a repeated key makes React drop one. */}
           {yearLabels.map((year) => {
             let anchor = 'middle';
             if (year === 0) {
@@ -435,11 +360,8 @@ export default function ScenarioLines({ scenarios, activeKey, onHover }) {
         </svg>
 
         {/* ---------- The tooltip ---------- */}
-        {/*
-          Plain HTML rather than SVG, because text wraps and lays out properly
-          in HTML and has to be positioned by hand in SVG. It ignores the
-          pointer so moving onto it cannot make it flicker away.
-        */}
+        {/* An HTML tooltip, which wraps text on its own. It ignores the pointer so it cannot
+            flicker. */}
         {hoverYear !== null ? (
           <div
             className="pointer-events-none absolute top-2 rounded-xl border border-line bg-surface px-3.5 py-2.5 shadow-lift"
@@ -480,10 +402,7 @@ export default function ScenarioLines({ scenarios, activeKey, onHover }) {
       </div>
 
       {/* ---------- The legend ---------- */}
-      {/*
-        Two series means a legend, always. It is the identity channel that does
-        not depend on being able to tell two colours apart.
-      */}
+      {/* A legend, so telling the lines apart never depends on seeing colour. */}
       <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2">
         <span className="flex items-center gap-2">
           <span

@@ -4,23 +4,18 @@ import { summariseFinances } from './finances';
 /*
   Fetches everything the plan is built from and works the plan out.
 
-  Every page that shows a plan figure calls this: the dashboard, goals,
-  check-in, family and stress test pages. Loading it one way in one place is
-  what stops two pages quietly using different inputs.
+  Every page that shows a plan figure loads it through here, so no two pages can
+  build the plan from different inputs.
 
-  Returns one of:
+  Returns the same shape as api.js:
     { ok: false, error }
-    { ok: true, household, debts, assets, family, finances }
+    { ok: true, data: { household, debts, assets, family, finances } }
 
-  finances is null when onboarding was never finished, because there is no
-  income to build a plan from yet.
-
-  If any request fails the whole load fails with that message. Carrying on
-  with an empty list would draw a plan with the debts missing, which looks
-  fine and is wrong.
+  finances is null before onboarding is finished. If any request fails, the
+  whole load fails: drawing a plan with the debts missing would look right and
+  be wrong.
 */
 export async function loadFinances() {
-  // All four at once. None depends on another, so there is no reason to wait.
   const results = await Promise.all([
     api.getHousehold(),
     api.getDebts(),
@@ -30,7 +25,7 @@ export async function loadFinances() {
 
   for (const result of results) {
     if (result.ok === false) {
-      return { ok: false, error: result.error };
+      return result;
     }
   }
 
@@ -42,20 +37,11 @@ export async function loadFinances() {
   let finances = null;
 
   if (household.isSaved === true) {
-    finances = summariseFinances({
-      household: household,
-      debts: debts,
-      assets: assets,
-      family: family,
-    });
+    finances = summariseFinances({ household: household, debts: debts, assets: assets, family: family });
   }
 
   return {
     ok: true,
-    household: household,
-    debts: debts,
-    assets: assets,
-    family: family,
-    finances: finances,
+    data: { household: household, debts: debts, assets: assets, family: family, finances: finances },
   };
 }

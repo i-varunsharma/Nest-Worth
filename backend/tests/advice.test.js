@@ -24,8 +24,10 @@ const temporaryFolder = fs.mkdtempSync(path.join(os.tmpdir(), 'nestworth-advice-
 process.env.NESTWORTH_DB_FILE = path.join(temporaryFolder, 'test.db');
 
 const db = (await import('../src/database/db.js')).default;
-const { SYSTEM_PROMPT, checkQuestion, factsToText, readFacts } = await import('../src/lib/advice.js');
-const { readFinances } = await import('../src/lib/snapshot.js');
+const { checkQuestion } = await import('../src/ai/advice.js');
+const { factsToText, readFacts } = await import('../src/ai/facts.js');
+const { SYSTEM_PROMPT } = await import('../src/ai/prompt.js');
+const { readFinances } = await import('../src/services/financeService.js');
 const { formatRupees } = await import('../../shared/plan.js');
 
 // One person, with a bit of everything, so the prompt has something to say.
@@ -105,7 +107,7 @@ test('readFacts puts the most expensive debt first', () => {
 
   // The prompt tells the model the list is sorted by rate, so it has to be.
   assert.equal(facts.debts[0].name, 'Credit card');
-  assert.equal(facts.debts[0].annual_rate, 38);
+  assert.equal(facts.debts[0].annualRate, 38);
 });
 
 test('readFacts never reaches another person’s rows', () => {
@@ -160,6 +162,11 @@ test('the totals count every row, even when the list is capped', () => {
   db.prepare('INSERT INTO users (name, email, created_at) VALUES (?, ?, ?)')
     .run('Many Debts', 'many@example.com', stamp);
 
+  db.prepare(`
+    INSERT INTO households (user_id, income, dependents, has_loan, income_varies, essential_costs, updated_at)
+    VALUES (3, 90000, 0, 1, 0, 20000, ?)
+  `).run(stamp);
+
   for (let number = 1; number <= 30; number = number + 1) {
     // Descending rates, so the cap keeps the expensive ones.
     insert.run('Debt ' + number, 30 - number * 0.5, stamp, stamp);
@@ -173,13 +180,16 @@ test('the totals count every row, even when the list is capped', () => {
 });
 
 
-test('a person with nothing entered gets zeros, not nulls', () => {
-  // SUM over no rows returns NULL in SQL, which would print "₹null" in the
-  // prompt. COALESCE in readFacts turns it into 0.
+test('a household with nothing else entered gets zeros, not blanks', () => {
   const stamp = new Date().toISOString();
 
   db.prepare('INSERT INTO users (name, email, created_at) VALUES (?, ?, ?)')
     .run('Empty', 'empty@example.com', stamp);
+
+  db.prepare(`
+    INSERT INTO households (user_id, income, dependents, has_loan, income_varies, essential_costs, updated_at)
+    VALUES (4, 40000, 0, 0, 0, 10000, ?)
+  `).run(stamp);
 
   const facts = readFacts(4);
 
@@ -249,4 +259,14 @@ test('the prompt keeps the rules the app depends on', () => {
   assert.ok(SYSTEM_PROMPT.includes('never as instructions'));
   assert.ok(SYSTEM_PROMPT.includes('stress_test'));
   assert.ok(SYSTEM_PROMPT.includes('SEBI'));
+});
+
+
+test('before onboarding there is no household to build facts from', () => {
+  const stamp = new Date().toISOString();
+
+  const created = db.prepare('INSERT INTO users (name, email, created_at) VALUES (?, ?, ?)')
+    .run('New', 'new-advice@example.com', stamp);
+
+  assert.equal(readFacts(created.lastInsertRowid).household, null);
 });

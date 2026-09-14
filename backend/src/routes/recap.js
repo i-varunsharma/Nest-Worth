@@ -1,51 +1,30 @@
 import express from 'express';
-import db from '../database/db.js';
-import { requireUser } from '../lib/sessions.js';
-import { buildRecap } from '../lib/recap.js';
+import { requireUser } from '../middleware/auth.js';
+import { badRequest } from '../http/errors.js';
+import { transactionRepository } from '../repositories/transactionRepository.js';
+import { buildRecap } from '../reports/recap.js';
+import { readYear } from '../validation/records.js';
 
 /*
-    GET /api/recap/years    which years have anything in them
+    GET /api/recap/years    years that have transactions
     GET /api/recap?year=    that year, added up
 */
 
 const router = express.Router();
+router.use(requireUser);
 
-// Four digits. The year goes into a LIKE pattern, so it is checked first.
-const YEAR_PATTERN = /^\d{4}$/;
-
-
-// ---------------------------------------------------------------
-// GET /api/recap/years
-// ---------------------------------------------------------------
-router.get('/years', requireUser, (req, res) => {
-  const rows = db.prepare(`
-    SELECT substr(occurred_on, 1, 4) AS year, COUNT(*) AS lines
-    FROM transactions
-    WHERE user_id = ?
-    GROUP BY year
-    ORDER BY year DESC
-  `).all(req.user.id);
-
-  return res.json({ years: rows });
+router.get('/years', (req, res) => {
+  res.json({ years: transactionRepository.listYears(req.user.id) });
 });
 
+router.get('/', (req, res) => {
+  const year = readYear(req.query.year);
 
-// ---------------------------------------------------------------
-// GET /api/recap?year=2026
-// ---------------------------------------------------------------
-router.get('/', requireUser, (req, res) => {
-  let year = req.query.year;
-
-  if (year === undefined || year === '') {
-    year = String(new Date().getFullYear());
+  if (year === '') {
+    throw badRequest('A year looks like 2026.');
   }
 
-  if (YEAR_PATTERN.test(String(year)) === false) {
-    return res.status(400).json({ error: 'A year looks like 2026.' });
-  }
-
-  return res.json({ recap: buildRecap(req.user.id, String(year)) });
+  res.json({ recap: buildRecap(req.user.id, year) });
 });
-
 
 export default router;

@@ -1454,3 +1454,80 @@ test('deleting an account takes the family list with it', async () => {
   const list = await call('GET', '/api/family', { cookie: again.cookie });
   assert.equal(list.data.family.length, 0);
 });
+
+
+// ---------------------------------------------------------------
+// One error format for the whole API
+// ---------------------------------------------------------------
+
+test('regression: a body that is not valid JSON is a 400, not a 500', async () => {
+  // The JSON parser throws before any route runs. It used to reach the generic
+  // handler and come back as "Something went wrong on our side".
+  const response = await fetch(BASE + '/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{ "email": ',
+  });
+
+  const data = await response.json();
+
+  assert.equal(response.status, 400);
+  assert.equal(data.code, 'invalid_json');
+});
+
+
+test('every error response has a message and a code', async () => {
+  const account = await makeAccount();
+
+  const failures = [
+    await call('GET', '/api/nonsense'),
+    await call('GET', '/api/debts'),
+    await call('POST', '/api/debts', { cookie: account.cookie, body: { name: '' } }),
+    await call('PUT', '/api/debts/999999', {
+      cookie: account.cookie,
+      body: { name: 'Loan', kind: 'personal', principal: 1000, annualRate: 10, emi: 500 },
+    }),
+    await call('POST', '/api/auth/login', { body: { email: 'nobody@example.com', password: 'wrong-password' } }),
+  ];
+
+  for (const failure of failures) {
+    assert.ok(failure.status >= 400, 'expected a failure');
+    assert.equal(typeof failure.data.error, 'string');
+    assert.equal(typeof failure.data.code, 'string');
+  }
+});
+
+
+test('a form error names the field it belongs to', async () => {
+  const result = await call('POST', '/api/auth/signup', {
+    body: { name: 'Asha', email: 'not-an-email', password: 'long-enough-password' },
+  });
+
+  assert.equal(result.status, 400);
+  assert.equal(result.data.field, 'email');
+  assert.equal(result.data.code, 'invalid_request');
+});
+
+
+test('an id that is not a number is a 404, not a database error', async () => {
+  const account = await makeAccount();
+
+  const result = await call('DELETE', '/api/goals/not-a-number', { cookie: account.cookie });
+
+  assert.equal(result.status, 404);
+  assert.equal(result.data.code, 'not_found');
+});
+
+
+test('a request with no body at all is refused cleanly', async () => {
+  // Express leaves req.body undefined without a JSON body. Routes must still
+  // answer with a validation message rather than crash reading a field.
+  const account = await makeAccount();
+
+  const response = await fetch(BASE + '/api/debts', {
+    method: 'POST',
+    headers: { Cookie: account.cookie },
+  });
+
+  assert.equal(response.status, 400);
+});
