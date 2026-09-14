@@ -1,15 +1,5 @@
-/*
-  The categories a bank transaction can fall into.
-
-  This lives in shared/ because both sides need exactly the same list. The
-  server decides which category a line belongs to and refuses to store one that
-  is not on this list; the browser draws a dropdown of them so a wrong guess can
-  be corrected. Two copies of a list like this stay in step for about a week.
-
-  The order below is the order they appear on screen. It runs roughly from
-  "must be paid" down to "chose to", which is also the order somebody looking
-  for something to cut would read them in.
-*/
+// Transaction categories, shared so the server and the browser use the same list.
+// Ordered from must-pay to chosen, the order somebody looking for savings reads them.
 
 export const SPENDING_CATEGORIES = [
   { key: 'rent', label: 'Rent' },
@@ -26,16 +16,8 @@ export const SPENDING_CATEGORIES = [
   { key: 'other', label: 'Everything else' },
 ];
 
-/*
-  Money that arrives, and money that only moves.
-
-  These are kept apart from the list above because neither is spending, and
-  adding them into a spending total is the mistake that makes a breakdown
-  useless. "investment" is the interesting one: a SIP leaving your account is
-  not money spent, it is money moved into something you still own, so counting
-  it as an expense would tell you to stop doing the one thing the app spends
-  the rest of its time recommending.
-*/
+// Money that arrives or only moves. Never counted as spending: a SIP is money moved
+// into something still owned, not money spent.
 export const NON_SPENDING_CATEGORIES = [
   { key: 'income', label: 'Income' },
   { key: 'investment', label: 'Investing and saving' },

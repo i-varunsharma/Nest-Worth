@@ -1,32 +1,19 @@
 /*
-  This file holds all the MATH for Nestworth. No React, no styling, just numbers.
-
-  Keeping the maths in its own file means you can read and change the rules here
-  without touching any of the page layout, and the same rules can be reused by
-  every part of the site.
+  The recommendation model: how a household's income should be split, and the
+  helpers for formatting and projecting money. Pure functions with no React or
+  database, shared by the browser and the server.
 */
 
 
-/*
-  The long-run return we assume the market pays, used in two places:
-
-    the projection, to work out what a monthly investment grows into
-    buildPlan, to decide whether a debt is worth clearing before investing
-
-  Keeping it as one number means those two can never quietly disagree, which
-  they would if the projection assumed 11% while the advice assumed 12%.
-*/
+// The long-run yearly return assumed for the market. One constant, so the
+// projection and the debt-versus-invest decision can never use different figures.
 export const ASSUMED_YEARLY_RETURN = 0.11;
 
 
 /*
-  Reads one bucket's rupee amount out of a plan.
+  One bucket's amount from a plan, or 0 before a plan exists.
 
     bucketAmount(plan, 'save')  ->  8500
-
-  The dashboard and the check-in page both need this, and both used to walk the
-  bucket list themselves. Returns 0 when there is no plan yet, which is what
-  those pages want while they are still loading.
 */
 export function bucketAmount(plan, key) {
   if (!plan) {
@@ -43,10 +30,7 @@ export function bucketAmount(plan, key) {
 }
 
 
-/*
-  Keeps a number inside a range.
-  keepBetween(70, 10, 50) gives back 50, because 70 is above the highest value.
-*/
+// keepBetween(70, 10, 50) returns 50.
 function keepBetween(value, lowest, highest) {
   if (value < lowest) {
     return lowest;
@@ -58,31 +42,21 @@ function keepBetween(value, lowest, highest) {
 }
 
 
-/*
-  Rounds a number to the nearest 500, so the demo shows tidy figures
-  like 15,000 instead of 14,880.
-*/
+// Rounds to the nearest 500, so estimates read like 15,000 rather than 14,880.
 function roundToNearest500(value) {
   return Math.round(value / 500) * 500;
 }
 
 
 /*
-  Turns a plain number into a rupee string.
+  A number as rupees, in the Indian style.
 
-  formatRupees(62000)                     ->  "₹62,000"
-  formatRupees(1380000, { short: true })  ->  "₹13.8 L"
-  formatRupees(-850000, { short: true })  ->  "-₹8.5 L"
+    formatRupees(62000)                     ->  "₹62,000"
+    formatRupees(1380000, { short: true })  ->  "₹13.8 L"
+    formatRupees(-850000, { short: true })  ->  "-₹8.5 L"
 
-  The "short" option is for big numbers, where lakhs and crores are easier to
-  read than a long row of digits.
-
-  Negative amounts matter here more than they look. Net worth is often negative
-  early on, when somebody has an education loan and has not saved yet, and the
-  dashboard shows that number in a large display font sized for "₹8.5 L". The
-  size test below therefore works on the size of the number, ignoring its sign,
-  and the minus is added back at the end. Testing the signed value instead would
-  quietly skip the short form for every negative amount and overflow the card.
+  The short-form test uses the size of the number without its sign, so negative
+  net worth also gets the short form and fits its card.
 */
 export function formatRupees(value, options) {
   // Nothing sensible can be printed for these. Showing "₹NaN" on a page looks
@@ -123,20 +97,19 @@ export function formatRupees(value, options) {
 
 
 /*
-  The heart of the product.
+  Builds the recommended plan for a household.
 
-  You pass in a household:
-    income        - monthly take-home pay, a number like 62000
-    dependents    - how many people this salary supports, 0 to 3
-    hasLoan       - true or false, is an education loan still running
-    supportCosts  - optional, the real monthly total sent to family
-    extraSupport  - optional, added on top, for "what if" questions
+    income        monthly take-home pay
+    dependents    people the salary supports
+    hasLoan       whether any debt is running
+    essentialCosts, emi, topRate, topDebtName, incomeVaries   optional real figures
+    supportCosts  optional real monthly total sent to family
+    extraSupport  optional, added on top, for "what if" questions
 
-  Most callers should not call this directly. shared/finances.js builds the
-  input from the stored data, so every page gets the same plan.
+  Pages and the server should use buildHouseholdPlan in shared/finances.js, which
+  fills these in from stored data the same way everywhere.
 
-  You get back a full plan: what leaves the account, what is left,
-  how the leftover should be split, and a sentence explaining why.
+  Returns { income, support, emi, essentialCosts, free, buckets, reasoning }.
 */
 export function buildPlan(household) {
   const income = household.income;
@@ -148,12 +121,9 @@ export function buildPlan(household) {
   const incomeVaries = household.incomeVaries === true;
 
   /*
-    Rent, food, transport and bills. Zero when the question has not been
-    answered, which is how this behaved before it was asked at all.
-
-    This matters more than any other adjustment in the file. Without it the
-    model treats a Mumbai rent and a small town rent as the same, and asks a
-    household paying 35,000 to live on the same share as one paying 8,000.
+    Rent, food, transport and bills. Taken off before the split, so a household
+    paying ₹35,000 rent is not asked to keep the same share as one paying ₹8,000.
+    0 when not answered.
   */
   let essentialCosts = 0;
   if (Number.isFinite(household.essentialCosts) && household.essentialCosts > 0) {
@@ -185,17 +155,8 @@ export function buildPlan(household) {
     support = support + Math.round(household.extraSupport);
   }
 
-  /*
-    The EMI.
-
-    If the caller knows the real figure, it passes it in and we use it. That is
-    what happens once somebody has entered their actual debts, and it makes the
-    whole plan real rather than illustrative.
-
-    If not, we estimate: a typical education loan EMI is around 15% of income,
-    capped at 24,000. The landing page demo uses this, because a visitor has not
-    told us anything real yet.
-  */
+  // The real total EMI when debts are entered. Otherwise, on the landing page
+  // demo, an estimate of 15% of income capped at ₹24,000.
   let emi = 0;
   if (hasLoan === true) {
     if (Number.isFinite(household.emi) && household.emi > 0) {
@@ -209,29 +170,14 @@ export function buildPlan(household) {
     }
   }
 
-  /*
-    Whatever survives is the money the person can actually decide about.
-
-    Essential costs come out here, alongside the household support and the EMI,
-    because they are the same kind of money: it is gone before any choice is
-    made. That changes what the "spend" bucket below means. It is no longer all
-    spending, it is the discretionary part, the eating out and the trips and the
-    things that could stop next month if they had to.
-
-    Splitting a percentage off income without doing this is what makes budget
-    apps feel written for somebody else. A plan that tells you to keep 48% when
-    your rent alone is 30% is not ambitious, it is arithmetic that has not met
-    you.
-  */
+  // What is left after support, EMIs and essentials is the money the person can
+  // actually decide about. "Spend" below is therefore only the discretionary part.
   let free = income - support - emi - essentialCosts;
   if (free < 0) {
     free = 0;
   }
 
-  // ---------------------------------------------------------------
-  // Step 2: split the leftover money three ways.
-  // We start from a sensible default and then nudge it for this situation.
-  // ---------------------------------------------------------------
+  // Step 2: split what is left, starting from defaults and adjusting for this household.
 
   let spendPercent = 52;
   let savePercent = 30;
@@ -252,19 +198,8 @@ export function buildPlan(household) {
     investPercent = investPercent - 3;
   }
 
-  /*
-    An income that changes month to month needs a wider buffer.
-
-    The money comes out of investing rather than spending, and it goes to
-    saving. That is deliberate: a freelancer's problem is not that they spend
-    too much in a good month, it is that a thin month arrives with nothing set
-    aside and the shortfall goes on a credit card at 40%. Cash that is sitting
-    there when that happens is worth far more than the few percent it would
-    have earned invested.
-
-    It is a smaller shift than the one a loan causes, because a variable income
-    is a reason to hold more cash, not a reason to stop building anything.
-  */
+  // A variable income moves money from investing to saving. The risk for a
+  // freelancer is a thin month with nothing set aside, which ends up on a credit card.
   if (incomeVaries === true) {
     savePercent = savePercent + 6;
     investPercent = investPercent - 6;
@@ -278,20 +213,10 @@ export function buildPlan(household) {
   }
 
   /*
-    While a loan is running, money usually moves out of investing and towards
-    clearing it. Paying off a loan at 11% is a guaranteed 11% return, and no
-    fund guarantees anything.
-
-    That stops being true once the loan is cheap. A home loan at 8.4% costs less
-    than the market has paid over long periods, so rushing to clear it while
-    skipping the investing years is the more expensive mistake. When we know the
-    real rate and it is below what we assume the market pays, we leave the
-    investing share alone.
-
-    When the rate is unknown, which is the case on the landing page before
-    anybody has entered a real debt, we assume the expensive case. Guessing
-    wrong in that direction only costs somebody a little growth; guessing wrong
-    the other way tells them to invest through a credit card at 42%.
+    A running loan moves money from investing to saving, because clearing debt at
+    11% is a guaranteed return. Not when the loan is cheaper than the assumed market
+    return (a home loan at 8.4%): then investing is kept. When the rate is unknown the
+    expensive case is assumed, the safer mistake.
   */
   const marketReturnPercent = ASSUMED_YEARLY_RETURN * 100;
 
@@ -307,17 +232,9 @@ export function buildPlan(household) {
   }
 
   /*
-    Turn the three adjusted numbers into shares that add up to exactly 100.
-
-    The order here matters, and getting it wrong was a real bug. Scaling to 100
-    changes every number, so a limit applied BEFORE the scaling does not survive
-    it: a household on a low income with a loan and a variable income came out
-    with invest at 7%, under the 8% floor that was supposed to be guaranteed.
-
-    So scale first, then apply the limits, and let spend take whatever is left.
-    Spend is the right one to leave until last because it is the residual: save
-    and invest are the two the plan is protecting, and spend is the money that
-    remains once they have been.
+    Scale the three shares to 100 first, then apply the limits, and let spend take
+    the remainder. Applying limits before scaling was a real bug: invest fell to 7%,
+    below its 8% floor.
   */
   const currentTotal = spendPercent + savePercent + investPercent;
 
@@ -327,10 +244,7 @@ export function buildPlan(household) {
   // Guaranteed to make the three add up to 100, because it is the remainder.
   spendPercent = keepBetween(100 - savePercent - investPercent, 34, 68);
 
-  /*
-    Rounding and the spend limit can together leave the total a point or two off
-    100. Give the difference to saving, which has the widest room to take it.
-  */
+  // Rounding can leave the total a point off 100. Saving takes the difference.
   const drift = 100 - (spendPercent + savePercent + investPercent);
   savePercent = savePercent + drift;
 
@@ -395,22 +309,13 @@ export function buildPlan(household) {
 
 
 /*
-  Picks the one thing that matters most about this household and writes it
-  out as a sentence. The order of these checks IS the priority order:
-  a running loan beats everything, then dependents, then income.
-
-  "tone" is only used to pick a colour later on. 'clay' is a warning,
-  'brass' is a note, 'accent' is good news.
+  The one sentence explaining the plan. The order of the checks is the priority:
+  a running loan first, then a variable income, then dependents, then income.
+  tone picks the colour: 'clay' warning, 'brass' note, 'accent' good news.
 */
 function writeReasoning(facts) {
-  /*
-    A loan that costs less than the market pays does not get cleared first.
-
-    This is the one place the usual advice flips, so it is worth saying out
-    loud rather than quietly producing different percentages. Somebody with a
-    home loan at 8.4% who has been told all their life to clear debt first
-    deserves to know why we are telling them something else.
-  */
+  // A loan cheaper than the market return is not cleared first. This is where the
+  // usual advice flips, so the sentence says why.
   if (facts.hasLoan === true && facts.debtCostsMoreThanMarket === false) {
     return {
       tone: 'accent',
@@ -424,14 +329,8 @@ function writeReasoning(facts) {
   }
 
   if (facts.hasLoan === true) {
-    /*
-      Name the real debt when we know it.
-
-      This matters more than it looks. "Your education loan charges 11%" is
-      wrong and unhelpful for somebody whose worst debt is a card at 42%, and
-      being confidently wrong about the thing costing them the most is the
-      fastest way to lose their trust.
-    */
+    // Names the real worst debt when it is known, so a 42% card is not described as
+    // an 11% education loan.
     if (facts.topDebtName && Number.isFinite(facts.topRate)) {
       return {
         tone: 'clay',
@@ -453,11 +352,7 @@ function writeReasoning(facts) {
     };
   }
 
-  /*
-    Said only when there is no debt competing for the same sentence. Somebody
-    with a credit card at 42% and a variable income needs to hear about the
-    card first, and the wider buffer is already in their numbers either way.
-  */
+  // Only when no debt needs the sentence more.
   if (facts.incomeVaries === true) {
     return {
       tone: 'brass',
@@ -512,16 +407,8 @@ function writeReasoning(facts) {
 }
 
 
-/*
-  Works out what a monthly investment grows into.
-
-  This is the standard SIP (monthly investment) formula. In plain English:
-  every month you add some money, and everything already in the pot grows a little,
-  so the pot grows faster and faster the longer you leave it alone.
-
-  monthly - rupees invested each month
-  years   - how long the money is left alone
-*/
+// What a monthly investment (SIP) grows into after some years, using the
+// standard formula with ASSUMED_YEARLY_RETURN.
 export function projectInvestment(monthly, years) {
   if (monthly <= 0) {
     return 0;
@@ -535,12 +422,7 @@ export function projectInvestment(monthly, years) {
 }
 
 
-/*
-  Builds one row per year, from year 0 up to the final year.
-  The chart uses this list to draw its two lines.
-
-  Each row looks like: { year: 5, invested: 180000, value: 238000 }
-*/
+// One row per year for the projection chart: { year, invested, value }.
 export function buildProjectionRows(monthly, years) {
   const rows = [];
 
