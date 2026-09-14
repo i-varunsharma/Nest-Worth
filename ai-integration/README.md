@@ -10,17 +10,19 @@ them. Ask it "what if I paid ₹3,000 more on the card?" and it runs the app's o
 payoff simulation and answers from the result.
 
 ```
-frontend/src/components/app/CoachCard.jsx   the conversation, streamed
+frontend/src/components/dashboard/CoachCard.jsx  the conversation, streamed
 frontend/src/lib/api.js                     askCoach(), reads the stream
         |
         |  POST /api/advice   { question, history }
         v
 backend/src/routes/advice.js                auth, rate limit, Server-Sent Events
-backend/src/lib/advice.js                   the agent loop, streaming
-backend/src/lib/tools.js                    what the model is allowed to run
-backend/src/lib/ai/index.js                 picks Gemini or Claude from the keys set
-backend/src/lib/ai/gemini.js                Gemini, over plain fetch
-backend/src/lib/ai/claude.js                Claude, over @anthropic-ai/sdk
+backend/src/ai/advice.js                    the agent loop, streaming
+backend/src/ai/prompt.js                    the system prompt
+backend/src/ai/facts.js                     the data snapshot the model reads
+backend/src/ai/tools.js                     what the model is allowed to run
+backend/src/ai/providers/index.js           picks Gemini or Claude from the keys set
+backend/src/ai/providers/gemini.js          Gemini, over plain fetch
+backend/src/ai/providers/claude.js          Claude, over @anthropic-ai/sdk
         |
         v
 shared/plan.js  shared/debt.js  shared/goals.js  shared/networth.js
@@ -36,8 +38,8 @@ either. `SETUP.md` section 4 covers getting a key.
 
 ## The agent loop
 
-`askClaude` in `lib/advice.js` runs the loop. The name is from when Claude was
-the only provider; it now calls whichever one `ai/index.js` picks.
+`askCoach` in `ai/advice.js` runs the loop, with whichever provider
+`ai/providers/index.js` picks.
 
 1. Send the conversation and the list of tools.
 2. The model streams back text, and may also ask to run one or more tools.
@@ -72,7 +74,7 @@ appears in a logged address.
 
 ## The prompt
 
-`SYSTEM_PROMPT` in `lib/advice.js` is laid out in the order the model uses it:
+`SYSTEM_PROMPT` in `ai/prompt.js` is laid out in the order the model uses it:
 what it is given, how to work, which tool fits which question, how to write the
 answer, and the limits. Alongside it, the snapshot now includes the plan, the
 monthly costs, the safety net and the four standard stress test results, all
@@ -105,7 +107,7 @@ With tools, the model decides what it needs to know. Seven are available:
 | `emergency_fund` | months of cover, against the target for this household |
 | `stress_test` | a job loss, pay cut, hospital bill or family need, walked month by month |
 
-Every tool that needs the plan gets it from `readFinances` in `lib/snapshot.js`,
+Every tool that needs the plan gets it from `readFinances` in `services/financeService.js`,
 the same `shared/finances.js` function the pages use.
 
 Two things follow.
@@ -122,7 +124,7 @@ went up ₹5,000" page, but the plan model can answer it, so the coach can.
 ## The rules it follows
 
 **The API key stays on the server.** It is read from `backend/.env` inside
-`lib/ai/` and nowhere else. A key in frontend code is a key anybody can
+`ai/providers/` and nowhere else. A key in frontend code is a key anybody can
 read in their browser and spend your money with.
 
 **Claude never does the arithmetic.** It is good at knowing which calculation
@@ -142,7 +144,7 @@ argument naming a person. That is what makes it safe rather than merely
 untested, and `tests/tools.test.js` has a test whose only job is to keep it true.
 
 **It is rate limited.** Twenty questions an hour per person, using the same
-`lib/rateLimit.js` the OTP route uses. Every question costs real money, and a
+`middleware/rateLimit.js` the OTP route uses. Every question costs real money, and a
 question with tool rounds costs several times one without.
 
 **Nothing happens until you press the button.** The card does not call the API

@@ -52,8 +52,8 @@ Open <http://localhost:5173> and create an account.
 To run the tests:
 
 ```bash
-cd backend  && npm test    # 234 tests: the API, the SQL, the money maths, the AI tools
-cd frontend && npm test    # 95 tests: the money maths, the components and the charts
+cd backend  && npm test    # 246 tests: the API, repositories, the SQL, the money maths, the AI tools
+cd frontend && npm test    # 110 tests: the money maths, hooks, components, charts and pages
 ```
 
 To look at what the app has stored:
@@ -106,86 +106,52 @@ matters is enforced again on the server.
 
 ```
 Nest-Worth/
-├── backend/                  the API. Node, Express and SQLite
-│   ├── data/                 the SQLite file. Created on first run, never committed
+├── backend/                     the API: Node, Express and SQLite
 │   ├── src/
-│   │   ├── server.js         starts the app, and stops it without dropping anybody
-│   │   ├── app.js            builds the app: CORS, cookies, routes, error handling
-│   │   ├── database/
-│   │   │   ├── schema.sql    every table and index, in one readable file
-│   │   │   └── db.js         opens the database, runs the schema, migrates
-│   │   ├── lib/              the thinking. No HTTP in here
-│   │   │   ├── snapshot.js   reads one person's data and runs shared/finances.js on it
-│   │   │   ├── rows.js       turns database rows into app objects, in one place
-│   │   │   ├── sessions.js   who is signed in, and the cookie that says so
-│   │   │   ├── otp.js        the six digit code: making, sending, checking
-│   │   │   ├── passwordReset.js  the reset link, built the same way as the OTP
-│   │   │   ├── rateLimit.js  refusing somebody who is asking far too often
-│   │   │   ├── insights.js   the reporting SQL: aggregates, GROUP BY, windows
-│   │   │   ├── logger.js     request ids, timings, and what to never log
-│   │   │   ├── advice.js     the agent loop, in one neutral conversation shape
-│   │   │   ├── statement.js  reading a bank CSV: any layout, any date format
-│   │   │   ├── categorise.js which category a bank line belongs to
-│   │   │   ├── signals.js    what changed, found in SQL before any AI is involved
-│   │   │   ├── briefing.js   turning those findings into the note on the dashboard
-│   │   │   ├── recap.js      a whole year, added up
-│   │   │   ├── ai/           the only files that reach a model
-│   │   │   │   ├── gemini.js   Google's Gemini, over plain fetch. Free tier
-│   │   │   │   ├── claude.js   Anthropic's Claude, over the SDK
-│   │   │   │   └── index.js    picks whichever key is set
-│   │   │   ├── tools.js      the calculations the AI is allowed to run
-│   │   │   └── validate.js   the server's own copy of the form checks
-│   │   └── routes/           one file per thing the app stores
-│   │       ├── auth.js       signup, login, OTP, Google, reset, logout
-│   │       ├── household.js  the onboarding answers
-│   │       ├── family.js     the people the salary supports
-│   │       ├── debts.js      ┐
-│   │       ├── goals.js      │ all four are the same four routes:
-│   │       ├── assets.js     │ list, add, change, remove
-│   │       ├── checkins.js   ┘
-│   │       ├── advice.js     the AI coach, streamed as it is written
-│   │       ├── insights.js   GET /api/insights, the reporting endpoint
-│   │       ├── scenarios.js  GET /api/scenarios, the plan comparison
-│   │       ├── transactions.js  importing a statement, and reading it back
-│   │       ├── briefing.js   GET /api/briefing, today's note
-│   │       └── recap.js      GET /api/recap, the year
-│   └── tests/                run with npm test
+│   │   ├── server.js            starts the server and shuts it down cleanly
+│   │   ├── app.js               middleware order and route mounting
+│   │   ├── config.js            every environment setting, read in one place
+│   │   ├── database/            schema.sql, and db.js (connection, migrations, transactions)
+│   │   ├── http/                AppError, the error handler, cookies, request validation
+│   │   ├── middleware/          request logging, who is signed in, rate limits
+│   │   ├── routes/              controllers: validate, call a service, respond
+│   │   │   └── recordRoutes.js  the shared list/add/change/remove router
+│   │   ├── services/            business rules: auth, sessions, codes, imports, finances
+│   │   ├── repositories/        all SQL, one file per table
+│   │   │   └── ownedRecordRepository.js  the shared base for per-user records
+│   │   ├── validation/          request body rules
+│   │   ├── reports/             read-only SQL aggregates: insights, recap, signals
+│   │   ├── ai/                  prompt, facts, agent loop, tools
+│   │   │   └── providers/       Gemini and Claude adapters
+│   │   └── utils/logger.js
+│   └── tests/                   npm test
 │
-├── frontend/                 the app. React, Vite and Tailwind
-│   ├── tailwind.config.js    every colour, font, shadow and timing. One source of truth
+├── frontend/                    the app: React, Vite and Tailwind
+│   ├── tailwind.config.js       every colour, font, shadow and timing
 │   └── src/
-│       ├── styles/global.css the actual colour values, in a light set and a dark one
-│       ├── App.jsx           which page shows at which address
-│       ├── lib/              the browser's own code, plus shims into shared/
-│       │   ├── api.js        every request to the backend goes through here
-│       │   ├── loadFinances.js  fetches what the plan needs and builds it, for every page
-│       │   ├── checkins.js   what actually happened, against what was planned
-│       │   ├── validation.js the browser's copy of the form checks
-│       │   └── debt.js, goals.js, networth.js, plan.js
-│       │                     one line each, re-exporting shared/ below
+│       ├── App.jsx              which page shows at which address
+│       ├── pages/               one file per address: loads data, arranges sections
 │       ├── components/
-│       │   ├── charts/       the five charts, hand-drawn. No chart library
-│       │   ├── shared/       Button, TextField, ErrorBoundary. Used everywhere
-│       │   ├── layout/       navbar and footer
-│       │   ├── landing/      the marketing page
-│       │   ├── auth/         sign-in screens
-│       │   └── app/          the signed-in screens
-│       └── pages/            one file per address in the table above
-│   └── tests/                the money maths and the components, npm test
+│       │   ├── shared/          Card, Button, Notice, EmptyState, StatTile, PillGroup, form fields
+│       │   ├── layout/          app shell, top bars, loading and error pages
+│       │   ├── charts/          hand-drawn SVG charts
+│       │   ├── dashboard/  debts/  goals/  netWorth/  family/  plans/
+│       │   ├── stressTest/  spending/  checkIn/  recap/  settings/  onboarding/
+│       │   ├── landing/         the marketing page
+│       │   └── auth/            sign-in screens
+│       ├── hooks/               useAsyncData, useRecordEditor, useReveal, useTheme
+│       ├── lib/                 api.js, loadFinances.js, and re-exports of shared/
+│       └── styles/global.css    the colour values for the light and dark themes
+│   └── tests/                   npm test
 │
-├── shared/                   the money maths, used by BOTH sides
-│   ├── finances.js           the one function every number comes from
-│   ├── family.js             family totals and the family member checks
-│   ├── shocks.js             the stress test
-│   ├── categories.js         the transaction categories, agreed by both sides
-│   ├── plan.js               the recommendation model
-│   ├── debt.js               payoff dates, avalanche ordering, interest saved
-│   ├── goals.js              what each goal costs, and the emergency fund
-│   └── networth.js           assets against debts
+├── shared/                      the money maths, used by both sides
+│   ├── finances.js              the one function every plan figure comes from
+│   ├── plan.js  debt.js  goals.js  networth.js  scenarios.js
+│   ├── family.js  shocks.js  categories.js
 │
-├── docs/                     system design and the debugging guide
-├── .github/workflows/ci.yml  runs every test, lint and build on each push
-└── ai-integration/           notes on how the AI coach is wired up
+├── docs/                        SYSTEM_DESIGN.md and DEBUGGING.md
+├── .github/workflows/ci.yml     tests, lint and build on every push
+└── ai-integration/              how the AI coach is wired up
 ```
 
 ### Where the work happens
@@ -198,7 +164,7 @@ It is the wrong call for an average, a running total or a share, where the
 answer is one number and the rows are only the raw material. Fetching two years
 of check-ins so JavaScript can work out a mean means sending every column of
 every row across the network to throw nearly all of it away. Those live in
-`backend/src/lib/insights.js` as real SQL instead:
+`backend/src/reports/insights.js` as real SQL instead:
 
 | What | The SQL that does it |
 |---|---|
@@ -227,19 +193,25 @@ import in the app still reads `../lib/debt`.
 **Every number comes from one function.** `summariseFinances` in
 `shared/finances.js` builds the plan, the monthly costs, the safety net and the
 chosen scenario. The browser reaches it through `lib/loadFinances.js` and the
-server through `lib/snapshot.js`. Before this, five places built the plan and
+server through `services/financeService.js`. Before this, five places built the plan and
 they had drifted: the goals page could show a different monthly saving from the
 dashboard, and the safety net left out rent. Both are now regression tests.
 
-**`lib/` thinks, `routes/` talks.** The files in `backend/src/lib/` know nothing
-about HTTP: no `req`, no `res`, no status codes. They take values and return
-values, which is why they can be tested directly, without a server. The route
-files handle the web side and call into them.
+**Each backend layer has one job.** Routes handle HTTP, services hold the rules,
+repositories hold the SQL, and one error handler formats every failure. A
+service knows nothing about `req` or `res`, so it can be tested without a
+server, and a bug can usually be placed in one layer from its symptom. See
+`docs/SYSTEM_DESIGN.md` for the patterns and why each was chosen.
 
-**The four list routes are deliberately identical.** `debts.js`, `goals.js`,
-`assets.js` and `checkins.js` all follow the same shape — list, add, change,
-remove. Once you can read one, you can read all four, and the same pattern
-turns up in almost every app you will ever work on.
+**The four record APIs share one implementation.** Debts, goals, assets and
+family members are built from `ownedRecordRepository.js` and `recordRoutes.js`.
+The rule that a query only ever touches the signed-in user's rows is written
+once, so a new record type cannot forget it.
+
+**Every page loads data the same way.** `hooks/useAsyncData.js` handles loading,
+errors and answers that arrive after the page has moved on;
+`hooks/useRecordEditor.js` handles adding, editing and deleting. Pages only
+describe what to load and how to lay it out.
 
 **The plan subtracts before it splits.** `buildPlan` takes the household
 support, the EMI and the fixed living costs off the income first, and only then
@@ -254,7 +226,7 @@ one product.
 
 **The two form-check files are a pair, not a duplicate.** The frontend's
 `lib/validation.js` exists to be helpful, catching a missing `@` before anyone
-waits on the network. The backend's `lib/validate.js` exists to be true, because
+waits on the network. The backend's `validation/` exists to be true, because
 anybody can skip the form entirely and post straight at the API with `curl`.
 
 ---
@@ -273,7 +245,7 @@ time they open the page and an upload box with nothing to upload is a dead end.
 have one Amount column and a separate Dr/Cr marker, some have Withdrawal and
 Deposit as two columns, and the date is `05/01/2026` or `05-Jan-26` or
 `2026-01-05`. The header row is rarely the first line, because banks print the
-account number and a date range above it. So `lib/statement.js` hunts for the
+account number and a date range above it. So `services/statementParser.js` hunts for the
 header, works out which column is which from the words in it, and reads the rest
 against that.
 
@@ -312,13 +284,13 @@ anybody types.
 So there is a second thing on the dashboard that writes itself, and the way it
 is split in two is the whole design.
 
-`lib/signals.js` finds what is true. Each finding is a query with a number
+`reports/signals.js` finds what is true. Each finding is a query with a number
 attached: a category up or down against last month, a debt over 15%, one payment
 that was a quarter of everything that left the account, a check-in where almost
 nothing was kept. It either happened or it did not, and the same data gives the
 same findings every time, which is what makes it testable.
 
-`lib/briefing.js` turns those findings into sentences, and that is the only job
+`services/briefingService.js` turns those findings into sentences, and that is the only job
 the model has.
 
 A model asked to do both would decide what is true and how to say it at the same
@@ -410,7 +382,7 @@ These are the parts worth being able to explain out loud.
   never cleans up after people who do not come back. `db.js` clears them when
   the server starts.
 - **The AI key never leaves the server.** It lives in `backend/.env`, which git
-  ignores, and only the files in `backend/src/lib/ai/` read it. A key in frontend
+  ignores, and only the files in `backend/src/ai/providers/` read it. A key in frontend
   code is a key anybody can read in their browser and spend money with. Nothing
   in the browser even names which model is answering, because the server decides
   that from whichever key is set. The AI route is rate limited to 20 questions an
@@ -434,7 +406,7 @@ Two are supported and the app behaves the same with either. **Gemini has a free
 allowance, so it is the default**; Claude is there because it was first and
 because having two proves the seam is real.
 
-The interesting part is that the agent loop is written once. `lib/advice.js`
+The interesting part is that the agent loop is written once. `ai/advice.js`
 keeps the conversation in a shape neither provider uses:
 
 ```
@@ -443,7 +415,7 @@ keeps the conversation in a shape neither provider uses:
 { toolResults: [...] }  we ran it, here is the answer
 ```
 
-`lib/ai/gemini.js` and `lib/ai/claude.js` translate that to their own wire
+`ai/providers/gemini.js` and `ai/providers/claude.js` translate that to their own wire
 formats, which differ more than you would expect: Gemini calls the two sides
 "user" and "model" where Claude says "assistant", puts the system prompt in its
 own field, needs UPPERCASE type names in a tool schema, and rejects a tool whose

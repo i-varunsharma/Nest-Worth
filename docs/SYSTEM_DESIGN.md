@@ -42,43 +42,81 @@ This document describes how the system is built and why. For running it, see
 
 ```mermaid
 flowchart LR
-  subgraph Browser
-    Pages[React pages] --> Load[lib/loadFinances.js]
-    Load --> API_JS[lib/api.js]
-    Pages --> SharedB[shared/ maths]
-    Load --> SharedB
+  subgraph Browser[React app]
+    Pages[pages/] --> Features[components/feature/]
+    Pages --> Hooks[hooks/useAsyncData<br/>hooks/useRecordEditor]
+    Hooks --> Loaders[lib/loadFinances.js]
+    Loaders --> Client[lib/api.js]
+    Features --> SharedB[shared/ maths]
   end
 
   subgraph Server[Node API]
-    Routes[routes/] --> Lib[lib/]
-    Lib --> Snapshot[lib/snapshot.js]
-    Snapshot --> Rows[lib/rows.js]
-    Snapshot --> SharedS[shared/ maths]
-    Lib --> AI[lib/ai/]
+    MW[middleware/<br/>auth, rate limit, logging] --> Routes[routes/<br/>controllers]
+    Routes --> Services[services/]
+    Routes --> Repos[repositories/]
+    Services --> Repos
+    Services --> SharedS[shared/ maths]
+    Routes --> AI[ai/]
+    AI --> Services
+    Reports[reports/<br/>SQL aggregates]
+    Routes --> Reports
+    Errors[http/errorHandler]
   end
 
-  API_JS -- HTTPS + session cookie --> Routes
-  Rows --> DB[(SQLite file)]
-  Routes --> DB
-  AI -- API key stays here --> Model[Gemini or Claude]
+  Client -- HTTPS + session cookie --> MW
+  Repos --> DB[(SQLite)]
+  Reports --> DB
+  AI -- key stays on the server --> Model[Gemini or Claude]
 ```
 
-`shared/` appears on both sides because it is the same folder. The browser
-imports it for instant feedback (dragging a slider), and the server imports it
-for the AI coach and the API. There is one copy of the money maths.
+`shared/` is one folder imported by both sides. The browser uses it for instant
+feedback (dragging a slider), and the server uses it for the API and the AI
+coach, so there is one copy of the money maths.
 
-### Layers and what each one owns
+### Backend layers
+
+A request passes through each layer in turn, and each layer has one job.
 
 | Layer | Folder | Owns | Must not |
 |---|---|---|---|
-| Pages | `frontend/src/pages/` | Layout, local state, user input | Build a plan itself. Call `loadFinances` and read `finances`. |
-| Loader | `frontend/src/lib/loadFinances.js` | Fetching the four lists the plan needs | Hide a failed request behind an empty list |
-| API client | `frontend/src/lib/api.js` | URLs, cookies, the `{ ok, data, error }` shape | Contain business rules |
-| Money maths | `shared/` | Every calculation: plan, debts, goals, scenarios, stress test | Touch the database, the network or React |
-| Routes | `backend/src/routes/` | HTTP: read the request, check it, send a status | Do maths beyond calling `shared/` |
-| Services | `backend/src/lib/` | Sessions, validation, statements, AI loop, snapshots | Know about `req` or `res` |
-| Row mapping | `backend/src/lib/rows.js` | Turning snake_case rows into app objects | Exist anywhere else |
-| Schema | `backend/src/database/schema.sql` | Tables, keys, indexes | Be changed without a migration in `db.js` |
+| Config | `config.js` | Every environment variable, read in one place | Be bypassed with `process.env` elsewhere |
+| Middleware | `middleware/` | Request ids and logging, who is signed in, rate limits | Contain business rules |
+| Controllers | `routes/` | Reading the request, validating it, calling a service or repository, sending the response | Contain SQL or maths |
+| Validation | `validation/`, `http/validate.js` | Every rule a request body must meet | Touch the database |
+| Services | `services/` | Business rules: signing in, sessions, codes, imports, finances | Know about `req`, `res` or SQL |
+| Repositories | `repositories/` | All SQL for a table, and turning rows into app objects | Contain business rules |
+| Reports | `reports/` | Read-only SQL aggregates: averages, running totals, the year recap | Write anything |
+| AI | `ai/` | The prompt, the data snapshot, the agent loop, tools, providers | Do arithmetic or read the database directly |
+| Errors | `http/errors.js`, `http/errorHandler.js` | One error type and one response shape | Leak stack traces to the browser |
+| Schema | `database/` | Tables, keys, indexes, migrations | Change without a migration |
+
+### Frontend layers
+
+| Layer | Folder | Owns |
+|---|---|---|
+| Pages | `pages/` | Loading a page's data and arranging its sections |
+| Feature components | `components/<feature>/` | The sections of one page: dashboard, debts, family, plans and so on |
+| Shared UI | `components/shared/` | Card, Button, Notice, EmptyState, StatTile, PillGroup, RecordActions, form fields |
+| Layout | `components/layout/` | The app shell, top bars, loading and error pages |
+| Hooks | `hooks/` | Data loading and record editing state, reused by every page |
+| Client | `lib/api.js` | URLs, cookies and the `{ ok, data, error }` result shape |
+| Loaders | `lib/loadFinances.js` | Fetching everything the plan needs and building it once |
+
+### Design patterns used, and why
+
+| Pattern | Where | Why |
+|---|---|---|
+| Controller, service, repository | `routes/`, `services/`, `repositories/` | Each file has one reason to change, and a bug can be placed in one layer from its symptom. |
+| Generic repository | `repositories/ownedRecordRepository.js` | Debts, goals, assets and family share list, create, update and delete. The rule "only this user's rows" is written once, so a new table cannot forget it. |
+| Router factory | `routes/recordRoutes.js` | The four record APIs behave identically, and each route file is only its configuration. |
+| Central error handling | `http/errors.js` | Code throws an `AppError`; one handler turns it into `{ error, code, field }`. No route formats its own errors. |
+| Validation middleware | `http/validate.js` | Bodies are checked before a handler runs, so handlers can trust their input. |
+| Configuration object | `config.js` | Settings are named and documented in one file instead of scattered string lookups. |
+| Adapter | `ai/providers/` | Gemini and Claude each translate one neutral conversation shape, so the agent loop is written once. |
+| Transaction script | `database/db.js` `inTransaction` | Multi-step writes (sign-up, password reset) apply fully or not at all. |
+| Custom hooks | `hooks/useAsyncData.js`, `hooks/useRecordEditor.js` | Loading, stale-answer protection and add/edit/delete state are written once instead of in every page. |
+| Composition | `components/shared/` | Pages are assembled from small components, so a visual change is made in one place. |
+| Single source of truth | `shared/finances.js` | Every plan figure comes from one function, on both sides. |
 
 ---
 
@@ -101,8 +139,8 @@ every caller reaches it through one loader per side.
 ```mermaid
 flowchart TD
   subgraph Server
-    DBRows[(rows)] --> RowsJS[rows.js<br/>snake_case to camelCase]
-    RowsJS --> ReadSnapshot[snapshot.js<br/>readSnapshot / readFinances]
+    DBRows[(rows)] --> RowsJS[repositories/<br/>rows to app objects]
+    RowsJS --> ReadSnapshot[services/financeService.js<br/>readSnapshot / readFinances]
   end
 
   subgraph Browser
@@ -197,25 +235,41 @@ paise, and rounded to whole rupees before display.
 sequenceDiagram
   participant B as Browser
   participant L as requestLogger
-  participant S as attachUser
-  participant R as Route
-  participant D as SQLite
+  participant A as attachUser
+  participant V as validateBody
+  participant C as Controller
+  participant R as Repository
+  participant E as errorHandler
 
-  B->>L: GET /api/family (cookie)
+  B->>L: PUT /api/debts/7 (cookie, JSON)
   L->>L: assign request id, start timer
-  L->>S: next()
-  S->>D: SELECT session by token
-  S->>R: req.user = { id }
-  R->>D: SELECT ... WHERE user_id = ?
-  R-->>B: 200 JSON + X-Request-Id
+  L->>A: next()
+  A->>A: look up session, set req.user
+  A->>V: next()
+  alt body fails a rule
+    V->>E: throw AppError 400
+    E-->>B: { error, code, field }
+  else body is valid
+    V->>C: next()
+    C->>R: update(userId, 7, values)
+    alt row belongs to another user
+      R-->>C: null
+      C->>E: throw AppError 404
+      E-->>B: { error, code }
+    else row is theirs
+      R-->>C: updated debt
+      C-->>B: 200 { debt }
+    end
+  end
   L->>L: log method, path, status, ms, id
 ```
 
 - The user id always comes from the session, never from the URL or body.
 - Every response carries `X-Request-Id`. A 500 also returns it in the body, so
   a bug report can name the exact log line.
-- Errors thrown in a route reach one error handler in `app.js`, which logs the
-  real error and sends a plain message.
+- Every error is an `AppError` thrown from wherever it happens and formatted by
+  `http/errorHandler.js`. Anything else is a bug: it is logged with the request
+  id and the browser gets a plain message. Malformed JSON is a 400, not a 500.
 
 ---
 
@@ -264,9 +318,11 @@ page, so a user can see what the result depends on.
 |---|---|---|
 | Money maths | `backend/tests/finances.test.js`, `scenarios.test.js`, `frontend/tests/money.test.js` | Rules and conservation: money is never created or lost |
 | AI tools | `backend/tests/tools.test.js` | Tools agree with the app and never reach another user's data |
-| API | `backend/tests/api.test.js` | Routes, validation, ownership, cascade delete, over real HTTP |
+| API | `backend/tests/api.test.js` | Routes, validation, ownership, cascade delete, the error format, over real HTTP |
+| Repositories | `backend/tests/repository.test.js` | The ownership rule and row mapping of the shared repository |
 | Schema | `backend/tests/database.test.js` | Every user table cascades and is indexed |
-| Components | `frontend/tests/*.test.jsx` | Charts draw real numbers, forms send the right shape, pages render |
+| Hooks and UI | `frontend/tests/ui.test.jsx` | Data loading ignores stale answers; record editing adds, updates and keeps errors |
+| Components and pages | `frontend/tests/*.test.jsx` | Charts draw real numbers, forms send the right shape, pages render |
 | Layout | `npm run shots` in `frontend/` | Three screen sizes, both themes, overflow and clipped text |
 | CI | `.github/workflows/ci.yml` | All of the above on every push |
 
@@ -284,7 +340,7 @@ below are listed in the order they would be needed.
 | More than one server | Move rate limit counts from memory to Redis. Move SQLite to Postgres. |
 | Daily briefings get slow | Generate them in a background job instead of on first dashboard load. |
 | Real bank data | Replace CSV upload with India's Account Aggregator framework through a licensed partner. |
-| Real SMS and email | Replace `deliver()` in `lib/otp.js` and `lib/passwordReset.js`. |
+| Real SMS and email | Replace `deliver()` in `services/otpService.js` and `services/passwordResetService.js`. |
 
 ### For companies (planned)
 
