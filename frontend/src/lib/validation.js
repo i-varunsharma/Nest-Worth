@@ -1,26 +1,11 @@
 /*
-  Small checks that the login and signup forms need.
-
-  Each function returns an error message when something is wrong, or an empty
-  string when everything is fine. An empty string counts as "falsy" in
-  JavaScript, which means you can write:
-
-      if (error) { ... }
-
-  and it only runs when there really is a message.
-
-  Keeping these here, away from the pages, means the same rule is used in every
-  place that needs it, and you only have to fix a rule once.
+  Form checks the browser runs before sending anything. Each returns an error
+  message, or '' when the value is fine. The server runs its own checks; these
+  only save a round trip.
 */
 
 
-/*
-  Checks an email address.
-
-  We are deliberately not clever here. A full email check is famously hard to get
-  right, and being too strict rejects addresses that actually work. Making sure
-  there is one @ with something on either side catches nearly every typo.
-*/
+// One @ with something on each side. Stricter checks reject real addresses.
 export function checkEmail(email) {
   const trimmed = email.trim();
 
@@ -54,14 +39,8 @@ export function checkEmail(email) {
 }
 
 
-/*
-  Checks a password.
-
-  "isNew" is true on the signup page, where we ask for a decent password, and
-  false on the login page, where we only check that something was typed. Telling
-  someone signing in that their old password is too short would be useless, since
-  they cannot change it from that screen anyway.
-*/
+// isNew is true on signup, where a decent password is required. At login only
+// presence is checked, since an old password cannot be changed from that screen.
 export function checkPassword(password, isNew) {
   if (password === '') {
     return 'Please enter your password.';
@@ -75,10 +54,7 @@ export function checkPassword(password, isNew) {
 }
 
 
-/*
-  Checks a person's name. We only ask that they typed something real, because
-  names around the world take every shape imaginable.
-*/
+// Only that something real was typed: names take every shape.
 export function checkName(name) {
   if (name.trim() === '') {
     return 'Please enter your name.';
@@ -92,13 +68,7 @@ export function checkName(name) {
 }
 
 
-/*
-  Removes everything that is not a digit.
-
-  People type phone numbers in all sorts of ways: "98765 43210", "+91-9876543210",
-  "(98765) 43210". Stripping everything else first means we only have to write
-  one rule instead of one rule per style.
-*/
+// "+91-98765 43210" becomes digits only, so one rule covers every way of typing it.
 export function keepOnlyDigits(text) {
   let digits = '';
 
@@ -112,12 +82,7 @@ export function keepOnlyDigits(text) {
 }
 
 
-/*
-  Checks an Indian mobile number.
-
-  Indian mobile numbers are 10 digits long and always start with 6, 7, 8 or 9,
-  so those two rules catch almost every mistyped number.
-*/
+// Indian mobile numbers are 10 digits and start with 6, 7, 8 or 9.
 export function checkPhone(phone) {
   const digits = keepOnlyDigits(phone);
 
@@ -142,14 +107,7 @@ export function checkPhone(phone) {
 }
 
 
-/*
-  Checks the one-time code from the text message.
-
-  Six digits is what almost every provider sends. This only checks the shape of
-  what was typed. Whether the code is actually CORRECT is decided by the server,
-  never here, because anything running in the browser can be edited by the person
-  using it.
-*/
+// Only the shape of the code. Whether it is correct is decided by the server.
 export function checkOtp(code) {
   const digits = keepOnlyDigits(code);
 

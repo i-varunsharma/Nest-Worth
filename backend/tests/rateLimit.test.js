@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { rateLimit } from '../src/lib/rateLimit.js';
+import { rateLimit } from '../src/middleware/rateLimit.js';
 
 /*
   Tests for the limiter that stops somebody guessing passwords all night.
