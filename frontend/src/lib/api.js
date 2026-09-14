@@ -1,17 +1,9 @@
 /*
-  Every request to the backend goes through this file, so pages can say
-  api.login(email, password) without thinking about URLs, headers or cookies.
+  Every request to the backend goes through this file, so pages call
+  api.login(email, password) without dealing with URLs, headers or cookies.
 
-  Two details matter here and nowhere else:
-
-    credentials: 'include'
-      Sends our session cookie with the request. Without it the browser talks to
-      the API happily but leaves the cookie behind, so every request looks like
-      it came from a stranger. The server's CORS settings have to match it with
-      credentials: true.
-
-    Content-Type: application/json
-      Tells the server the body is JSON, so express.json() reads it.
+  credentials: 'include' sends the session cookie. Without it every request looks
+  like it came from a stranger. The server's CORS setting allows it.
 */
 
 // Where the backend lives. A different port from the React app in development,
@@ -20,35 +12,19 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
 
 /*
-  Sends one request and always returns the same shape:
+  Sends one request and always returns the same shape, so pages check result.ok
+  instead of wrapping every call in try and catch:
 
-    { ok: true,  data:  { ... } }
-    { ok: false, error: 'a sentence to show the person', field: 'email' }
+    { ok: true,  data }
+    { ok: false, error, field, code, status }
 
-  Returning a result rather than throwing means pages write a plain
-  if (result.ok) instead of wrapping every call in try / catch.
-
-  "field" is optional. When the server knows which input caused the problem, the
-  page can put the message under that box.
+  field names the form input the error belongs to, when the server knows it.
 */
 /*
-  What to do when a session ends in the middle of using the app.
-
-  RequireAuth checks who is signed in when a page loads, so a session that had
-  already ended never gets that far. The gap is one that ends WHILE the page is
-  open: a tab left overnight, or the API restarted underneath you. The next
-  thing you click comes back 401, and without this the page showed "Please sign
-  in first" as a dead end with no way to reach the login screen.
-
-  It reacts to the server's "no_session" code rather than to the 401 on its own,
-  and that distinction matters. A wrong password and a wrong one-time code are
-  also 401s, and sending somebody to the login screen because they mistyped a
-  code on the signup page would be worse than the problem being fixed.
-
-  It is a full page load rather than a router navigation on purpose. Whatever
-  state the page was holding belongs to a session that no longer exists.
-
-  The check for where we already are stops a loop.
+  A session that ends while a page is open (a tab left overnight) sends the next
+  request back with code 'no_session'. The browser goes to the login page for that
+  code only: a wrong password is also a 401 and must stay on its own page. A full
+  page load clears state that belonged to the old session.
 */
 function goToLoginAfterSessionEnded() {
   const alreadyThere = window.location.pathname === '/login';
@@ -59,58 +35,57 @@ function goToLoginAfterSessionEnded() {
 }
 
 
-/*
-  The main helper. isAuthCheck marks the one call that is ALLOWED to be told
-  there is no session without it meaning anything went wrong: me(), whose whole
-  job is asking whether anybody is signed in.
-*/
+// isAuthCheck is true only for me(), whose job is to ask whether anybody is
+// signed in, so a 401 there is an answer rather than an ended session.
 async function request(path, method, body, isAuthCheck) {
-  try {
-    const options = {
-      method: method,
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-    };
+  const options = {
+    method: method,
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+  };
 
-    // GET requests are not allowed to have a body.
-    if (body) {
-      options.body = JSON.stringify(body);
-    }
-
-    const response = await fetch(API_URL + path, options);
-    const data = await response.json();
-
-    // response.ok covers 200 to 299. Anything else is a refusal, and the
-    // server will have said why.
-    if (!response.ok) {
-      if (data.code === 'no_session' && isAuthCheck !== true) {
-        goToLoginAfterSessionEnded();
-      }
-
-      return {
-        ok: false,
-        error: data.error || 'Something went wrong. Please try again.',
-        field: data.field,
-        status: response.status,
-      };
-    }
-
-    return { ok: true, data: data };
-  } catch {
-    // Only reached when the request never arrived: the server is not running,
-    // the internet is off, or the address is wrong. That deserves a different
-    // message from a refusal.
-    return {
-      ok: false,
-      error: 'Cannot reach the server. Is the backend running on port 4000?',
-    };
+  // GET requests cannot have a body.
+  if (body) {
+    options.body = JSON.stringify(body);
   }
+
+  let response;
+
+  try {
+    response = await fetch(API_URL + path, options);
+  } catch {
+    // The request never arrived: the server is down, the network is off, or the
+    // address is wrong.
+    return { ok: false, error: 'Cannot reach the server. Is the backend running on port 4000?' };
+  }
+
+  let data = {};
+
+  try {
+    data = await response.json();
+  } catch {
+    // Not JSON, for example an HTML error page from a proxy. Not a network problem.
+    data = {};
+  }
+
+  if (response.ok === false) {
+    if (data.code === 'no_session' && isAuthCheck !== true) {
+      goToLoginAfterSessionEnded();
+    }
+
+    let error = 'Something went wrong. Please try again.';
+    if (data.error) {
+      error = data.error;
+    }
+
+    return { ok: false, error: error, field: data.field, code: data.code, status: response.status };
+  }
+
+  return { ok: true, data: data };
 }
 
 
-// ---------------------------------------------------------------
 // Accounts
-// ---------------------------------------------------------------
 
 export function signup(name, email, password) {
   return request('/api/auth/signup', 'POST', { name, email, password });
@@ -132,62 +107,35 @@ export function me() {
 }
 
 
-// ---------------------------------------------------------------
 // Forgotten passwords
-// ---------------------------------------------------------------
 
-/*
-  Step one: ask for a reset link.
-
-  This reports success even for an email with no account. If it answered
-  differently for an address it recognised, the form could be used to find out
-  who has an account here.
-*/
+// Step one: ask for a reset link. Answers the same whether or not the email has
+// an account, so it cannot be used to find out who has signed up.
 export function forgotPassword(email) {
   return request('/api/auth/forgot', 'POST', { email });
 }
 
-/*
-  Step two: send back the token from the link, with the new password.
-
-  A success also signs them in, since reading the account's email is the same
-  proof a password gives.
-*/
+// Step two: the token from the link and the new password. Success also signs in.
 export function resetPassword(token, password) {
   return request('/api/auth/reset', 'POST', { token, password });
 }
 
 
-/*
-  Changing the password from the settings page, while signed in.
-
-  currentPassword is ignored by the server for an account that has never had a
-  password, which is the case for anyone who only ever used Google or a phone
-  code. Those people are setting one for the first time.
-*/
+// Changes the password while signed in. currentPassword is ignored for an account
+// that never had one (Google or phone sign-in).
 export function changePassword(currentPassword, newPassword) {
   return request('/api/auth/password', 'POST', { currentPassword, newPassword });
 }
 
 
-/*
-  Closing the account for good.
-
-  The server needs the password when the account has one, and the word DELETE
-  typed out when it does not, because an account created with Google or a phone
-  code has no password to check against.
-
-  Everything goes with it: the household, debts, goals, assets and check-ins.
-  The database does that part itself through ON DELETE CASCADE.
-*/
+// Deletes the account and everything in it. Needs the password, or the word DELETE
+// for an account without one.
 export function deleteAccount(password, confirmText) {
   return request('/api/auth/account', 'DELETE', { password, confirmText });
 }
 
 
-// ---------------------------------------------------------------
 // Signing in with a phone number
-// ---------------------------------------------------------------
 
 export function sendOtp(phone) {
   return request('/api/auth/otp/send', 'POST', { phone });
@@ -198,9 +146,7 @@ export function verifyOtp(phone, code) {
 }
 
 
-// ---------------------------------------------------------------
 // Signing in with Google
-// ---------------------------------------------------------------
 
 // "credential" is the token Google's sign-in window gives us. It goes straight
 // to our server, which checks it with Google before believing any of it.
@@ -209,9 +155,7 @@ export function google(credential) {
 }
 
 
-// ---------------------------------------------------------------
 // The household
-// ---------------------------------------------------------------
 
 export function getHousehold() {
   return request('/api/household', 'GET');
@@ -232,17 +176,8 @@ export function saveName(name) {
 }
 
 
-// ---------------------------------------------------------------
-// Debts, goals, assets and check-ins
-//
-// All four follow the same shape, the usual pattern for a list of things
-// belonging to one person:
-//
-//     GET     read them all
-//     POST    add one
-//     PUT     change one, named by its id
-//     DELETE  remove one, named by its id
-// ---------------------------------------------------------------
+// Debts, goals, assets, family and check-ins: GET lists, POST adds, PUT changes
+// and DELETE removes one by id.
 
 export function getDebts() {
   return request('/api/debts', 'GET');
@@ -314,13 +249,7 @@ export function deleteFamilyMember(id) {
 }
 
 
-// ---------------------------------------------------------------
-// Transactions, read out of a bank statement
-// ---------------------------------------------------------------
-//
-// The import is the one request in this app that carries something big. The
-// server keeps a separate, larger body limit for that one route; everything
-// else here is a short read.
+// Transactions from bank statements
 
 export function importStatement(csv) {
   return request('/api/transactions/import', 'POST', { csv: csv });
@@ -331,9 +260,7 @@ export function getTransactionMonths() {
   return request('/api/transactions/months', 'GET');
 }
 
-// One month, already added up by category on the server. The page never sees
-// the individual rows for this, because it has no use for four hundred of them
-// when the question is "how much on food".
+// One month added up by category on the server.
 export function getSpendingSummary(month) {
   return request('/api/transactions/summary?month=' + month, 'GET');
 }
@@ -353,22 +280,14 @@ export function deleteTransactionMonth(month) {
 }
 
 
-// ---------------------------------------------------------------
-// The note the dashboard writes without being asked
-// ---------------------------------------------------------------
-//
-// There is no "make me one" here on purpose. It is written the first time the
-// dashboard is opened on a given day and read from the database for the rest of
-// it, so asking for it is the same request as reading it.
+// The daily dashboard note. Reading it writes it on the first visit of the day.
 
 export function getBriefing() {
   return request('/api/briefing', 'GET');
 }
 
 
-// ---------------------------------------------------------------
-// The year, looked back on
-// ---------------------------------------------------------------
+// The year in review
 
 export function getRecapYears() {
   return request('/api/recap/years', 'GET');
@@ -379,43 +298,21 @@ export function getRecap(year) {
 }
 
 
-// ---------------------------------------------------------------
-// Insights
-// ---------------------------------------------------------------
+// Reports and plans
 
-/*
-  The reporting endpoint.
-
-  Everything it returns is worked out by the database rather than here:
-  averages, running totals, the best and worst month, and what is owed and
-  owned grouped by kind. This page used to add those up itself after fetching
-  every row, which meant sending two years of check-ins across the network so
-  that JavaScript could throw nearly all of it away.
-*/
+// Averages, running totals and groupings, worked out in SQL on the server.
 export function getInsights() {
   return request('/api/insights', 'GET');
 }
 
 
-/*
-  The different ways this person could use the same money, each played out
-  fifteen years by the simulation in shared/scenarios.js.
-
-  Every figure comes from the server. The browser only draws it, which is why
-  the charts and the AI coach can never disagree about where a choice lands.
-*/
+// Every plan played out fifteen years, by shared/scenarios.js on the server.
 export function getScenarios() {
   return request('/api/scenarios', 'GET');
 }
 
 
-/*
-  Chooses which plan to follow, or clears it by passing null.
-
-  The dashboard reads it back and shows that plan's split instead of the
-  default one, which is the point of the whole plans page: picking one has to
-  change something.
-*/
+// Follows a plan from /plans, or goes back to the recommended one with null.
 export function choosePlan(plan) {
   return request('/api/household/plan', 'PUT', { plan: plan });
 }
@@ -431,30 +328,20 @@ export function saveCheckin(checkin) {
 }
 
 
-// ---------------------------------------------------------------
 // The AI coach
-// ---------------------------------------------------------------
 
 /*
-  Asks the AI about the signed-in person's own money, and reads the answer as
-  it is written rather than waiting for the whole thing.
+  Asks the coach a question and reads the answer as it streams.
 
-  This is the only call in this file that does not use request() above, because
-  it is the only one that does not get a single JSON object back. The server
-  holds the connection open and sends pieces along it, so this has to read them
-  as they land.
+  The only call here that does not use request(), because the server keeps the
+  connection open and sends Server-Sent Events rather than one JSON object.
 
-    question  what to ask. Empty means "what should I do next".
-    history   earlier turns, as [{ role, text }]. The browser keeps the
-              conversation; the server keeps nothing between questions.
-    onEvent   called for each piece:
-                { type: 'text',  text }   more of the answer
-                { type: 'tool',  label }  a calculation started running
-                { type: 'error', error }  something went wrong
-                { type: 'done' }          finished
+    question  empty means "what should I do this month"
+    history   earlier turns as [{ role, text }]; the server stores no conversation
+    onEvent   called with { type: 'text', text }, { type: 'tool', label },
+              { type: 'error', error } or { type: 'done' }
 
-  Nothing about the money is sent. The server reads that out of the database
-  itself, which is both safer and less to send.
+  No money figures are sent: the server reads them from the database.
 */
 export async function askCoach(question, history, onEvent) {
   let response;
@@ -471,10 +358,7 @@ export async function askCoach(question, history, onEvent) {
     return;
   }
 
-  /*
-    A refusal arrives as ordinary JSON with a 4xx status, before any streaming
-    starts. Only once the status is 200 is the body a stream.
-  */
+  // A refusal is ordinary JSON with an error status, sent before any streaming.
   if (!response.ok) {
     let message = 'Something went wrong. Please try again.';
 
@@ -498,16 +382,8 @@ export async function askCoach(question, history, onEvent) {
     return;
   }
 
-  /*
-    Reading the stream.
-
-    getReader hands back the connection a chunk at a time. A chunk is whatever
-    happened to arrive together, which has nothing to do with where our events
-    start and end: one chunk can hold three events, or half of one.
-
-    So chunks are added to a buffer, and complete events are taken out of it.
-    Each event ends with a blank line, which is what the split below looks for.
-  */
+  // Chunks arrive in arbitrary pieces, so they are added to a buffer and complete
+  // events, each ending in a blank line, are taken out of it.
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
 
