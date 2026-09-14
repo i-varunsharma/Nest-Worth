@@ -3,26 +3,12 @@ import { chooseProvider } from '../ai/providers/index.js';
 import { findSignals, latestImportedMonth } from '../reports/signals.js';
 
 /*
-  The note on the dashboard that nobody asked for.
+  The daily note on the dashboard.
 
-  The coach card answers questions. This does the other half: it looks at the
-  account on its own and says the two or three things somebody would want to be
-  told. That is the difference between a tool you have to interrogate and one
-  that tells you when something moved.
-
-  The work is split in two, and the split is the whole design.
-
-    lib/signals.js finds what is true. Every finding is a query with a number
-    attached, so it either happened or it did not, and the same data gives the
-    same findings every time.
-
-    this file turns those findings into sentences. That is the only job the
-    model has, and it is the one it is actually good at.
-
-  A model asked to do both would decide what is true and how to say it at the
-  same time, so a misread and a well-written sentence would arrive together and
-  look identical. It would also say something different on every run against
-  the same account, which cannot be tested.
+  The work is split in two. reports/signals.js finds what is true, as queries with
+  numbers attached, so the same data always gives the same findings and they can be
+  tested. This file only turns those findings into sentences, which is the one job
+  given to the model.
 */
 
 // Three is what fits on a card and what somebody will actually read. A list of
@@ -51,14 +37,9 @@ const SYSTEM_PROMPT = [
 
 
 /*
-  Turns findings into sentences.
-
-  Falls back to the findings themselves when there is no model configured or the
-  call fails. That fallback is not a stopgap: the facts are already written as
-  plain sentences in signals.js precisely so that the app has something true to
-  show when the AI is unavailable. An empty card would be worse, and a card that
-  says "the AI is down" is worse still, because it makes the model sound like
-  the point when it is only the wording.
+  Findings into sentences. Falls back to the findings as written when no model is
+  configured or the call fails: signals.js writes each one as a full sentence for
+  exactly this case.
 */
 export async function writeBriefing(signals) {
   const chosen = signals.slice(0, MOST_SIGNALS_TO_USE);
@@ -109,13 +90,7 @@ export async function writeBriefing(signals) {
 }
 
 
-/*
-  The findings as they are, joined up.
-
-  They need no rewriting because signals.js already writes each one as a whole
-  sentence with its amounts formatted. That is deliberate: the version somebody
-  sees when no model is configured should not be the rough draft.
-*/
+// The findings joined up, used when no model writes the note.
 function plainVersion(signals) {
   return signals.map((signal) => {
     return signal.fact;
@@ -124,10 +99,10 @@ function plainVersion(signals) {
 
 
 /*
-  Today's note for one person, written if it does not exist yet.
+  Today's note for one person, written on the first request of the day.
 
-  Stored once a day rather than written on every page load: writing costs a call
-  to a model, and wording that changed on every refresh would read as noise.
+  Stored once a day: writing costs a model call, and wording that changed on every
+  refresh would read as noise.
 */
 export async function briefingForToday(userId) {
   const today = new Date().toISOString().slice(0, 10);

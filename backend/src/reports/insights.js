@@ -1,22 +1,11 @@
 import db from '../database/db.js';
 
 /*
-  The reporting queries.
+  Reporting queries for GET /api/insights.
 
-  Everywhere else in this project the server fetches rows and JavaScript adds
-  them up. That is fine when you need every row anyway, which is what the debts
-  page and the goals page do. It stops being fine here, because none of these
-  answers need the rows at all: they need a total, a share, or a running sum.
-
-  Fetching two years of check-ins to work out an average means sending every
-  column of every row across a connection so that JavaScript can throw almost
-  all of it away. The database can do that work where the data already is, in
-  one pass, using an index. That is what it is for.
-
-  Every query below is written out in full rather than built by joining strings
-  together. Building SQL from strings is how injection happens, and it also
-  makes a query impossible to copy into a shell and run when it misbehaves.
-  Every value that varies is a ? parameter.
+  These answers are one number each (an average, a running total, a share), so they
+  are worked out in SQL where the data is, instead of sending every row to
+  JavaScript. Every varying value is a ? parameter.
 */
 
 
@@ -25,28 +14,14 @@ const MONTHS_OF_HISTORY = 24;
 
 
 /*
-  Month by month, with each month compared to the one before it.
+  Month by month, each compared with the one before.
 
-  Three SQL ideas are doing the work here, and each replaces a loop that used
-  to live in JavaScript.
+    NULLIF(income, 0)            avoids dividing by zero (dividing by NULL gives NULL)
+    SUM(...) OVER (ORDER BY ...)  a window function: the running total on each row
+    LAG(...) OVER (ORDER BY ...)  the previous month's value on the same row
 
-  ROUND(...) computes the share of income kept in the query rather than after
-  it. NULLIF(income, 0) turns a zero income into NULL, and dividing by NULL
-  gives NULL rather than an error, which is how SQL avoids dividing by zero.
-
-  SUM(...) OVER (ORDER BY month) is a window function. An ordinary SUM collapses
-  every row into one; a window function keeps the rows and adds a column, so
-  each month can carry the running total of everything kept up to and including
-  it. Doing that in JavaScript means a loop and a variable that is added to as
-  it goes.
-
-  LAG(...) OVER (ORDER BY month) reaches back to the previous row. It is what
-  makes "you kept ₹4,000 more than last month" possible without loading last
-  month separately.
-
-  The subquery runs first and picks the most recent months, newest first. The
-  outer query then puts them back in date order, because a running total has to
-  be built oldest to newest or it means nothing.
+  The inner query picks the newest months; the outer one orders them oldest first,
+  which a running total needs.
 */
 export function monthlyTrend(userId) {
   const rows = db.prepare(`
@@ -70,12 +45,7 @@ export function monthlyTrend(userId) {
   `).all(userId, MONTHS_OF_HISTORY);
 
   return rows.map((row) => {
-    /*
-      kept_last_month is NULL on the very first month, because there is nothing
-      before it to compare against. SQL NULL arrives in JavaScript as null, and
-      null minus a number is not what anybody wants on a page, so the change is
-      left as null and the caller decides what to show.
-    */
+    // The first month has no previous month, so its change stays null.
     let changeFromLastMonth = null;
 
     if (row.kept_last_month !== null) {
@@ -97,16 +67,8 @@ export function monthlyTrend(userId) {
 }
 
 
-/*
-  One row summarising every month on record.
-
-  COUNT, SUM, AVG, MIN and MAX in a single pass. The alternative is fetching
-  every row and walking it five times, or once with five accumulators.
-
-  A person with no check-ins still gets a row back, because these functions
-  always return something: COUNT gives 0 and the rest give NULL. COALESCE turns
-  those NULLs into zeros so the caller never has to check.
-*/
+// One summary row: COUNT, SUM, AVG, MIN and MAX in one pass. COALESCE turns the
+// NULLs these return for no rows into zeros.
 export function overallSummary(userId) {
   const row = db.prepare(`
     SELECT
@@ -138,21 +100,10 @@ export function overallSummary(userId) {
 
 
 /*
-  The best and worst months, in one query.
-
-  A CTE, written WITH ... AS (...), names a temporary result so the rest of the
-  query can use it twice without repeating it. Here it works out the kept share
-  once, and then two small selects pick the highest and the lowest from it.
-
-  Each of those two is wrapped in its own brackets before the UNION ALL. SQLite
-  refuses ORDER BY on the arms of a union directly, because it cannot tell
-  whether the ordering is meant for that arm or for the combined result. The
-  brackets make it one finished result being unioned to another, which is what
-  is actually meant.
-
-  Months with no income are dropped, because a share of zero income is not a
-  bad month, it is a missing one, and letting it win "worst month" would be a
-  lie told with correct arithmetic.
+  The best and worst month in one query. The WITH clause works out each month's
+  kept share once, and two selects take the top and bottom. Each is bracketed
+  because SQLite does not allow ORDER BY directly on the arms of a UNION. Months
+  with no income are left out: they are missing data, not bad months.
 */
 export function bestAndWorstMonth(userId) {
   const rows = db.prepare(`
@@ -194,17 +145,8 @@ export function bestAndWorstMonth(userId) {
 }
 
 
-/*
-  What is owed, grouped by kind of debt, with each kind's share of the total.
-
-  GROUP BY is the whole point: one row per kind, however many debts there are.
-  The share is worked out against a scalar subquery, which is a query in
-  brackets that returns a single value, so every row can be divided by the same
-  total without fetching it separately.
-
-  ORDER BY total DESC puts the biggest first, which is the order somebody needs
-  to act in.
-*/
+// Debts grouped by kind, each with its share of the total. The total comes from a
+// scalar subquery, so every row divides by the same value.
 export function debtsByKind(userId) {
   const rows = db.prepare(`
     SELECT
@@ -266,17 +208,8 @@ export function assetsByKind(userId) {
 }
 
 
-/*
-  Everything at once, for GET /api/insights.
-
-  Five queries rather than one enormous one. They could be forced together with
-  joins, and the result would be slower to run and far harder to read: joining
-  check-ins to debts to assets multiplies the rows before grouping them back
-  down, which is a classic way to produce totals that are quietly too big.
-
-  Five small indexed queries against one local SQLite file is a few
-  milliseconds. Clarity is worth more than that here.
-*/
+// Everything for GET /api/insights. Five small indexed queries rather than one
+// join, which would multiply rows before grouping and risk inflated totals.
 export function buildInsights(userId) {
   const extremes = bestAndWorstMonth(userId);
 

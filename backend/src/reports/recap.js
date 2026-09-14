@@ -1,28 +1,11 @@
 import db from '../database/db.js';
 import { merchantName } from '../services/statementParser.js';
 
-/*
-  A year, added up.
+// A year, added up, for the recap page. Each figure is one SQL pass over the
+// year's transactions rather than thousands of rows sent to JavaScript.
 
-  Every other screen in this app is about the next decision. This one is about
-  what already happened, and it exists for a different reason: a plan is easy to
-  abandon in month three, and the thing that makes somebody carry on is seeing
-  that the last eleven months were not nothing.
-
-  All of it is one pass per question in SQL. The recap covers a whole year, so
-  fetching the rows to add them up in JavaScript would mean sending a few
-  thousand transactions across the network to produce eight numbers.
-*/
-
-/*
-  What a year is here.
-
-  The calendar year, not the Indian financial year, which runs April to March.
-  Somebody looking back over "this year" in December means January to December,
-  and a recap that quietly starts in April would be wrong in a way that is very
-  hard to notice. The financial year is the right unit for tax and the wrong one
-  for a story about your own money.
-*/
+// The calendar year, January to December, which is what people mean by "this
+// year". The April to March financial year is for tax, not for looking back.
 function yearRange(year) {
   return {
     like: String(year) + '%',
@@ -57,15 +40,9 @@ export function monthsCovered(userId, year) {
 
 
 /*
-  The totals for the year, out of the imported statements.
-
-  Written as one query with three conditional sums rather than three queries.
-  SUM(CASE WHEN ... THEN amount ELSE 0 END) adds up only the rows that match,
-  which is how several different totals come out of one pass over the table.
-  Three separate queries would read the same rows three times.
-
-  The category list is what decides which is which, and it has to match
-  shared/categories.js. Investing is money moved, not money spent.
+  The year's totals in one query. SUM(CASE WHEN ... THEN amount ELSE 0 END) adds
+  only matching rows, so several totals come from one pass. The category lists must
+  match shared/categories.js: investing is money moved, not spent.
 */
 export function yearTotals(userId, year) {
   const range = yearRange(year);
@@ -115,13 +92,8 @@ export function yearCategories(userId, year) {
 }
 
 
-/*
-  The month the most was spent in, and the month the least was.
-
-  A WITH clause names the per-month totals once and then uses that name twice,
-  which is how both ends come out of one query instead of two nearly identical
-  ones. ORDER BY ... LIMIT 1 in each direction picks the ends off it.
-*/
+// The heaviest and lightest spending months. The WITH clause names the monthly
+// totals once and ORDER BY ... LIMIT 1 takes each end.
 export function heaviestAndLightestMonth(userId, year) {
   const range = yearRange(year);
 
@@ -153,26 +125,15 @@ export function heaviestAndLightestMonth(userId, year) {
     }
   }
 
-  /*
-    One month of data makes both ends the same month, which is true and reads
-    as nonsense on a page. The caller drops the second one.
-  */
+  // With one month of data both ends are that month. The caller drops the second.
   return { heaviest: heaviest, lightest: lightest };
 }
 
 
 /*
-  The thing paid for most often.
-
-  Counted by how many times, not by how much, because those answer different
-  questions. The largest amount is rent every single year and surprises nobody;
-  forty small orders is a number most people have never seen written down.
-
-  Rent and loan repayments are left out for that same reason. They are one fixed
-  payment a month by definition, so "you paid rent twelve times" is arithmetic
-  about the calendar rather than anything about the person. Everything else
-  stays in, including subscriptions, because a subscription somebody has
-  forgotten they have is exactly the sort of thing worth putting on this page.
+  The thing paid for most often, by count rather than amount: the largest amount
+  is always rent, but forty small orders is news. Rent and loan repayments are left
+  out because they are monthly by definition.
 */
 export function mostFrequentPayment(userId, year) {
   const range = yearRange(year);
@@ -186,9 +147,8 @@ export function mostFrequentPayment(userId, year) {
       AND category NOT IN ('investment', 'transfer', 'income', 'rent', 'emi')
   `).all(userId, range.like);
 
-  // Grouped in JavaScript rather than in SQL, because the grouping key is not a
-  // column: it is a cleaned-up piece of the description, and SQLite has no
-  // function that would tidy a bank narration.
+  // Grouped in JavaScript, because the key is a cleaned-up merchant name that SQL
+  // cannot produce.
   const counts = new Map();
 
   for (const row of rows) {
@@ -218,13 +178,8 @@ export function mostFrequentPayment(userId, year) {
       continue;
     }
 
-    /*
-      A tie broken by the larger total, rather than by whichever happened to be
-      read first. Ties are common here: several monthly subscriptions all come
-      to twelve. Leaving it to the order the rows arrived in means the answer
-      changes when an unrelated row is added, which is the kind of thing that
-      makes somebody stop believing the page.
-    */
+    // Ties go to the larger total, so the answer does not change when an unrelated
+    // row is added.
     if (entry.times === best.times && entry.total > best.total) {
       best = entry;
     }
@@ -246,9 +201,7 @@ export function buildRecap(userId, year) {
 
   let lightest = ends.lightest;
 
-  // Both ends are the same month when there is only one month. Saying "the
-  // heaviest month was August and the lightest was also August" is true and
-  // reads as a mistake.
+  // Only one month of data: the heaviest and lightest are the same month.
   if (ends.heaviest && lightest && ends.heaviest.month === lightest.month) {
     lightest = null;
   }

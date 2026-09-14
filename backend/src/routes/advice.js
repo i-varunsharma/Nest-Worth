@@ -2,7 +2,8 @@ import express from 'express';
 import { requireUser } from '../middleware/auth.js';
 import { rateLimit } from '../middleware/rateLimit.js';
 import { badRequest } from '../http/errors.js';
-import { MAX_HISTORY_TURNS, askCoach, checkQuestion, readFacts } from '../ai/advice.js';
+import { MAX_HISTORY_TURNS, askCoach, checkQuestion } from '../ai/advice.js';
+import { readFacts } from '../ai/facts.js';
 
 /*
     POST /api/advice   ask the AI coach about my own money
