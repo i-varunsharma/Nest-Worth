@@ -1,31 +1,17 @@
 import { formatDuration } from '../../lib/debt';
 
 /*
-  How much sooner each plan clears the debt.
-
-  One row per plan, and on each row two dots joined by a bar: where the current
-  plan finishes, and where this one does. That shape is a dumbbell, and it is
-  the right form for before-and-after per item, because the thing worth seeing
-  is the distance between the two rather than either number on its own.
-
-  Two shades of one hue, not two hues. These are the same measurement at two
-  moments, not two different things, and giving them separate colours would
-  suggest they were unrelated.
-
-  A plan that changes nothing gets a single dot, because a dumbbell with both
-  ends in the same place is a bar of zero length pretending to be information.
+  How much sooner each plan clears the debt: one row per plan with two dots, the
+  current plan's finish and this plan's, joined by a bar. Two shades of one hue,
+  because both dots are the same measurement. A plan that changes nothing gets one dot.
 
   Props:
-    scenarios - the list from the API
-    activeKey - which plan is being read, drawn darker than the rest
+    scenarios  from the API
+    activeKey  the plan being read, drawn darker
 */
 
-/*
-  SVG and inline styles cannot take a Tailwind class, so colours have to be
-  written out here. They point at the same CSS variables the Tailwind classes
-  use, which is what keeps a chart in step with the rest of the page and lets it
-  follow the dark theme without this file knowing there is one.
-*/
+// SVG attributes cannot use Tailwind classes, so colours point at the same CSS
+// variables the theme uses, which also makes the dark theme work here.
 const COLOURS = {
   before: 'var(--chart-muted)',        // where you finish as things stand
   after: 'var(--chart-invest)',        // where this plan finishes
@@ -34,12 +20,7 @@ const COLOURS = {
 };
 
 export default function DebtDumbbell({ scenarios, activeKey }) {
-  /*
-    The plan as it stands is the thing everything else is measured against.
-
-    Without a baseline the rows are four unrelated numbers. With one, every row
-    answers the same question: what does choosing this cost or save you?
-  */
+  // Every row is measured against the plan as it stands.
   let baselineMonths = null;
 
   scenarios.forEach((scenario) => {
@@ -148,13 +129,8 @@ export default function DebtDumbbell({ scenarios, activeKey }) {
               />
             </div>
 
-            {/*
-              The caption belongs to the bar above it, and has to look like it
-              does. On screen the gap below a row now has to be clearly larger
-              than the gap above this line, or it reads as a heading for the
-              NEXT plan instead. That is the whole reason the rows are spaced
-              7 apart and this sits at 1.
-            */}
+            {/* The caption sits close under its own bar, with a larger gap before the next row,
+                so it does not read as the next plan's heading. */}
             {monthsSaved > 0 ? (
               <p className="mt-1 text-2xs font-medium text-accent">
                 {formatDuration(monthsSaved)} sooner than your plan as it stands

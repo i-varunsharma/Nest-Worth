@@ -52,6 +52,11 @@ const PAGES = [
   { path: '/dashboard', waitFor: 'Your coach' },
   { path: '/family', waitFor: 'Share of income' },
   { path: '/stress-test', waitFor: 'What would help' },
+  { path: '/debts', waitFor: 'Clear this first' },
+  { path: '/goals', waitFor: 'Every month' },
+  { path: '/net-worth', waitFor: 'Where you stand today' },
+  { path: '/check-in', waitFor: 'What has happened' },
+  { path: '/settings', waitFor: 'Your household' },
   { path: '/spending', waitFor: 'Where it went' },
   { path: '/recap', waitFor: 'Came in' },
 ];
@@ -164,6 +169,14 @@ async function seed() {
 
     await call('/api/assets', 'POST', {
       name: 'HDFC Savings', kind: 'cash', value: 95000,
+    }, cookie);
+
+    await call('/api/goals', 'POST', {
+      name: 'Riya wedding', targetAmount: 500000, savedAmount: 60000, targetDate: '2028-02-01',
+    }, cookie);
+
+    await call('/api/checkins', 'POST', {
+      month: '2026-08', income: 85000, spent: 62000, saved: 14000, invested: 6000, note: 'Papa hospital visit',
     }, cookie);
   }
 
