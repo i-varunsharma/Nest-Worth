@@ -1,26 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 
 /*
-  "Continue with Google", for real.
+  "Continue with Google".
 
-  How it works:
+    1. index.html loads Google's script, which adds window.google.
+    2. It is given the client id and a callback, and draws its own button.
+    3. After sign-in, Google calls the callback with a token.
+    4. The token goes to our server, which asks Google whether it is genuine.
 
-    1. index.html loads Google's script, which puts a "google" object on window.
-    2. We give it our client id and a function to call when somebody signs in.
-    3. It draws its own button. When pressed, Google opens its window, the
-       person picks an account, and Google calls our function with a token.
-    4. We send that token to our server, which asks Google whether it is genuine.
-
-  Step 4 is the one that matters. The token is text arriving from a browser and
-  anybody can send made-up text, so only Google can say whether it is really
-  theirs.
-
-  We use Google's own button because this flow only hands out a token through a
-  button they draw. Faking a click on a hidden one breaks their terms and stops
-  working without warning.
+  Google's own button is required: this flow only issues a token through it.
 
   Props:
-    onCredential - called with the token string once Google returns one
+    onCredential  called with the token
 */
 
 // Read at build time from frontend/.env.local. Vite replaces this with the
@@ -33,12 +24,8 @@ const MAX_TRIES = 40;
 export default function GoogleButton({ onCredential }) {
   const containerRef = useRef(null);
 
-  /*
-    'loading' while we wait for Google's script, then 'ready' or 'unavailable'.
-
-    With no client id there is nothing to wait for, so it starts as unavailable
-    rather than showing a spinner that will never finish.
-  */
+  // 'loading' while Google's script arrives, then 'ready' or 'unavailable'. With no
+  // client id it starts unavailable, rather than waiting forever.
   const [status, setStatus] = useState(() => {
     if (CLIENT_ID) {
       return 'loading';
@@ -46,13 +33,8 @@ export default function GoogleButton({ onCredential }) {
     return 'unavailable';
   });
 
-  /*
-    Keeps the newest onCredential in a box.
-
-    The effect below runs once, but the function it was given can be replaced on
-    any later render. Reading it from a ref means Google always calls the
-    current one without rebuilding the button on every render.
-  */
+  // The newest onCredential, in a ref, so Google always calls the current one without
+  // the button being rebuilt.
   const callbackRef = useRef(onCredential);
 
   // Updating the box happens in an effect, not while rendering. React may run
@@ -72,12 +54,7 @@ export default function GoogleButton({ onCredential }) {
     let cancelled = false;
     let tries = 0;
 
-    /*
-      Google's script is loaded with "async", so it may not have arrived when
-      this component first appears. We check every tenth of a second and give
-      up after four seconds. We do not control when an outside script finishes
-      loading, so there is no better signal to wait on.
-    */
+    // Google's script loads asynchronously. Check every 100ms and give up after four seconds.
     const setUpButton = () => {
       if (cancelled === true) {
         return;

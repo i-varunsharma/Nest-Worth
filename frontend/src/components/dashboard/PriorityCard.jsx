@@ -1,12 +1,9 @@
 /*
-  The one sentence explaining why the plan looks the way it does.
-
-  This is the whole promise of the product in a single box: never show a number
-  without the reasoning behind it. buildPlan already worked out both the text and
-  which of the three tones it should wear, so this file only has to dress it.
+  The sentence explaining why the plan looks the way it does. buildPlan chooses the
+  text and the tone; this only styles it.
 
   Props:
-    reasoning - the { tone, label, text } object from the plan
+    reasoning  { tone, label, text }
 */
 
 // Each tone gets a border and a background. The keys match the "tone" that

@@ -2,18 +2,8 @@ import Container from '../shared/Container';
 import Eyebrow from '../shared/Eyebrow';
 import Reveal from '../shared/Reveal';
 
-/*
-  Four cards of different widths, each explaining one decision we made
-  differently. Two wide cards and two narrow ones, so the block does not look
-  like a spreadsheet.
-
-  Every card shares the same look, kept in cardClasses so that changing the
-  hover effect once changes it in all four places.
-
-  "flex flex-col" plus "mt-auto" on the little picture inside each card pushes
-  that picture to the bottom, which keeps the cards looking even when one has
-  more text than another.
-*/
+// Four cards of mixed widths, each showing one thing the product does differently.
+// mt-auto on each card's picture keeps the pictures aligned at the bottom.
 const cardClasses =
   'group relative flex h-full flex-col overflow-hidden rounded-[22px] border border-line '
   + 'bg-surface p-7 transition-all duration-500 ease-smooth '

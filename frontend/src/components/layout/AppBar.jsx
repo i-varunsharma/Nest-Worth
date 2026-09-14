@@ -5,16 +5,9 @@ import ThemeToggle from '../shared/ThemeToggle';
 import * as api from '../../lib/api';
 
 /*
-  The bar across the top of every signed-in page.
-
-  It is deliberately NOT the same component as the marketing Navbar. That one
-  sells the product, with links that jump down the landing page. This one is for
-  somebody already using the product, so it holds the sections of the app.
-
-  NavLink instead of Link is the whole trick here. It works exactly like a link,
-  but it also knows whether its address is the one currently open, and hands
-  that to us as isActive. That is how the current section stays underlined
-  without any page having to say which one it is.
+  The top bar on signed-in pages, separate from the landing page Navbar. NavLink
+  knows whether its address is the current page, which is how the active section
+  is highlighted.
 */
 
 const sections = [
@@ -49,12 +42,7 @@ export default function AppBar({ name }) {
     navigate('/');
   };
 
-  /*
-    Works out the classes for one navigation link.
-
-    NavLink calls this with { isActive }, so we get told which link is the
-    current page rather than having to work it out.
-  */
+  // Classes for one link. NavLink passes { isActive }.
   const linkClasses = ({ isActive }) => {
     const base = 'text-[14px] font-medium transition-colors duration-300 ';
 

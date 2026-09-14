@@ -1,37 +1,17 @@
 import { formatRupees } from '../../lib/plan';
 
 /*
-  Where every rupee of one month's income goes, as one horizontal bar.
+  Where one month's income goes, as a stacked horizontal bar:
 
-  The job here is part-to-whole, which is what a stacked bar is for. It is
-  horizontal rather than vertical because the category names are words rather
-  than dates, and words fit beside a horizontal bar without being turned on
-  their side.
+    committed  rent, family support and EMIs, gone before any choice (grey)
+    spend, save, invest  the choices, each with its own colour
 
-  Four pieces, in the order the money actually leaves:
-
-    committed   rent, the people you support, the EMIs. Gone before any choice.
-    spend       what you choose to spend
-    save        what you hold as cash
-    invest      what you put to work
-
-  Committed is grey on purpose. The other three are decisions and get a colour;
-  this one is not a decision, and giving it a hue would make it compete with the
-  parts somebody can actually do something about.
-
-  Two details that are not decoration:
-
-  The 2px gaps between the segments are the page colour showing through, not
-  borders. A border adds ink that is not data, and at this thickness two hues
-  meeting directly read as one muddy band.
-
-  The value is only written inside a segment when it genuinely fits. Text that
-  is clipped in the middle of a number is worse than no text, and every figure
-  is in the legend underneath anyway.
+  Segments are separated by 2px gaps rather than borders. A value is written inside
+  a segment only when it fits; every figure is also in the legend.
 
   Props:
-    allocation - { committed, spend, save, invest, extraToDebt }
-    income     - the month's income, so the widths are shares of something real
+    allocation  { committed, spend, save, invest, extraToDebt }
+    income      the month's income
 */
 
 // Below this share of the bar, a label will not fit inside the segment and goes
@@ -39,12 +19,8 @@ import { formatRupees } from '../../lib/plan';
 const MIN_SHARE_FOR_INSIDE_LABEL = 14;
 
 export default function AllocationBar({ allocation, income }) {
-  /*
-    Extra sent at a debt is drawn as part of "committed", because that is what
-    it becomes the moment somebody chooses this plan: money that leaves before
-    anything else. It is named separately in the legend, so choosing to pay more
-    is still visible as a choice.
-  */
+  // Extra paid at a debt is drawn as committed, because it leaves before any choice.
+  // The legend still names it separately.
   const committedTotal = allocation.committed + allocation.extraToDebt;
 
   const pieces = [
@@ -111,12 +87,7 @@ export default function AllocationBar({ allocation, income }) {
       </div>
 
       {/* ---------- The legend ---------- */}
-      {/*
-        Always present, because colour on its own is not an identity channel:
-        somebody who cannot tell the slate from the brass has nothing else to go
-        on. The swatch carries the colour and the text stays in the theme's ink,
-        so the words are readable whatever the colour beside them is doing.
-      */}
+      {/* The legend is always shown, so reading the bar never depends on telling colours apart. */}
       <dl className="mt-4 flex flex-wrap gap-x-6 gap-y-2">
         {segments.map((segment) => {
           return (

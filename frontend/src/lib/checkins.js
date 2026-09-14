@@ -1,16 +1,5 @@
-/*
-  The maths for the monthly check-ins. No React, just numbers.
-
-  A check-in is what actually happened in one month:
-
-    { id, month, income, spent, saved, invested, note }
-
-  where month is 'YYYY-MM'.
-
-  The plan says what should happen. The check-ins say what did. This file is
-  what compares the two, which is the only part of the app that can tell
-  somebody whether any of it is working.
-*/
+// Monthly check-in maths. A check-in is { id, month, income, spent, saved, invested,
+// note } with month as 'YYYY-MM': what actually happened, to compare with the plan.
 
 
 /* 'YYYY-MM' for the current month, which is the form the database expects. */
@@ -50,13 +39,7 @@ export function hasCheckinFor(checkins, monthText) {
 }
 
 
-/*
-  What share of income a month actually kept, as a number from 0 to 100.
-
-  Kept means saved plus invested. Spending is not counted, because the question
-  this answers is "how much of it did you hold on to", and money spent is money
-  gone whether it went on rent or on a holiday.
-*/
+// The share of income kept (saved plus invested), from 0 to 100.
 export function keptShareOf(checkin) {
   if (checkin.income <= 0) {
     return 0;
@@ -69,19 +52,14 @@ export function keptShareOf(checkin) {
 
 
 /*
-  Compares the recorded months against what the plan asked for.
+  Compares recorded months with what the plan asks for.
 
-    checkins          the list from the API, newest first
-    plannedKeptShare  what the plan sets aside, as a percentage of income
+    checkins          newest first
+    plannedKeptShare  the plan's kept share of income, as a percentage
 
-  Returns null when there is nothing recorded, so the caller can show an
-  invitation instead of a summary full of zeros.
-
-  A note on "trend". It is only worked out from four months onwards, and it
-  compares the newer half against the older half rather than the last month
-  against the one before it. Two consecutive months tell you almost nothing:
-  one wedding, one bonus, and a straight line looks like a collapse or a
-  triumph. Halves are slower to move and much harder to mislead with.
+  Returns null when nothing is recorded. The trend compares the newer half of the
+  months with the older half, from four months on, so one unusual month cannot
+  look like a collapse.
 */
 export function summariseCheckins(checkins, plannedKeptShare) {
   if (checkins.length === 0) {
@@ -112,13 +90,7 @@ export function summariseCheckins(checkins, plannedKeptShare) {
 
   const averageKeptShare = totalShare / inDateOrder.length;
 
-  /*
-    Is the plan being met?
-
-    A little slack is deliberate. Somebody hitting 29% against a plan of 30% is
-    doing well, and telling them they have failed is how you get them to stop
-    opening the app. Anything within two points counts as met.
-  */
+  // Within two points of the plan counts as meeting it.
   const SLACK_POINTS = 2;
   const isMeetingPlan = averageKeptShare >= plannedKeptShare - SLACK_POINTS;
 

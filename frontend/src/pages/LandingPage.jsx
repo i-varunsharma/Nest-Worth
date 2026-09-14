@@ -9,19 +9,8 @@ import Projection from '../components/landing/Projection';
 import FAQ from '../components/landing/FAQ';
 import FinalCTA from '../components/landing/FinalCTA';
 
-/*
-  The home page. It does two jobs.
-
-  1. It lists the sections in the order the reader meets them.
-
-  2. It owns the household numbers. Two sections need them: the planner card in
-     the hero and the projection chart. If each kept its own copy they would
-     drift apart, so this page holds the single copy and hands it down. Move the
-     slider in the hero and the projection further down changes with it.
-
-     React people call this "lifting state up": whichever component sits above
-     everyone who needs the data is the one that should hold it.
-*/
+// The landing page. It holds the demo household, because both the hero planner
+// and the projection chart need the same numbers ("lifting state up").
 export default function LandingPage() {
   // The household we start with: a fairly typical first job with two people to
   // support and an education loan still running.

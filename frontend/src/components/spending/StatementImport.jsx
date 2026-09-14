@@ -3,32 +3,21 @@ import * as api from '../../lib/api';
 import { SAMPLE_STATEMENT } from '../../lib/sampleStatement';
 
 /*
-  The box that takes a bank statement CSV.
+  Imports a bank statement CSV, or a sample month for somebody without one to hand.
 
-  Two ways in: choose a file, or load the made-up sample. The sample matters
-  more than it looks. Nobody has a statement to hand the first time they open
-  this page, and an upload box with nothing to upload is a dead end.
-
-  The file is read in the browser and its text is posted as JSON. That is worth
-  knowing about: the file itself never leaves the machine as a file, and the
-  server never has to deal with an upload. It also means the whole statement
-  sits in memory here, which is fine for a CSV and would not be for a video.
+  The file is read in the browser and its text sent as JSON, so the server never
+  handles an upload.
 
   Props:
-    onImported - called after a successful import, with the list of months the
-                 file touched, so the page can show one of them
+    onImported  called with the months the file covered
 */
 export default function StatementImport({ onImported }) {
   const [isWorking, setIsWorking] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState(null);
 
-  /*
-    A ref is a handle on the real element in the page, rather than a copy of it
-    in React's world. It is needed here for two things React state cannot do:
-    open the file chooser from our own button, and empty the input afterwards
-    so choosing the same file twice still counts as a change.
-  */
+  // A ref gives direct access to the file input, to open it from our own button and
+  // clear it afterwards, so choosing the same file again still counts as a change.
   const fileInputRef = useRef(null);
 
   const sendToServer = async (csv) => {
@@ -59,12 +48,7 @@ export default function StatementImport({ onImported }) {
       return;
     }
 
-    /*
-      FileReader is the browser's way of getting at the contents of a file
-      somebody chose. It works by callback rather than by returning the text,
-      because reading a file from disk takes time and nothing on the page should
-      stop while it happens.
-    */
+    // FileReader reads the chosen file without freezing the page, and calls back when done.
     const reader = new FileReader();
 
     reader.onload = () => {
@@ -123,11 +107,8 @@ export default function StatementImport({ onImported }) {
       </p>
 
       <div className="mt-5 flex flex-wrap items-center gap-3">
-        {/*
-          The real file input is hidden and driven by the button next to it.
-          Browsers style a file input differently from each other and none of
-          them can be made to match the rest of this page.
-        */}
+        {/* The real file input is hidden and opened by the button, because browsers style
+            file inputs in ways that cannot be made to match the page. */}
         <input
           ref={fileInputRef}
           type="file"

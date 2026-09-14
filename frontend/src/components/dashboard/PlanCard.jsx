@@ -1,14 +1,10 @@
 import { formatRupees } from '../../lib/plan';
 
 /*
-  The main card on the dashboard: how much of this month's income is genuinely
-  yours to direct, and how the plan splits it three ways.
-
-  It does no maths of its own. The dashboard works out the plan once and passes
-  the finished thing in, which keeps this file purely about showing it.
+  How much of the month is yours to direct, and how the plan splits it.
 
   Props:
-    plan - the object that buildPlan() returned
+    plan  from summariseFinances
 */
 
 // Colours and one line of explanation for each bucket. The keys match the
