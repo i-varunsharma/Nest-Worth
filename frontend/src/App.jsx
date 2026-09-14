@@ -14,6 +14,8 @@ import SpendingPage from './pages/SpendingPage';
 import RecapPage from './pages/RecapPage';
 import CheckInPage from './pages/CheckInPage';
 import SettingsPage from './pages/SettingsPage';
+import FamilyPage from './pages/FamilyPage';
+import StressTestPage from './pages/StressTestPage';
 import RequireAuth from './components/auth/RequireAuth';
 
 /*
@@ -33,7 +35,9 @@ import RequireAuth from './components/auth/RequireAuth';
   Only when signed in:
     /onboarding   the questions everything else is built from
     /dashboard    the overview
+    /family       the people this salary supports, by name
     /plans        the same money spent several ways, and where each one lands
+    /stress-test  what a job loss, pay cut or hospital bill does to the cash
     /debts        every debt, with payoff dates and the extra-payment slider
     /goals        what you are saving for, and what each costs per month
     /net-worth    what you own against what you owe
@@ -76,7 +80,9 @@ export default function App() {
 
         <Route path="/onboarding" element={privateRoute(OnboardingPage)} />
         <Route path="/dashboard" element={privateRoute(DashboardPage)} />
+        <Route path="/family" element={privateRoute(FamilyPage)} />
         <Route path="/plans" element={privateRoute(PlansPage)} />
+        <Route path="/stress-test" element={privateRoute(StressTestPage)} />
         <Route path="/debts" element={privateRoute(DebtsPage)} />
         <Route path="/goals" element={privateRoute(GoalsPage)} />
         <Route path="/net-worth" element={privateRoute(NetWorthPage)} />

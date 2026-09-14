@@ -1,10 +1,10 @@
-import db from '../database/db.js';
 import { bestAndWorstMonth, monthlyTrend, overallSummary } from './insights.js';
-import { buildPlan, bucketAmount, formatRupees } from '../../../shared/plan.js';
+import { readFinances, readSnapshot } from './snapshot.js';
+import { bucketAmount, formatRupees } from '../../../shared/plan.js';
 import { extraPaymentEffect, formatDuration, formatMonthYear, payoff } from '../../../shared/debt.js';
-import { safetyNet, summariseGoals } from '../../../shared/goals.js';
-import { summariseNetWorth } from '../../../shared/networth.js';
-import { buildScenarios } from '../../../shared/scenarios.js';
+import { summariseGoals } from '../../../shared/goals.js';
+import { summariseFinances } from '../../../shared/finances.js';
+import { runShock, verdictSentence } from '../../../shared/shocks.js';
 
 /*
   The things Claude is allowed to work out for itself.
@@ -36,42 +36,9 @@ import { buildScenarios } from '../../../shared/scenarios.js';
 export const MAX_TOOL_ROUNDS = 5;
 
 
-/* Database rows use snake_case; the shared maths expects the camelCase shape
-   the API already sends to the browser. These two do that translation. */
-function toDebtShape(row) {
-  return {
-    id: row.id,
-    name: row.name,
-    kind: row.kind,
-    principal: row.principal,
-    annualRate: row.annual_rate,
-    emi: row.emi,
-  };
-}
-
-function toGoalShape(row) {
-  return {
-    id: row.id,
-    name: row.name,
-    targetAmount: row.target_amount,
-    savedAmount: row.saved_amount,
-    targetDate: row.target_date,
-  };
-}
-
-
-/* Everything below needs the household, so this fetches it once. */
-function readHousehold(userId) {
-  return db.prepare('SELECT * FROM households WHERE user_id = ?').get(userId);
-}
-
-function readDebts(userId) {
-  const rows = db
-    .prepare('SELECT * FROM debts WHERE user_id = ? ORDER BY annual_rate DESC')
-    .all(userId);
-
-  return rows.map(toDebtShape);
-}
+// Returned by every tool that needs a plan, for somebody who skipped onboarding.
+const NO_HOUSEHOLD = 'This person has not answered the household questions yet, so there is no '
+  + 'plan to work from. Suggest they finish setting up first.';
 
 
 /*
@@ -111,45 +78,43 @@ function findDebtByName(debts, wanted) {
 
 
 /*
-  Rebuilds the plan from what is actually stored, which is the same call the
-  dashboard makes. Any changes are applied on top, which is how the "what if"
-  tool works.
+  The same finances as readFinances, with some of the household changed.
+  Nothing is saved. This is how the "what if" tool sees a raise or a new
+  dependent without touching the real data.
+
+  Returns null when there is no household.
 */
-function planFor(userId, changes) {
-  const household = readHousehold(userId);
-  const debts = readDebts(userId);
+function whatIfFinances(userId, changes) {
+  const snapshot = readSnapshot(userId);
 
-  let totalEmi = 0;
-  debts.forEach((debt) => {
-    totalEmi = totalEmi + debt.emi;
-  });
-
-  const worstDebt = debts[0];
-
-  let income = household.income;
-  if (changes && Number.isFinite(changes.income)) {
-    income = changes.income;
+  if (snapshot.household === null) {
+    return null;
   }
 
-  let essentialCosts = household.essential_costs;
-  if (changes && Number.isFinite(changes.essentialCosts)) {
-    essentialCosts = changes.essentialCosts;
+  // A copy, so the real household stays as it was.
+  const household = { ...snapshot.household };
+
+  if (Number.isFinite(changes.income) && changes.income > 0) {
+    household.income = changes.income;
   }
 
-  let dependents = household.dependents;
-  if (changes && Number.isFinite(changes.dependents)) {
-    dependents = changes.dependents;
+  if (Number.isFinite(changes.essentialCosts) && changes.essentialCosts >= 0) {
+    household.essentialCosts = changes.essentialCosts;
   }
 
-  return buildPlan({
-    income: income,
-    dependents: dependents,
-    hasLoan: debts.length > 0,
-    incomeVaries: household.income_varies === 1,
-    essentialCosts: essentialCosts,
-    emi: totalEmi,
-    topRate: worstDebt ? worstDebt.annualRate : undefined,
-    topDebtName: worstDebt ? worstDebt.name.toLowerCase() : undefined,
+  if (Number.isFinite(changes.dependents) && changes.dependents >= 0) {
+    household.dependents = changes.dependents;
+  }
+
+  if (Number.isFinite(changes.extraSupport) && changes.extraSupport > 0) {
+    household.extraSupport = changes.extraSupport;
+  }
+
+  return summariseFinances({
+    household: household,
+    debts: snapshot.debts,
+    assets: snapshot.assets,
+    family: snapshot.family,
   });
 }
 
@@ -195,7 +160,7 @@ const TOOLS = {
       return 'Running the numbers on ' + input.debt_name;
     },
     run: (userId, input) => {
-      const debts = readDebts(userId);
+      const debts = readSnapshot(userId).debts;
 
       if (debts.length === 0) {
         return 'This person has no debts recorded, so there is nothing to simulate.';
@@ -262,7 +227,7 @@ const TOOLS = {
   simulate_household_change: {
     description:
       'Rebuild the whole spend/save/invest plan with one part of the household changed: a '
-      + 'different income, different rent and bills, or a different number of dependents. '
+      + 'different income, different rent and bills, or more money sent to family each month. '
       + 'Use this for any "what if" about their situation rather than their debts, such as a '
       + 'raise, a move to a cheaper flat, or a parent becoming dependent. '
       + 'Only pass the fields that change; everything else stays as it really is.',
@@ -277,9 +242,10 @@ const TOOLS = {
           type: 'number',
           description: 'Different rent, food and bills per month, in rupees.',
         },
-        dependents: {
+        extra_family_support: {
           type: 'number',
-          description: 'A different number of people the income supports.',
+          description: 'Extra rupees a month sent to family on top of what is sent now, '
+            + 'for example a parent who starts needing help.',
         },
       },
       required: [],
@@ -291,11 +257,18 @@ const TOOLS = {
       const changes = {
         income: Number(input.income),
         essentialCosts: Number(input.essential_costs),
-        dependents: Number(input.dependents),
+        extraSupport: Number(input.extra_family_support),
       };
 
-      const now = planFor(userId, null);
-      const changed = planFor(userId, changes);
+      const current = readFinances(userId);
+
+      if (current === null) {
+        return NO_HOUSEHOLD;
+      }
+
+      // The recommended plan on both sides, so the only difference is the change.
+      const now = current.finances.recommendedPlan;
+      const changed = whatIfFinances(userId, changes).recommendedPlan;
 
       const lines = [];
 
@@ -339,17 +312,20 @@ const TOOLS = {
       return 'Checking your goals';
     },
     run: (userId) => {
-      const rows = db
-        .prepare('SELECT * FROM goals WHERE user_id = ? ORDER BY target_date ASC')
-        .all(userId);
+      const result = readFinances(userId);
 
-      if (rows.length === 0) {
+      if (result === null) {
+        return NO_HOUSEHOLD;
+      }
+
+      const goals = result.snapshot.goals;
+
+      if (goals.length === 0) {
         return 'This person has no goals recorded yet.';
       }
 
-      const goals = rows.map(toGoalShape);
-      const plan = planFor(userId, null);
-      const monthlySaving = bucketAmount(plan, 'save');
+      // The plan they follow, the same figure the goals page compares against.
+      const monthlySaving = bucketAmount(result.finances.plan, 'save');
 
       const summary = summariseGoals(goals, monthlySaving);
 
@@ -392,43 +368,18 @@ const TOOLS = {
       return 'Comparing your options';
     },
     run: (userId) => {
-      const household = readHousehold(userId);
-      const debts = readDebts(userId);
+      const result = readFinances(userId);
 
-      const assetRows = db.prepare('SELECT * FROM assets WHERE user_id = ?').all(userId);
-      const assets = assetRows.map((row) => {
-        return { name: row.name, kind: row.kind, value: row.value };
-      });
+      if (result === null) {
+        return NO_HOUSEHOLD;
+      }
 
-      const netWorth = summariseNetWorth(assets, debts);
-      const plan = planFor(userId, null);
-
-      const monthlyCosts = bucketAmount(plan, 'spend') + plan.support + plan.emi;
-
-      const safety = safetyNet(
-        netWorth.liquidAssets,
-        monthlyCosts,
-        household.dependents,
-        household.income_varies === 1,
-      );
-
-      const plans = buildScenarios({
-        household: {
-          income: household.income,
-          dependents: household.dependents,
-          hasLoan: debts.length > 0,
-          incomeVaries: household.income_varies === 1,
-          essentialCosts: household.essential_costs,
-        },
-        debts: debts,
-        liquidSavings: netWorth.liquidAssets,
-        monthsTarget: safety.monthsTarget,
-        monthlyCosts: monthlyCosts,
-      });
+      const plans = result.finances.scenarios;
+      const safety = result.finances.safety;
 
       const lines = [];
 
-      lines.push('Every plan below uses the same ' + formatRupees(household.income)
+      lines.push('Every plan below uses the same ' + formatRupees(result.snapshot.household.income)
         + ' a month. They differ only in how it is split.');
       lines.push('');
 
@@ -564,27 +515,15 @@ const TOOLS = {
       return 'Checking your safety net';
     },
     run: (userId) => {
-      const household = readHousehold(userId);
-      const debts = readDebts(userId);
+      const result = readFinances(userId);
 
-      const assetRows = db.prepare('SELECT * FROM assets WHERE user_id = ?').all(userId);
-      const assets = assetRows.map((row) => {
-        return { name: row.name, kind: row.kind, value: row.value };
-      });
+      if (result === null) {
+        return NO_HOUSEHOLD;
+      }
 
-      const netWorth = summariseNetWorth(assets, debts);
-      const plan = planFor(userId, null);
-
-      // What one month costs: discretionary spending, plus everything that
-      // leaves before that. The same sum the dashboard uses.
-      const monthlyOutgoings = bucketAmount(plan, 'spend') + plan.support + plan.emi;
-
-      const safety = safetyNet(
-        netWorth.liquidAssets,
-        monthlyOutgoings,
-        household.dependents,
-        household.income_varies === 1,
-      );
+      const netWorth = result.finances.netWorth;
+      const monthlyOutgoings = result.finances.monthlyCosts;
+      const safety = result.finances.safety;
 
       const lines = [];
 
@@ -601,6 +540,81 @@ const TOOLS = {
         lines.push('They are ' + formatRupees(safety.amountTarget - netWorth.liquidAssets)
           + ' short of it.');
       }
+
+      return lines.join('\n');
+    },
+  },
+
+
+  stress_test: {
+    description:
+      'Walk their cash forward a year through one bad event and report whether it runs out, '
+      + 'when, and how much more they would need put by. Use this for any question about '
+      + 'losing a job, a pay cut, a hospital bill, a family member needing money, or "what '
+      + 'happens if something goes wrong". A hospital bill is sent to the first family member '
+      + 'without health cover.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        shock: {
+          type: 'string',
+          description: 'One of: job_loss, income_cut, medical, family_support.',
+        },
+        months: {
+          type: 'number',
+          description: 'How long it lasts, 1 to 12. For job_loss, income_cut and family_support.',
+        },
+        percent: {
+          type: 'number',
+          description: 'For income_cut: how much the income falls, as a percentage.',
+        },
+        amount: {
+          type: 'number',
+          description: 'For medical: the size of the bill in rupees.',
+        },
+        extra_per_month: {
+          type: 'number',
+          description: 'For family_support: the extra rupees needed each month.',
+        },
+      },
+      required: ['shock'],
+    },
+    describe: () => {
+      return 'Stress testing your savings';
+    },
+    run: (userId, input) => {
+      const result = readFinances(userId);
+
+      if (result === null) {
+        return NO_HOUSEHOLD;
+      }
+
+      const outcome = runShock({
+        finances: result.finances,
+        family: result.snapshot.family,
+        shock: {
+          type: input.shock,
+          months: input.months,
+          percent: input.percent,
+          amount: input.amount,
+          extraPerMonth: input.extra_per_month,
+        },
+      });
+
+      if (outcome === null) {
+        return 'There is no shock called "' + input.shock + '". Use job_loss, income_cut, '
+          + 'medical or family_support.';
+      }
+
+      const lines = [];
+
+      lines.push('The event: ' + outcome.description);
+      lines.push('Cash they can reach today: ' + formatRupees(outcome.startCash) + '.');
+      lines.push('During the bad months investing pauses and everyday spending halves; the EMI '
+        + 'and family support still go out.');
+      lines.push('Lowest point: ' + formatRupees(outcome.lowestCash) + ' in month '
+        + outcome.lowestMonth + '. After a year: ' + formatRupees(outcome.endCash) + '.');
+      lines.push(verdictSentence(outcome));
 
       return lines.join('\n');
     },

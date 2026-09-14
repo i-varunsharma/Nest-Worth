@@ -8,7 +8,7 @@ import path from 'node:path';
   Tests for the calculations Claude is allowed to run. Run with: npm test
 
   Nothing here calls Claude. What is worth testing is not the model, it is the
-  four functions it can ask for: that they read the right person's rows, that
+  seven functions it can ask for: that they read the right person's rows, that
   they produce the same answers the app's own pages produce, and that a bad
   argument comes back as a sentence rather than a crash.
 
@@ -82,7 +82,7 @@ db.prepare(`
 test('every tool is described well enough for Claude to choose it', () => {
   const tools = toolDefinitions();
 
-  assert.equal(tools.length, 6);
+  assert.equal(tools.length, 7);
 
   for (const tool of tools) {
     assert.ok(tool.name.length > 0);
@@ -250,6 +250,79 @@ test('the emergency fund counts cash but not the flat', () => {
 });
 
 
+test('regression: the emergency fund counts rent and bills as a month of costs', () => {
+  // Income 62000, 2 dependents (support 15000), EMI 10000, essentials 22000.
+  // What is left is 15000 and the plan spends part of it. A month must cost
+  // more than the 47000 of fixed outgoings, which the old sum did not reach.
+  const answer = runTool(1, 'emergency_fund', {});
+  const match = answer.match(/One month costs about ₹([\d,]+)/);
+
+  assert.ok(match, answer);
+
+  const monthCost = Number(match[1].replaceAll(',', ''));
+
+  assert.ok(monthCost > 47000, 'a month costs ' + monthCost + ', which leaves out rent');
+});
+
+
+// ---------------------------------------------------------------
+// Family and the stress test
+// ---------------------------------------------------------------
+
+test('extra family support comes off what is left each month', () => {
+  const answer = runTool(1, 'simulate_household_change', { extra_family_support: 4000 });
+
+  assert.ok(answer.includes('₹4,000 a month less'), answer);
+});
+
+
+test('the stress test reports when the cash runs out', () => {
+  const answer = runTool(1, 'stress_test', { shock: 'job_loss', months: 6 });
+
+  assert.ok(answer.includes('Your income stops for 6 months'), answer);
+  assert.ok(answer.includes('Lowest point'), answer);
+  assert.ok(answer.includes('runs out') || answer.includes('get through it'), answer);
+});
+
+
+test('an unknown shock is refused with the list of real ones', () => {
+  const answer = runTool(1, 'stress_test', { shock: 'zombies' });
+
+  assert.ok(answer.includes('no shock called'), answer);
+  assert.ok(answer.includes('job_loss'), answer);
+});
+
+
+test('a hospital bill names the family member without cover', () => {
+  const stamp = new Date().toISOString();
+
+  db.prepare(`
+    INSERT INTO family_members
+      (user_id, name, relation, monthly_support, has_health_cover, created_at, updated_at)
+    VALUES (1, 'Nani', 'grandparent', 6000, 0, ?, ?)
+  `).run(stamp, stamp);
+
+  const answer = runTool(1, 'stress_test', { shock: 'medical', amount: 200000 });
+
+  assert.ok(answer.includes('Nani'), answer);
+
+  // Tidy up so the tests below still see the household without a family list.
+  db.prepare("DELETE FROM family_members WHERE user_id = 1 AND name = 'Nani'").run();
+});
+
+
+test('a tool asked about somebody with no household says so', () => {
+  const stamp = new Date().toISOString();
+
+  const result = db.prepare('INSERT INTO users (name, email, created_at) VALUES (?, ?, ?)')
+    .run('New Person', 'new-tools@example.com', stamp);
+
+  const answer = runTool(result.lastInsertRowid, 'stress_test', { shock: 'job_loss' });
+
+  assert.ok(answer.includes('household questions'), answer);
+});
+
+
 // ---------------------------------------------------------------
 // The rule that matters most
 // ---------------------------------------------------------------
@@ -265,6 +338,8 @@ test('no tool can reach another person’s money', () => {
     runTool(1, 'simulate_household_change', {}),
     runTool(1, 'check_goals', {}),
     runTool(1, 'emergency_fund', {}),
+    runTool(1, 'compare_plans', {}),
+    runTool(1, 'stress_test', { shock: 'job_loss', months: 3 }),
   ];
 
   /*

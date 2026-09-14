@@ -166,3 +166,76 @@ test('the reporting queries use an index too', () => {
 
   assert.equal(description.includes('SCAN'), false, description);
 });
+
+
+// ---------------------------------------------------------------
+// Rules every table owned by a person has to follow
+// ---------------------------------------------------------------
+
+/*
+  These look at the schema itself rather than at one table, so a table added
+  later is checked without anybody remembering to write a test for it.
+*/
+function tablesWithUserId() {
+  const tables = db
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
+    .all();
+
+  const owned = [];
+
+  tables.forEach((table) => {
+    const columns = db.prepare('PRAGMA table_info(' + table.name + ')').all();
+
+    columns.forEach((column) => {
+      if (column.name === 'user_id') {
+        owned.push(table.name);
+      }
+    });
+  });
+
+  return owned;
+}
+
+
+test('every table with a user_id is deleted along with the user', () => {
+  // Without ON DELETE CASCADE, closing an account leaves that person's rows
+  // behind, which breaks the promise the settings page makes.
+  const owned = tablesWithUserId();
+
+  assert.ok(owned.includes('family_members'), 'the family table should be checked too');
+
+  owned.forEach((table) => {
+    const keys = db.prepare('PRAGMA foreign_key_list(' + table + ')').all();
+
+    let cascades = false;
+
+    keys.forEach((key) => {
+      if (key.table === 'users' && key.from === 'user_id' && key.on_delete === 'CASCADE') {
+        cascades = true;
+      }
+    });
+
+    assert.ok(cascades, table + ' is missing ON DELETE CASCADE on user_id');
+  });
+});
+
+
+test('every table with a user_id can find one person\'s rows by index', () => {
+  // Nearly every query ends in WHERE user_id = ?. An index that starts with
+  // user_id, or a primary key on it, is what keeps that fast.
+  tablesWithUserId().forEach((table) => {
+    const plan = db
+      .prepare('EXPLAIN QUERY PLAN SELECT * FROM ' + table + ' WHERE user_id = 1')
+      .all();
+
+    let usesIndex = false;
+
+    plan.forEach((step) => {
+      if (step.detail.includes('USING') === true) {
+        usesIndex = true;
+      }
+    });
+
+    assert.ok(usesIndex, table + ' has no index for user_id');
+  });
+});

@@ -20,7 +20,19 @@ const cardClasses =
   + 'hover:-translate-y-1 hover:border-ink/25 hover:shadow-lift';
 
 // The little grey pills on the first card.
-const householdInputs = ['Parents', 'Sibling fees', 'Family debt', 'Your EMI', 'Rent home'];
+const householdInputs = ['Papa\'s medicines', 'Sister\'s fees', 'Nani, no health cover', 'Your EMI', 'Rent'];
+
+// The bars in the stress test card: cash falling below zero and climbing back.
+const runwayBars = [
+  { month: 0, height: 26, isBelowZero: false },
+  { month: 1, height: 12, isBelowZero: false },
+  { month: 2, height: 6, isBelowZero: true },
+  { month: 3, height: 16, isBelowZero: true },
+  { month: 4, height: 26, isBelowZero: true },
+  { month: 5, height: 14, isBelowZero: true },
+  { month: 6, height: 5, isBelowZero: true },
+  { month: 7, height: 8, isBelowZero: false },
+];
 
 export default function ValueGrid() {
   return (
@@ -58,7 +70,8 @@ export default function ValueGrid() {
                 It asks who your salary carries.
               </h3>
               <p className="mt-3 max-w-sm text-[14.5px] leading-relaxed text-ink2">
-                The inputs that change the answer, and the ones nobody else collects.
+                Name the people you support and what each one costs. The plan uses the real
+                amounts, not a guess.
               </p>
 
               <div className="mt-auto flex flex-wrap gap-2.5 pt-8">
@@ -106,35 +119,46 @@ export default function ValueGrid() {
           {/* Card 3: narrow */}
           <Reveal delay={60}>
             <article className={cardClasses}>
-              <p className="text-2xs font-semibold uppercase tracking-widest2 text-brass">Private by default</p>
+              <p className="text-2xs font-semibold uppercase tracking-widest2 text-brass">Stress tested</p>
               <h3 className="mt-3.5 font-display text-[25px] leading-snug tracking-[-0.01em]">
-                No bank login. Ever.
+                What if the salary stops?
               </h3>
               <p className="mt-3 text-[14.5px] leading-relaxed text-ink2">
-                No statement, no password, no account number.
+                A job loss, a pay cut, a hospital bill. See the month your cash runs out, and what fixes it.
               </p>
 
-              <div className="mt-auto flex items-center gap-3 rounded-2xl border border-line bg-paper p-3.5 transition-colors duration-500 group-hover:border-accent/30 group-hover:bg-accentSoft">
-                <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0 text-accent" aria-hidden="true">
-                  <path
-                    d="M12 2.8l7 3v5.4c0 4.3-2.9 8.2-7 9.5-4.1-1.3-7-5.2-7-9.5V5.8z"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d="M8.8 12.2l2.2 2.2 4.2-4.6"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.6"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-                <p className="text-[12.5px] leading-snug text-ink2">
-                  Nothing to breach. Nothing is stored.
-                </p>
+              {/* Space between the words and the picture, the same as the other cards. */}
+              <div className="pt-8" />
+
+              {/* A small picture of the runway chart. Each column has a top half
+                  for cash above zero and a bottom half for below zero. The
+                  bars below zero turn clay on hover, as the real chart marks them. */}
+              <div className="mt-auto flex h-16 gap-1.5" aria-hidden="true">
+                {runwayBars.map((bar) => {
+                  const barStyle = { height: bar.height + 'px', transitionDelay: bar.month * 50 + 'ms' };
+
+                  let above = null;
+                  let below = null;
+
+                  if (bar.isBelowZero === true) {
+                    below = (
+                      <span
+                        className="w-full rounded-sm bg-ink/15 transition-colors duration-500 ease-smooth group-hover:bg-clay"
+                        style={barStyle}
+                      />
+                    );
+                  } else {
+                    above = <span className="w-full rounded-sm bg-brass" style={barStyle} />;
+                  }
+
+                  return (
+                    <div key={bar.month} className="flex h-16 flex-1 flex-col">
+                      <div className="flex flex-1 items-end">{above}</div>
+                      <div className="h-px bg-line" />
+                      <div className="flex flex-1 items-start">{below}</div>
+                    </div>
+                  );
+                })}
               </div>
             </article>
           </Reveal>

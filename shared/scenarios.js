@@ -1,4 +1,4 @@
-import { ASSUMED_YEARLY_RETURN, buildPlan, bucketAmount } from './plan.js';
+import { ASSUMED_YEARLY_RETURN, bucketAmount } from './plan.js';
 import { monthsFromNow, orderByRate } from './debt.js';
 
 /*
@@ -229,36 +229,23 @@ function totalOf(balances) {
   fund is already full is not told to keep filling it. An app that shows all
   four to everyone is a brochure; one that shows the two that apply is advice.
 
-    household      { income, dependents, hasLoan, incomeVaries, essentialCosts }
+    basePlan       the recommended plan, from buildHouseholdPlan in finances.js
     debts          the real debts
     liquidSavings  cash that could actually be reached in a hurry
     monthsTarget   how many months of cover this household should aim for
     monthlyCosts   what one month costs them
 
+  The plan is passed in rather than built here. It used to be built here too,
+  and that copy could drift from the dashboard's. Now there is one builder.
+
   Every scenario keeps the same "free" money and only moves it between the three
   buckets, so they are genuinely comparable. None of them invents income.
 */
 export function buildScenarios(options) {
-  const household = options.household;
+  const basePlan = options.basePlan;
   const debts = options.debts;
 
-  let totalEmi = 0;
-  debts.forEach((debt) => {
-    totalEmi = totalEmi + debt.emi;
-  });
-
   const worstDebt = orderByRate(debts)[0];
-
-  const basePlan = buildPlan({
-    income: household.income,
-    dependents: household.dependents,
-    hasLoan: debts.length > 0,
-    incomeVaries: household.incomeVaries,
-    essentialCosts: household.essentialCosts,
-    emi: totalEmi,
-    topRate: worstDebt ? worstDebt.annualRate : undefined,
-    topDebtName: worstDebt ? worstDebt.name.toLowerCase() : undefined,
-  });
 
   const baseSpend = bucketAmount(basePlan, 'spend');
   const baseSave = bucketAmount(basePlan, 'save');
