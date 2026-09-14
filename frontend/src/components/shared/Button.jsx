@@ -29,6 +29,9 @@ const buttonStyles = {
   // Outlined button, for the quieter second option next to a primary one.
   outline: 'border border-line bg-surface/60 text-ink px-6 py-3.5 hover:border-ink hover:bg-surface hover:-translate-y-0.5',
 
+  // Flat outlined button that does not lift, for Cancel and Back in forms.
+  secondary: 'border border-line bg-surface text-ink px-6 py-3.5 hover:border-ink',
+
   // The two below are only used on the dark sections, where the page is nearly black.
   lightOnDark: 'bg-onNight text-night px-6 py-3.5 hover:bg-white hover:-translate-y-0.5 hover:shadow-float',
   ghostOnDark: 'border border-white/15 text-onNight px-6 py-3.5 hover:border-white/40 hover:bg-white/5 hover:-translate-y-0.5',

@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import Button from '../shared/Button';
+import Card from '../shared/Card';
+import FormActions from '../shared/FormActions';
+import Notice from '../shared/Notice';
 import TextField from '../shared/TextField';
 import SelectField from '../shared/SelectField';
 import { RELATIONS, checkFamilyMember } from '../../lib/family';
@@ -84,12 +86,9 @@ export default function FamilyForm({ member, onSave, onCancel }) {
   if (member) {
     saveLabel = 'Save changes';
   }
-  if (isSaving === true) {
-    saveLabel = 'Saving…';
-  }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="rounded-[22px] border border-line bg-surface p-6 shadow-card sm:p-7">
+    <Card as="form" onSubmit={handleSubmit} noValidate>
       <div className="grid gap-5 sm:grid-cols-2">
         <TextField
           id="family-name"
@@ -131,25 +130,9 @@ export default function FamilyForm({ member, onSave, onCancel }) {
         />
       </div>
 
-      {error ? (
-        <p className="mt-5 rounded-xl border border-clay/25 bg-claySoft px-4 py-3 text-[13.5px] text-clay">
-          {error}
-        </p>
-      ) : null}
+      <Notice tone="error" className="mt-5">{error}</Notice>
 
-      <div className="mt-7 flex items-center gap-3">
-        <Button type="submit" variant="accent" disabled={isSaving}>
-          {saveLabel}
-        </Button>
-
-        <button
-          type="button"
-          onClick={onCancel}
-          className="rounded-full border border-line bg-surface px-6 py-3.5 text-[14.5px] font-semibold text-ink transition-all duration-300 ease-smooth hover:border-ink"
-        >
-          Cancel
-        </button>
-      </div>
-    </form>
+      <FormActions saveLabel={saveLabel} isSaving={isSaving} onCancel={onCancel} />
+    </Card>
   );
 }
