@@ -1,25 +1,9 @@
-/*
-  Net worth is one subtraction:
-
-      what you own  minus  what you owe
-
-  Everything below is bookkeeping around that one line.
-
-  Worth saying plainly: a negative net worth early in a career is normal, not a
-  failure. Somebody with an education loan and a first job usually owes more
-  than they own, and the number climbing towards zero is real progress. The
-  interface says so, because a big red minus sign with no explanation makes
-  people close the app.
-*/
+// Net worth: what is owned minus what is owed. Negative early in a career is
+// normal, and the page says so.
 
 
-/*
-  The kinds of thing people own, in the order we like to show them: the most
-  liquid first, since that is the money available in an emergency.
-
-  "liquid" means it can be turned into cash quickly without losing much value.
-  A savings account is liquid. A flat is not.
-*/
+// Asset kinds, most liquid first. Liquid means it can become cash quickly without
+// losing value, which is what counts towards an emergency fund.
 export const ASSET_KINDS = [
   { value: 'cash', label: 'Cash and savings', liquid: true },
   { value: 'fd', label: 'Fixed deposit', liquid: true },
@@ -55,16 +39,7 @@ export function labelForKind(list, value) {
 }
 
 
-/*
-  Adds everything up.
-
-    assets  a list of { value, kind }
-    debts   a list of { principal }
-
-  "liquid" is the part that could be reached in a hurry, which is what the
-  emergency fund calculation needs. Selling a flat to cover a bad month is not
-  a plan.
-*/
+// Totals for assets and debts. liquidAssets is the part reachable in an emergency.
 export function summariseNetWorth(assets, debts) {
   let totalAssets = 0;
   let liquidAssets = 0;
@@ -94,10 +69,7 @@ export function summariseNetWorth(assets, debts) {
 }
 
 
-/*
-  Groups assets by kind and adds up each group, for the breakdown bar.
-  Groups with nothing in them are left out, so the bar has no invisible slivers.
-*/
+// Assets grouped and totalled by kind for the breakdown bar. Empty groups are left out.
 export function groupAssetsByKind(assets) {
   const groups = [];
 
