@@ -1,57 +1,30 @@
 import { config } from '../../config.js';
 
 /*
-  Talking to Google's Gemini.
+  Google's Gemini, over plain fetch.
 
-  This is one of two files that know how to reach a model. The other is
-  claude.js next door. Both are handed the same conversation and both return
-  the same thing, so lib/advice.js can run its loop without knowing which one
-  it is using.
+  One of two providers; claude.js is the other. Both take the neutral conversation
+  from ai/advice.js and return { text, toolCalls }, so the agent loop does not know
+  which model it is talking to. This file translates:
 
-  There is no SDK here, just fetch, which Node has built in from version 18.
-  For one endpoint the SDK would be a dependency to install, update and explain,
-  and the request below is short enough to read and to copy into a terminal when
-  something goes wrong.
-
-  What is different about Gemini, and why the translating below exists:
-
-    it calls the two sides "user" and "model", where Claude says "assistant"
-    the system prompt is its own field, systemInstruction, not a role
-    tools are "functionDeclarations", and the schema uses UPPERCASE type names
-    a tool result goes back as a functionResponse inside a user turn
-
-  None of that changes what the app does. It is the same conversation in a
-  different envelope.
+    roles      'assistant' becomes 'model'
+    system     sent as systemInstruction, not as a turn
+    tools      sent as functionDeclarations with UPPERCASE type names
+    results    sent back as functionResponse parts in a user turn
 */
 
-/*
-  Where the API lives. v1beta is the version the free tier is served from.
-
-  It can be pointed somewhere else, which the tests use to answer with a
-  stand-in Gemini. That is worth having: the interesting thing to check is
-  whether we build the request Google expects, and finding that out by spending
-  real calls on a real key is a slow and expensive way to test a translation.
-*/
 const GOOGLE_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models/';
 
 function baseUrl() {
   return config.ai.geminiBaseUrl || GOOGLE_BASE_URL;
 }
 
-/*
-  Which model to use.
-
-  gemini-3.6-flash is on the free tier and answered in about two seconds when
-  this was tested. gemini-3.8-flash is newer but took ten seconds or more for a
-  one word reply and often returned 503 "high demand", which is too slow for a
-  coach that may call two or three tools per question. GEMINI_MODEL in
-  backend/.env overrides this.
-*/
+// gemini-3.6-flash answered in about two seconds in testing. gemini-3.8-flash took
+// ten seconds or more and often returned 503. GEMINI_MODEL overrides this.
 export const DEFAULT_MODEL = 'gemini-3.6-flash';
 
-// Tried in order when the chosen model is busy (503), over its free allowance
-// (429) or gone (404). Each model has its own allowance, so the next one often
-// works when the first is refused.
+// Tried in order when a model is busy (503), over its free allowance (429) or gone
+// (404). Each model has its own allowance.
 export const FALLBACK_MODELS = ['gemini-3.5-flash', 'gemini-3.5-flash-lite'];
 
 // Statuses worth trying the next model for. Anything else, such as a bad key or
@@ -59,35 +32,19 @@ export const FALLBACK_MODELS = ['gemini-3.5-flash', 'gemini-3.5-flash-lite'];
 const TRY_NEXT_MODEL_ON = [404, 429, 500, 503, 504];
 
 /*
-  How much the model thinks before answering.
-
-  Gemini 3 models think by default, and thinking tokens count against
-  maxOutputTokens. In testing, a 400 token limit was used up by 381 tokens of
-  thinking and the answer stopped mid-sentence. "low" keeps enough thinking to
-  choose the right tool and leaves the budget for the answer.
+  Gemini 3 models think before answering, and those tokens count against
+  maxOutputTokens. With the default level a 400 token limit was used up by thinking
+  and the answer stopped mid-sentence.
 */
 const THINKING_LEVEL = 'low';
 
-/*
-  Sent in place of a real thought signature when a tool call was written by a
-  different model from the one now answering, which happens after a fallback.
-  Google documents this value for that case. Tested: with no signature, or a
-  made-up one, the request is refused with a 400; with this, it is accepted.
-*/
+// Sent instead of a thought signature written by a different model, after a
+// fallback. Google documents this value; a missing or foreign signature is a 400.
 const SKIP_SIGNATURE = 'skip_thought_signature_validator';
 
 
-/*
-  Turns our tool list into the shape Gemini wants.
-
-  Two differences from the Claude shape, and both are easy to get wrong.
-
-  The type names are uppercase. "object" is rejected, "OBJECT" is accepted.
-
-  A tool that takes no arguments must have its parameters left out entirely.
-  Sending an empty properties object is a validation error rather than a tool
-  with no arguments, which is a confusing way to find out.
-*/
+// Our tool list in Gemini's shape. Type names must be UPPERCASE, and a tool with no
+// arguments must leave parameters out entirely: an empty properties object is rejected.
 export function toGeminiTools(tools) {
   const declarations = tools.map((tool) => {
     const declaration = {
@@ -125,21 +82,14 @@ export function toGeminiTools(tools) {
 
 
 /*
-  Turns our conversation into Gemini's "contents" list.
+  Our conversation as Gemini's contents list:
 
-  The conversation is kept in a neutral shape by advice.js, with three kinds of
-  entry, and each becomes something different here:
+    { role, text }       ->  parts: [{ text }]
+    { toolCalls }        ->  parts: [{ functionCall }]
+    { toolResults }      ->  parts: [{ functionResponse }]
 
-    a plain turn            -> parts: [{ text }]
-    the model asking        -> parts: [{ functionCall }]
-    us answering            -> parts: [{ functionResponse }]
-
-  The model's own request has to go back exactly as it came, or the results
-  after it have nothing to attach to.
-
-  model is the one this request is about to be sent to. A signature only
-  belongs to the model that wrote it, so a call written by another model gets
-  SKIP_SIGNATURE instead.
+  model is the model this request goes to. A call it did not write gets
+  SKIP_SIGNATURE instead of the original signature.
 */
 export function toGeminiContents(messages, model) {
   return messages.map((entry) => {
@@ -163,13 +113,7 @@ export function toGeminiContents(messages, model) {
     }
 
     if (entry.toolResults) {
-      /*
-        Results come back as a "user" turn, which reads oddly and is correct:
-        as far as the model is concerned the answer arrived from outside.
-
-        The output is wrapped in an object rather than sent as a bare string,
-        because the field expects one.
-      */
+      // The result goes back in a user turn, wrapped in an object as the field requires.
       return {
         role: 'user',
         parts: entry.toolResults.map((result) => {
@@ -193,22 +137,11 @@ export function toGeminiContents(messages, model) {
 }
 
 
-/*
-  Reads one chunk of the streamed reply and hands each event on.
-
-  Gemini streams Server-Sent Events, the same format this app's own API uses to
-  talk to the browser: the word "data:", a line of JSON, then a blank line. A
-  chunk from the network has nothing to do with where those events start and
-  end, so completed events are taken out of a buffer and whatever is left over
-  waits for the next chunk.
-*/
+// Takes the complete Server-Sent Events out of a buffer and hands each one on.
+// Returns what is left, which is an event still arriving.
 function readEvents(buffer, onEvent) {
-  /*
-    Google ends each event with \r\n\r\n, not \n\n. The first version split
-    on \n\n only, so no event was ever found and every real answer came back
-    empty. The tests used a stand-in that sent \n\n, which is why they passed.
-    Turning \r\n into \n first handles both.
-  */
+  // Google ends events with \r\n\r\n. Splitting on \n\n alone found no events and
+  // every real answer was empty, so \r\n is normalised first.
   const pieces = buffer.replaceAll('\r\n', '\n').split('\n\n');
 
   // Whatever follows the last blank line has not finished arriving.
@@ -232,13 +165,8 @@ function readEvents(buffer, onEvent) {
 }
 
 
-/*
-  The models to try for one round, in order.
-
-  Once a conversation has used a model it tries that one first, so the real
-  thought signatures are used. If that model is busy the others are still
-  tried; toGeminiContents then sends SKIP_SIGNATURE for calls it did not write.
-*/
+// The models to try, in order. A conversation prefers the model it already used,
+// so its real signatures stay valid.
 function modelsToTry(conversation) {
   const models = [];
 
@@ -284,19 +212,15 @@ function refusalMessage(status, model) {
 /*
   One round of the conversation.
 
-    system        the instructions, as one string
-    messages      the neutral conversation from advice.js
-    tools         the tool list, in this app's own shape
-    maxTokens     the ceiling for this round, thinking included
-    onText        optional, called with each piece of the answer as it arrives
-    conversation  optional object that lives for one whole question, so every
-                  round of it uses the same model
+    system        the instructions
+    messages      the neutral conversation
+    tools         the tool list, in this app's shape
+    maxTokens     the ceiling for the round, thinking included
+    onText        optional, called with each piece of text as it arrives
+    conversation  optional object shared by every round of one question
 
-  Returns { text, toolCalls, model, finishReason }. toolCalls is empty when the
-  model has finished and is not asking for anything else, which is how the loop
-  knows to stop.
-
-  Throws on a refusal or a network failure, with a message meant to be shown.
+  Returns { text, toolCalls, model, finishReason }. Throws with a message meant
+  for the person when every model refuses.
 */
 export async function runGeminiRound(options) {
   const apiKey = config.ai.geminiApiKey;
@@ -407,11 +331,7 @@ export async function runGeminiRound(options) {
       }
 
       if (part.functionCall) {
-        /*
-          Gemini gives a function call no id of its own, unlike Claude. The
-          loop needs something to match a result back to its request, so one
-          is made here from the position in the list.
-        */
+        // Gemini gives a function call no id, so one is made from its position.
         const call = {
           id: 'call_' + toolCalls.length,
           name: part.functionCall.name,

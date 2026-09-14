@@ -7,32 +7,19 @@ import { summariseFinances } from '../../../shared/finances.js';
 import { runShock, verdictSentence } from '../../../shared/shocks.js';
 
 /*
-  The things Claude is allowed to work out for itself.
+  The calculations the AI coach may ask the server to run.
 
-  This is the part that makes the coach more than a paragraph generator. Rather
-  than being handed a fixed set of numbers and asked to talk about them, Claude
-  is given a short list of jobs it can ask us to run, and it decides which ones
-  it needs. Ask "what if I paid two thousand more on the card" and it calls
-  simulate_extra_payment, gets a real payoff date back, and answers from that.
+  Every tool calls the same code in shared/ that draws the pages, so the coach
+  cannot quote a payoff date or a plan the app disagrees with. Each tool keeps
+  its description (read by the model to decide when to use it) next to the code
+  that runs, so the two cannot drift apart.
 
-  Two things follow from doing it this way.
-
-  The answers are as right as the app is, because they come from the same
-  functions. Every one of these tools calls the code in shared/, which is what
-  the dashboard draws its own numbers with. The coach cannot tell you a payoff
-  date the debts page disagrees with, because there is only one payoff date.
-
-  And Claude can be asked things nobody wrote a screen for. There is no "what
-  if my rent went up by five thousand" page, but the plan model can answer it,
-  so the coach can too.
-
-  Each tool is two pieces: a description Claude reads to decide whether it wants
-  this one, and a function we run when it does. They are kept next to each other
-  so they cannot drift apart.
+  The user id always comes from the session. No tool accepts an argument that
+  names a person.
 */
 
 
-// A tool that ran away with itself would be expensive. Nothing here needs more.
+// Most questions need one or two rounds. The cap stops a runaway loop spending money.
 export const MAX_TOOL_ROUNDS = 5;
 
 
@@ -42,15 +29,9 @@ const NO_HOUSEHOLD = 'This person has not answered the household questions yet, 
 
 
 /*
-  Finds the debt Claude named.
-
-  It will not always use the exact name that is stored. Asked about "the credit
-  card" when the row says "HDFC Regalia", it passes something close rather than
-  something identical, so this matches loosely: exact first, then a partial
-  match either way round.
-
-  Returns null when nothing matches, and the tool then says so rather than
-  guessing at the wrong debt.
+  Finds the debt the model named. Models pass "credit card" rather than the exact
+  stored name, so this tries an exact match first, then a partial one. Returns
+  null rather than guessing.
 */
 function findDebtByName(debts, wanted) {
   if (typeof wanted !== 'string' || wanted.trim().length === 0) {
@@ -77,13 +58,7 @@ function findDebtByName(debts, wanted) {
 }
 
 
-/*
-  The same finances as readFinances, with some of the household changed.
-  Nothing is saved. This is how the "what if" tool sees a raise or a new
-  dependent without touching the real data.
-
-  Returns null when there is no household.
-*/
+/* Finances with part of the household changed, for "what if" questions. Nothing is saved. */
 function whatIfFinances(userId, changes) {
   const snapshot = readSnapshot(userId);
 
@@ -124,15 +99,11 @@ function whatIfFinances(userId, changes) {
 // ---------------------------------------------------------------
 
 /*
-  Each entry has:
-    description  what Claude reads when deciding whether it wants this tool
-    input_schema what arguments it takes, in JSON Schema
-    run          what we actually execute, returning text for Claude to read
-    describe     a short line the browser shows while the tool is running
-
-  The descriptions are written for a reader who cannot see this file. Saying
-  "runs the payoff simulation" would tell Claude nothing about WHEN to use it,
-  which is the only thing it has to decide.
+  Each tool has:
+    description   when to use it, written for the model
+    input_schema  its arguments, as JSON Schema
+    describe      a short line shown on the coach card while it runs
+    run           the calculation, returning text for the model to read
 */
 const TOOLS = {
 
@@ -622,10 +593,7 @@ const TOOLS = {
 };
 
 
-/*
-  The list in the shape the Claude API wants: name, description, input_schema.
-  The run and describe functions are ours and stay on this side.
-*/
+// The tools in the provider-neutral shape: name, description, input_schema.
 export function toolDefinitions() {
   const list = [];
 
@@ -653,13 +621,8 @@ export function describeTool(name, input) {
 }
 
 
-/*
-  Runs one tool and returns text for Claude to read.
-
-  A tool that throws must not take the whole answer down with it. Claude is
-  told what went wrong instead, and can say so or try something else, which is
-  a far better outcome than a blank card.
-*/
+// Runs one tool and returns text for the model. A tool that throws returns a
+// sentence instead, so one failed calculation does not end the whole answer.
 export function runTool(userId, name, input) {
   const tool = TOOLS[name];
 

@@ -2,27 +2,18 @@ import Anthropic from '@anthropic-ai/sdk';
 import { config } from '../../config.js';
 
 /*
-  Talking to Anthropic's Claude.
+  Anthropic's Claude, through the official SDK.
 
-  The other half of the pair with gemini.js. Same conversation in, same answer
-  out, so lib/advice.js never has to know which one is running.
-
-  This one uses the official SDK rather than fetch, because it is already
-  installed and it handles the streaming for us. Gemini's file uses plain fetch
-  instead, which is a fair comparison to have in the project: one shows what an
-  SDK saves you, the other shows what it was doing.
+  The other provider next to gemini.js, with the same contract: the neutral
+  conversation in, { text, toolCalls } out.
 */
 
 // The exact id the API expects. No date after it.
 export const DEFAULT_MODEL = 'claude-opus-5';
 
 
-/*
-  Turns our neutral conversation into the shape Claude expects.
-
-  Claude keeps a tool request and its result as blocks inside ordinary turns,
-  which is close enough to our own shape that this is mostly renaming.
-*/
+// Our conversation in Claude's shape. Tool calls and results are content blocks
+// inside ordinary turns, so this is mostly renaming.
 function toClaudeMessages(messages) {
   return messages.map((entry) => {
     if (entry.toolCalls) {
@@ -35,11 +26,8 @@ function toClaudeMessages(messages) {
     }
 
     if (entry.toolResults) {
-      /*
-        Every result goes back in ONE user message. Splitting them across
-        several teaches Claude to stop asking for more than one at a time,
-        which makes every later answer slower for no reason.
-      */
+      // All results go back in one user message. Split across several, Claude learns to
+      // ask for one tool at a time, which makes answers slower.
       return {
         role: 'user',
         content: entry.toolResults.map((result) => {
@@ -53,10 +41,8 @@ function toClaudeMessages(messages) {
 }
 
 
-/*
-  One round of the conversation. Same contract as runGeminiRound:
-  returns { text, toolCalls }, and throws with a message meant to be shown.
-*/
+// One round. Same contract as runGeminiRound: returns { text, toolCalls } and
+// throws with a message meant to be shown.
 export async function runClaudeRound(options) {
   const client = new Anthropic({ apiKey: config.ai.anthropicApiKey });
   const model = config.ai.anthropicModel || DEFAULT_MODEL;
@@ -92,9 +78,7 @@ export async function runClaudeRound(options) {
     throw new Error('Claude would not answer. Please try again.');
   }
 
-  // The model can decline outright. It will not happen for a budgeting
-  // question, but reading the content without checking would hand back an
-  // empty card with no explanation if it ever did.
+  // Checked so a refusal shows a message instead of an empty card.
   if (reply.stop_reason === 'refusal') {
     throw new Error('The model would not answer that one. Try asking it differently.');
   }

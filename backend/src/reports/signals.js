@@ -2,37 +2,18 @@ import db from '../database/db.js';
 import { formatRupees } from '../../../shared/plan.js';
 
 /*
-  What changed, worked out in SQL before any AI is involved.
+  Findings for the daily note: what changed in the account, found in SQL before
+  any model is involved.
 
-  This is the part of the coach that nobody asks for. The card on the dashboard
-  is a conversation: you ask, it answers. Useful, and it only ever tells you
-  what you already thought to ask about. A month where the food spend doubled is
-  not a question anybody thinks to type.
+  The model only writes these up. Detecting and wording together would let a wrong
+  reading arrive in a convincing sentence, and would give different answers on
+  the same data, which cannot be tested.
 
-  ---- Why the detecting is not done by the model ----
-
-  It would be one prompt to hand a language model the whole account and ask it
-  what stands out. That design has a specific failure: the model decides what is
-  true AND how to say it, so a wrong reading and a good sentence arrive
-  together and are indistinguishable. It is also different every time it runs on
-  identical data, which makes it impossible to test.
-
-  So the split here is deliberate. Every fact below is found by a query, with a
-  number attached, and it either happened or it did not. The model is given
-  those findings and asked only to write them up. It cannot invent a trend that
-  is not in this file, because the only material it gets is what these functions
-  found.
-
-  Each signal is:
-
-    { code, importance, fact, detail }
-
-  code       a name, so the same finding can be recognised between days
-  importance 1 to 3, highest first. Only the top few are shown.
-  fact       one plain sentence, already true and already readable. Written out
-             properly, amounts and all, because when no model is configured
-             these sentences ARE what the dashboard shows
-  detail     the numbers behind it, for the model to work from
+  Each signal is { code, importance, fact, detail }:
+    code        a stable name for the finding
+    importance  1 to 3, highest first; only the top few are shown
+    fact        one complete sentence, shown as it is when no model is configured
+    detail      the numbers behind it
 */
 
 // How far apart two months have to be before a change is worth mentioning.
@@ -58,18 +39,8 @@ function previousMonth(month) {
 }
 
 
-/*
-  Each spending category this month against the same category last month.
-
-  The join is the interesting part. Both sides are the same query over different
-  months, and joining them on the category is what turns two lists into one list
-  of pairs. Doing it in JavaScript means building a lookup from one list and
-  walking the other against it, which is the same thing written longer.
-
-  A LEFT JOIN, so a category that is new this month still appears, with NULL for
-  last month. A plain JOIN would silently drop exactly the categories worth
-  knowing about: the ones that did not exist before.
-*/
+// Each spending category this month next to the same category last month. A LEFT
+// JOIN, so a category that is new this month still appears, with NULL for last month.
 export function spendingChanges(userId, month) {
   const rows = db.prepare(`
     SELECT
@@ -96,13 +67,8 @@ export function spendingChanges(userId, month) {
 }
 
 
-/*
-  Turns those pairs into signals, keeping only the ones worth saying out loud.
-
-  Investing is checked in the opposite direction from everything else: spending
-  more on food is worth a mention, and so is putting away LESS. Treating them
-  the same would congratulate somebody for cutting their SIP.
-*/
+// Keeps the changes worth mentioning. Investing is read the opposite way to
+// spending: putting away less is the change worth pointing out.
 function changeSignals(userId, month) {
   const signals = [];
   const rows = spendingChanges(userId, month);
@@ -172,13 +138,8 @@ function changeSignals(userId, month) {
 }
 
 
-/*
-  Did the plan actually happen.
-
-  A check-in records what really went out. The plan says what should have. This
-  compares the two on the one figure that matters, the share of income kept,
-  because comparing rupees would call a good month bad whenever the income moved.
-*/
+// Whether the plan happened, compared on the share of income kept, so a change in
+// income does not make a good month look bad.
 function checkinSignals(userId) {
   const latest = db.prepare(`
     SELECT month, income, spent, saved, invested
@@ -224,13 +185,8 @@ function checkinSignals(userId) {
 }
 
 
-/*
-  The most expensive debt, when it is expensive enough to be the whole answer.
-
-  A card at 42 per cent is not one item on a list of things to think about. It
-  beats every other use of a spare rupee by so much that mentioning anything
-  else alongside it would be misleading.
-*/
+// An expensive debt is the whole answer when its rate beats every other use of a
+// spare rupee.
 function debtSignals(userId) {
   const worst = db.prepare(`
     SELECT name, annual_rate, principal
@@ -262,13 +218,8 @@ function debtSignals(userId) {
 }
 
 
-/*
-  One payment much larger than the rest of the month.
-
-  Worth pointing at because it distorts everything above it. A month with a
-  laptop in it does not mean the shopping habit changed, and a breakdown that
-  does not say so invites exactly that conclusion.
-*/
+// One payment far larger than the rest of the month, such as a laptop, which
+// would otherwise look like a change in habit.
 function largestPaymentSignal(userId, month) {
   const biggest = db.prepare(`
     SELECT description, amount, category
@@ -314,11 +265,7 @@ function largestPaymentSignal(userId, month) {
 }
 
 
-/*
-  Everything, in the order it should be read.
-
-  month is 'YYYY-MM', normally the most recent month with transactions in it.
-*/
+// All signals in reading order. month is 'YYYY-MM', usually the latest imported month.
 export function findSignals(userId, month) {
   let signals = [];
 

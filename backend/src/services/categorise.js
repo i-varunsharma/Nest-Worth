@@ -1,37 +1,17 @@
 /*
-  Working out what a bank line was for, from the words in it.
+  Works out what a bank line was for from the words in it, for example:
 
-  A statement line looks like this:
+    UPI-SWIGGY-SWIGGY@YBL-YESB0000001-4839201-PAYMENT  ->  food
 
-    UPI-SWIGGY-SWIGGY@YBL-YESB0000001-4839201-PAYMENT
-
-  There is no category in there. There is a merchant name buried in the middle
-  of a routing string, and that is all you get. So the rules below look for
-  known names in the text and take the first one that matches.
-
-  ---- Why rules and not an AI ----
-
-  It would be one prompt to hand every line to a language model instead. Rules
-  win here for three reasons. They are instant, where a model is a network round
-  trip per statement. They cost nothing, and a statement is hundreds of lines.
-  And they give the same answer every time, so a person who corrects a category
-  once does not see it guessed differently on the next import.
-
-  The trade is that a merchant nobody has written down falls through to "other",
-  and the answer is to let people fix it rather than to guess harder. A wrong
-  category shown confidently is worse than an honest "everything else".
+  Rules rather than a model: they are instant, free, and give the same answer on
+  every import, so a category somebody corrected is not guessed differently next
+  month. An unknown merchant falls through to "other" for the person to fix.
 */
 
 /*
-  The rules, in order. The first one whose word appears in the line wins, so
-  the more specific rules have to come first.
-
-  Order is doing real work here. "SBI CARD" is a credit card bill and belongs in
-  loan repayments, but it contains the word "CARD" which also appears in the
-  bank-charges rule for "CARD FEE". Putting the repayment rule first settles it.
-
-  Everything is compared in upper case, because banks are inconsistent about it
-  even within one statement.
+  The first rule whose word appears in the line wins, so more specific rules come
+  first. "SBI CARD" is a card bill and must match before the "CARD FEE" bank
+  charge rule. Text is compared in upper case, because banks are inconsistent.
 */
 const RULES = [
   {
@@ -116,29 +96,16 @@ const RULES = [
 ];
 
 
-/*
-  Which category a line belongs to.
-
-  direction is 'credit' for money arriving and 'debit' for money leaving.
-
-  The direction is checked first for a reason. Money coming in is income unless
-  it is clearly something else, and money going out is never income however the
-  line is worded. Without that check a line reading "SALARY ADVANCE REPAYMENT"
-  going out of the account would be filed as money coming in, and the month's
-  income would be wrong in a way nobody would spot.
-*/
+// Which category a line belongs to. direction is 'credit' for money arriving and
+// 'debit' for money leaving.
 export function categorise(description, direction) {
   const text = String(description).toUpperCase();
 
   for (const rule of RULES) {
     for (const word of rule.words) {
       if (text.includes(word)) {
-        /*
-          A matched category that contradicts the direction is thrown away.
-          The rules read words, and words lie about direction all the time:
-          a refund paid out, a "salary account" fee, an investment redemption
-          arriving. The sign on the money does not lie.
-        */
+        // A match that contradicts the direction is discarded. Words can mislead (a refund
+        // paid out, a "salary account" fee); the direction of the money cannot.
         if (direction === 'credit' && rule.category !== 'income' && rule.category !== 'transfer' && rule.category !== 'investment') {
           continue;
         }

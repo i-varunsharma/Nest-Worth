@@ -3,29 +3,16 @@ import { DEFAULT_MODEL as CLAUDE_DEFAULT_MODEL, isClaudeConfigured, runClaudeRou
 import { DEFAULT_MODEL as GEMINI_DEFAULT_MODEL, isGeminiConfigured, runGeminiRound } from './gemini.js';
 
 /*
-  Which model this server talks to.
+  Chooses which model provider answers.
 
-  Two are supported, and the app works the same either way. Gemini has a free
-  allowance, which is why it is preferred when both are set up: a project that
-  costs nothing to run is a project you can leave running.
-
-  Adding a third provider means one more file next door and one more line here.
-  Nothing else in the app changes, because everything above this point works in
-  the neutral conversation shape described in advice.js.
+  Adding a provider means one more file in this folder and one more branch below.
+  Nothing else changes, because the rest of the AI code uses the neutral
+  conversation shape described in ai/advice.js.
 */
 
 
-/*
-  Picks a provider.
-
-  AI_PROVIDER settles it when it is set, so a machine with both keys can be told
-  which to use. Otherwise whichever key is present wins, and Gemini goes first
-  because it is the free one.
-
-  Returns null when neither is set up, and the caller turns that into a message
-  rather than a crash. The rest of the app carries on without an AI perfectly
-  well; only the coach card goes quiet.
-*/
+// AI_PROVIDER decides when set. Otherwise the provider with a key wins, Gemini
+// first because it has a free tier. Returns null when neither is configured.
 export function chooseProvider() {
   const named = config.ai.provider;
 
