@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import Card from '../shared/Card';
+import RecordActions from '../shared/RecordActions';
+import StatTile from '../shared/StatTile';
 import { extraPaymentEffect, formatDuration, formatMonthYear, payoff } from '../../lib/debt';
 import { formatRupees } from '../../lib/plan';
-import { labelForKind } from '../../lib/networth';
-import { DEBT_KINDS } from '../../lib/networth';
+import { DEBT_KINDS, labelForKind } from '../../lib/networth';
 
 /*
   One debt, with everything worth knowing about it.
@@ -24,7 +26,6 @@ const MAX_EXTRA = 20000;
 
 export default function DebtCard({ debt, isPriority, onEdit, onDelete }) {
   const [extra, setExtra] = useState(0);
-  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
   const base = payoff(debt.principal, debt.annualRate, debt.emi, 0);
   const effect = extraPaymentEffect(debt.principal, debt.annualRate, debt.emi, extra);
@@ -80,9 +81,9 @@ export default function DebtCard({ debt, isPriority, onEdit, onDelete }) {
 
   // The "Clear by" figure is green when there is a date and clay when there
   // is not, so the eye lands on the debt that is not going anywhere.
-  let clearByColour = 'text-accent';
+  let clearByTone = 'accent';
   if (clears === false) {
-    clearByColour = 'text-clay';
+    clearByTone = 'clay';
   }
 
   /*
@@ -128,35 +129,24 @@ export default function DebtCard({ debt, isPriority, onEdit, onDelete }) {
   } else if (effect.possible === true) {
     answerPanel = (
       <div className="mt-5 grid gap-4 border-t border-line pt-5 sm:grid-cols-2">
-        <div>
-          <p className="text-2xs font-semibold uppercase tracking-widest2 text-muted">
-            Free sooner by
-          </p>
-          <p className="tnum mt-1.5 font-display text-[26px] leading-none text-accent">
-            {formatDuration(effect.monthsSaved)}
-          </p>
-          <p className="mt-1.5 text-2xs text-muted">
-            {formatMonthYear(effect.newPayoffDate)} instead
-          </p>
-        </div>
-
-        <div>
-          <p className="text-2xs font-semibold uppercase tracking-widest2 text-muted">
-            Interest saved
-          </p>
-          <p className="tnum mt-1.5 font-display text-[26px] leading-none text-accent">
-            {formatRupees(effect.interestSaved)}
-          </p>
-          <p className="mt-1.5 text-2xs text-muted">
-            money that stays yours
-          </p>
-        </div>
+        <StatTile
+          label="Free sooner by"
+          value={formatDuration(effect.monthsSaved)}
+          note={formatMonthYear(effect.newPayoffDate) + ' instead'}
+          tone="accent"
+        />
+        <StatTile
+          label="Interest saved"
+          value={formatRupees(effect.interestSaved)}
+          note="money that stays yours"
+          tone="accent"
+        />
       </div>
     );
   }
 
   return (
-    <article className="rounded-[22px] border border-line bg-surface p-6 shadow-card sm:p-7">
+    <Card as="article">
 
       {/* ---------- Heading ---------- */}
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -178,75 +168,15 @@ export default function DebtCard({ debt, isPriority, onEdit, onDelete }) {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={onEdit}
-            className="sweep text-[13px] font-medium text-muted transition-colors hover:text-ink"
-          >
-            Edit
-          </button>
-
-          {/* Deleting asks first. A list of debts is not something to lose to a
-              stray click, and an undo would be more machinery than this needs. */}
-          {isConfirmingDelete === true ? (
-            <>
-              <button
-                type="button"
-                onClick={onDelete}
-                className="text-[13px] font-semibold text-clay transition-colors hover:underline"
-              >
-                Really delete
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsConfirmingDelete(false)}
-                className="text-[13px] font-medium text-muted transition-colors hover:text-ink"
-              >
-                Keep
-              </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setIsConfirmingDelete(true)}
-              className="sweep text-[13px] font-medium text-muted transition-colors hover:text-clay"
-            >
-              Delete
-            </button>
-          )}
-        </div>
+        <RecordActions onEdit={onEdit} onDelete={onDelete} />
       </div>
 
       {/* ---------- The four numbers ---------- */}
       <div className="mt-6 grid gap-5 border-y border-lineSoft py-5 sm:grid-cols-4">
-        <div>
-          <p className="text-2xs font-semibold uppercase tracking-widest2 text-muted">Still owed</p>
-          <p className="tnum mt-1.5 font-display text-[22px] leading-none">
-            {formatRupees(debt.principal)}
-          </p>
-        </div>
-
-        <div>
-          <p className="text-2xs font-semibold uppercase tracking-widest2 text-muted">Rate</p>
-          <p className="tnum mt-1.5 font-display text-[22px] leading-none">
-            {debt.annualRate}%
-          </p>
-        </div>
-
-        <div>
-          <p className="text-2xs font-semibold uppercase tracking-widest2 text-muted">EMI</p>
-          <p className="tnum mt-1.5 font-display text-[22px] leading-none">
-            {formatRupees(debt.emi)}
-          </p>
-        </div>
-
-        <div>
-          <p className="text-2xs font-semibold uppercase tracking-widest2 text-muted">Clear by</p>
-          <p className={'tnum mt-1.5 font-display text-[22px] leading-none ' + clearByColour}>
-            {clearByText}
-          </p>
-        </div>
+        <StatTile label="Still owed" value={formatRupees(debt.principal)} size="md" />
+        <StatTile label="Rate" value={debt.annualRate + '%'} size="md" />
+        <StatTile label="EMI" value={formatRupees(debt.emi)} size="md" />
+        <StatTile label="Clear by" value={clearByText} size="md" tone={clearByTone} />
       </div>
 
       {/* ---------- What it costs as things stand ---------- */}
@@ -281,6 +211,6 @@ export default function DebtCard({ debt, isPriority, onEdit, onDelete }) {
           <p className="mt-4 text-2xs text-muted">{sliderNote}</p>
         )}
       </div>
-    </article>
+    </Card>
   );
 }

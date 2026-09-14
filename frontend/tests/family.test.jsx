@@ -2,8 +2,8 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import CashRunway from '../src/components/charts/CashRunway';
-import ResilienceCard from '../src/components/app/ResilienceCard';
-import FamilyForm from '../src/components/app/FamilyForm';
+import ResilienceCard from '../src/components/dashboard/ResilienceCard';
+import FamilyForm from '../src/components/family/FamilyForm';
 
 /*
   Tests for the family page, the stress test page and the pieces they are made
@@ -47,6 +47,15 @@ vi.mock('../src/lib/api', () => {
     },
     getAssets: async () => {
       return { ok: true, data: { assets: [{ id: 1, name: 'Savings', kind: 'cash', value: 60000 }] } };
+    },
+    addFamilyMember: async () => {
+      return { ok: true, data: {} };
+    },
+    updateFamilyMember: async () => {
+      return { ok: true, data: {} };
+    },
+    deleteFamilyMember: async () => {
+      return { ok: true, data: {} };
     },
     getFamily: async () => {
       if (mockState.familyFails === true) {
