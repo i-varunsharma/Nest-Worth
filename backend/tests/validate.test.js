@@ -2,13 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   checkEmail,
-  checkHousehold,
   checkName,
   checkOtp,
   checkPassword,
   checkPhone,
   keepOnlyDigits,
-} from '../src/lib/validate.js';
+} from '../src/validation/accountFields.js';
+import { checkHousehold } from '../src/validation/householdFields.js';
 
 /*
   Tests for the server's form checks. Run with: npm test

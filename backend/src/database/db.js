@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { config } from '../config.js';
 
 /*
   Opens the SQLite database and creates the tables if they are missing.
@@ -16,7 +17,7 @@ const thisFolder = path.dirname(fileURLToPath(import.meta.url));
 
 // The tests set NESTWORTH_DB_FILE to a temporary file so they never touch the
 // database you have been using while building.
-let databaseFile = process.env.NESTWORTH_DB_FILE;
+let databaseFile = config.databaseFile;
 
 if (!databaseFile) {
   databaseFile = path.join(thisFolder, '..', '..', 'data', 'nestworth.db');

@@ -24,8 +24,8 @@ const temporaryFolder = fs.mkdtempSync(path.join(os.tmpdir(), 'nestworth-advice-
 process.env.NESTWORTH_DB_FILE = path.join(temporaryFolder, 'test.db');
 
 const db = (await import('../src/database/db.js')).default;
-const { SYSTEM_PROMPT, checkQuestion, factsToText, readFacts } = await import('../src/lib/advice.js');
-const { readFinances } = await import('../src/lib/snapshot.js');
+const { SYSTEM_PROMPT, checkQuestion, factsToText, readFacts } = await import('../src/ai/advice.js');
+const { readFinances } = await import('../src/services/financeService.js');
 const { formatRupees } = await import('../../shared/plan.js');
 
 // One person, with a bit of everything, so the prompt has something to say.

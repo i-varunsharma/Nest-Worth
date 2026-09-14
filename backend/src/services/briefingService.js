@@ -1,6 +1,6 @@
-import db from '../database/db.js';
-import { chooseProvider } from './ai/index.js';
-import { findSignals, latestImportedMonth } from './signals.js';
+import { briefingRepository } from '../repositories/briefingRepository.js';
+import { chooseProvider } from '../ai/providers/index.js';
+import { findSignals, latestImportedMonth } from '../reports/signals.js';
 
 /*
   The note on the dashboard that nobody asked for.
@@ -126,71 +126,27 @@ function plainVersion(signals) {
 /*
   Today's note for one person, written if it does not exist yet.
 
-  Once a day, not once a page load. Writing it costs a call to a model, and a
-  note whose wording changed every time the dashboard was refreshed would read
-  as noise rather than as something that had been noticed.
-
-  It is written when somebody first opens the dashboard that day rather than by
-  a job running overnight. At this size that is the honest trade: a nightly job
-  would have to wake up and write a note for every account whether or not
-  anybody was going to read it, and would need something to run it. The cost of
-  doing it this way is that the very first dashboard load of the day waits for
-  the model.
+  Stored once a day rather than written on every page load: writing costs a call
+  to a model, and wording that changed on every refresh would read as noise.
 */
 export async function briefingForToday(userId) {
   const today = new Date().toISOString().slice(0, 10);
+  const existing = briefingRepository.findForDay(userId, today);
 
-  const existing = db.prepare(`
-    SELECT * FROM briefings WHERE user_id = ? AND made_on = ?
-  `).get(userId, today);
-
-  if (existing) {
-    return {
-      body: existing.body,
-      signals: JSON.parse(existing.signals),
-      writtenBy: existing.written_by,
-      madeOn: existing.made_on,
-      isNew: false,
-    };
+  if (existing !== null) {
+    return { ...existing, isNew: false };
   }
 
   const month = latestImportedMonth(userId);
   const signals = findSignals(userId, month);
-
   const written = await writeBriefing(signals);
 
-  /*
-    INSERT OR IGNORE rather than a plain INSERT.
+  // Read back what was stored: another tab may have saved today's note first.
+  const stored = briefingRepository.saveOnce(userId, today, {
+    body: written.body,
+    signals: signals,
+    writtenBy: written.writtenBy,
+  });
 
-    Two tabs opening the dashboard at the same moment both find no row and both
-    try to write one. The UNIQUE (user_id, made_on) index refuses the second,
-    and OR IGNORE turns that refusal into a no-op instead of a 500. Whichever
-    note landed first is the one everybody sees, and they were written from the
-    same findings anyway.
-  */
-  db.prepare(`
-    INSERT OR IGNORE INTO briefings (user_id, made_on, body, signals, written_by, created_at)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `).run(
-    userId,
-    today,
-    written.body,
-    JSON.stringify(signals),
-    written.writtenBy,
-    new Date().toISOString(),
-  );
-
-  // Read it back rather than returning what was just built, so a row written by
-  // the other tab a millisecond earlier is what gets shown.
-  const stored = db.prepare(`
-    SELECT * FROM briefings WHERE user_id = ? AND made_on = ?
-  `).get(userId, today);
-
-  return {
-    body: stored.body,
-    signals: JSON.parse(stored.signals),
-    writtenBy: stored.written_by,
-    madeOn: stored.made_on,
-    isNew: true,
-  };
+  return { ...stored, isNew: true };
 }
