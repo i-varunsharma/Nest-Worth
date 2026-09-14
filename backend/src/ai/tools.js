@@ -1,5 +1,5 @@
-import { bestAndWorstMonth, monthlyTrend, overallSummary } from './insights.js';
-import { readFinances, readSnapshot } from './snapshot.js';
+import { bestAndWorstMonth, monthlyTrend, overallSummary } from '../reports/insights.js';
+import { readFinances, readSnapshot } from '../services/financeService.js';
 import { bucketAmount, formatRupees } from '../../../shared/plan.js';
 import { extraPaymentEffect, formatDuration, formatMonthYear, payoff } from '../../../shared/debt.js';
 import { summariseGoals } from '../../../shared/goals.js';

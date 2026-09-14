@@ -1,3 +1,5 @@
+import { config } from '../../config.js';
+
 /*
   Talking to Google's Gemini.
 
@@ -30,8 +32,11 @@
   whether we build the request Google expects, and finding that out by spending
   real calls on a real key is a slow and expensive way to test a translation.
 */
-const BASE_URL = process.env.GEMINI_BASE_URL
-  || 'https://generativelanguage.googleapis.com/v1beta/models/';
+const GOOGLE_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models/';
+
+function baseUrl() {
+  return config.ai.geminiBaseUrl || GOOGLE_BASE_URL;
+}
 
 /*
   Which model to use.
@@ -241,7 +246,7 @@ function modelsToTry(conversation) {
     models.push(conversation.model);
   }
 
-  const chosen = process.env.GEMINI_MODEL || DEFAULT_MODEL;
+  const chosen = config.ai.geminiModel || DEFAULT_MODEL;
 
   if (models.includes(chosen) === false) {
     models.push(chosen);
@@ -294,7 +299,7 @@ function refusalMessage(status, model) {
   Throws on a refusal or a network failure, with a message meant to be shown.
 */
 export async function runGeminiRound(options) {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = config.ai.geminiApiKey;
 
   const body = {
     systemInstruction: { parts: [{ text: options.system }] },
@@ -316,7 +321,7 @@ export async function runGeminiRound(options) {
   let lastModel = '';
 
   for (const model of modelsToTry(options.conversation)) {
-    const url = BASE_URL + model + ':streamGenerateContent?alt=sse';
+    const url = baseUrl() + model + ':streamGenerateContent?alt=sse';
 
     // Built per model, because the signatures depend on which model is asked.
     body.contents = toGeminiContents(options.messages, model);
@@ -450,9 +455,5 @@ export async function runGeminiRound(options) {
 
 /* Whether this provider is set up. Used to pick one in ai/index.js. */
 export function isGeminiConfigured() {
-  if (process.env.GEMINI_API_KEY) {
-    return true;
-  }
-
-  return false;
+  return config.ai.geminiApiKey !== '';
 }

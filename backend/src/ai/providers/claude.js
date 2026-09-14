@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { config } from '../../config.js';
 
 /*
   Talking to Anthropic's Claude.
@@ -13,7 +14,7 @@ import Anthropic from '@anthropic-ai/sdk';
 */
 
 // The exact id the API expects. No date after it.
-const DEFAULT_MODEL = 'claude-opus-5';
+export const DEFAULT_MODEL = 'claude-opus-5';
 
 
 /*
@@ -57,8 +58,8 @@ function toClaudeMessages(messages) {
   returns { text, toolCalls }, and throws with a message meant to be shown.
 */
 export async function runClaudeRound(options) {
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-  const model = process.env.ANTHROPIC_MODEL || DEFAULT_MODEL;
+  const client = new Anthropic({ apiKey: config.ai.anthropicApiKey });
+  const model = config.ai.anthropicModel || DEFAULT_MODEL;
 
   let reply;
 
@@ -118,9 +119,5 @@ export async function runClaudeRound(options) {
 
 /* Whether this provider is set up. Used to pick one in index.js. */
 export function isClaudeConfigured() {
-  if (process.env.ANTHROPIC_API_KEY) {
-    return true;
-  }
-
-  return false;
+  return config.ai.anthropicApiKey !== '';
 }

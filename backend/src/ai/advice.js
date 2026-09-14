@@ -1,6 +1,6 @@
 import db from '../database/db.js';
-import { chooseProvider } from './ai/index.js';
-import { readFinances } from './snapshot.js';
+import { chooseProvider } from './providers/index.js';
+import { readFinances } from '../services/financeService.js';
 import { MAX_TOOL_ROUNDS, describeTool, runTool, toolDefinitions } from './tools.js';
 import { bucketAmount, formatRupees } from '../../../shared/plan.js';
 import { runStandardShocks } from '../../../shared/shocks.js';
@@ -484,7 +484,7 @@ export function factsToText(facts) {
   calls to the model, so the whole thing can take ten seconds, and ten seconds
   of a spinner feels broken in a way that ten seconds of text appearing does not.
 */
-export async function askClaude(userId, facts, history, question, onEvent) {
+export async function askCoach(userId, facts, history, question, onEvent) {
   const provider = chooseProvider();
 
   if (!provider) {

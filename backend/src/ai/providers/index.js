@@ -1,4 +1,5 @@
-import { isClaudeConfigured, runClaudeRound } from './claude.js';
+import { config } from '../../config.js';
+import { DEFAULT_MODEL as CLAUDE_DEFAULT_MODEL, isClaudeConfigured, runClaudeRound } from './claude.js';
 import { DEFAULT_MODEL as GEMINI_DEFAULT_MODEL, isGeminiConfigured, runGeminiRound } from './gemini.js';
 
 /*
@@ -26,7 +27,7 @@ import { DEFAULT_MODEL as GEMINI_DEFAULT_MODEL, isGeminiConfigured, runGeminiRou
   well; only the coach card goes quiet.
 */
 export function chooseProvider() {
-  const named = process.env.AI_PROVIDER;
+  const named = config.ai.provider;
 
   if (named === 'gemini') {
     return { name: 'gemini', run: runGeminiRound };
@@ -58,8 +59,8 @@ export function describeProvider() {
 
   if (provider.name === 'gemini') {
     // Read from gemini.js so the startup line cannot name a different model.
-    return 'Gemini (' + (process.env.GEMINI_MODEL || GEMINI_DEFAULT_MODEL) + ')';
+    return 'Gemini (' + (config.ai.geminiModel || GEMINI_DEFAULT_MODEL) + ')';
   }
 
-  return 'Claude (' + (process.env.ANTHROPIC_MODEL || 'claude-opus-5') + ')';
+  return 'Claude (' + (config.ai.anthropicModel || CLAUDE_DEFAULT_MODEL) + ')';
 }

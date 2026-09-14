@@ -1,5 +1,5 @@
 import db from '../database/db.js';
-import { merchantName } from './statement.js';
+import { merchantName } from '../services/statementParser.js';
 
 /*
   A year, added up.

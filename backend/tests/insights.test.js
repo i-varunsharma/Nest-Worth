@@ -28,7 +28,7 @@ const {
   debtsByKind,
   monthlyTrend,
   overallSummary,
-} = await import('../src/lib/insights.js');
+} = await import('../src/reports/insights.js');
 
 const now = new Date().toISOString();
 

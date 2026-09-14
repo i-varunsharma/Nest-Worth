@@ -25,7 +25,7 @@ const temporaryFolder = fs.mkdtempSync(path.join(os.tmpdir(), 'nestworth-tools-'
 process.env.NESTWORTH_DB_FILE = path.join(temporaryFolder, 'test.db');
 
 const db = (await import('../src/database/db.js')).default;
-const { describeTool, runTool, toolDefinitions } = await import('../src/lib/tools.js');
+const { describeTool, runTool, toolDefinitions } = await import('../src/ai/tools.js');
 const { payoff } = await import('../../shared/debt.js');
 
 const now = new Date().toISOString();
