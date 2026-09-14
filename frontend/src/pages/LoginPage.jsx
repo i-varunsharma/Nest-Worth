@@ -10,24 +10,8 @@ import TextField from '../components/shared/TextField';
 import * as api from '../lib/api';
 import { checkEmail, checkPassword } from '../lib/validation';
 
-/*
-  The screen at /login. Three ways in:
-
-    1. Continue with Google
-    2. Email and password
-    3. Mobile number and a code sent by text
-
-  All three end at /dashboard.
-
-  There are two rounds of checking on this page, and the difference is worth
-  understanding. The functions from lib/validation catch obvious mistakes
-  without troubling the network, so somebody who forgets the @ in their email
-  gets told instantly. The server then checks everything again, properly, and
-  its answer is the one that decides anything.
-
-  Only the server can know whether a password is right, so "Email or password is
-  incorrect" always arrives from there, never from here.
-*/
+// /login: Google, email and password, or a phone code. The form checks obvious
+// mistakes before sending; the server decides whether the password is right.
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -97,14 +81,8 @@ export default function LoginPage() {
   };
 
 
-  /*
-    Google hands us a token once somebody picks an account. We send it straight
-    to our server, which asks Google whether it is genuine before trusting it.
-
-    A person signing in with Google for the first time has an account but no
-    household yet, so the server tells us with "isNew" and we send them through
-    onboarding rather than to an empty dashboard.
-  */
+  // The token goes to the server, which verifies it with Google. isNew means the
+  // account has no household yet, so it goes to onboarding.
   const handleGoogleCredential = async (credential) => {
     setFormError('');
     setIsBusy(true);

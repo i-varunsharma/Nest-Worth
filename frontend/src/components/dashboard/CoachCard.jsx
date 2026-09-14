@@ -4,28 +4,13 @@ import * as api from '../../lib/api';
 /*
   The AI coach on the dashboard.
 
-  The rest of this page is numbers. This is the one place that reads them for
-  you, works things out, and says what to do about it.
-
-  It is a short conversation rather than a single answer, so a follow-up like
-  "and if I paid double that?" makes sense. The browser holds the conversation
-  and sends it back with each question; the server keeps nothing between them.
-
-  Two things arrive from the server while an answer is being written. The text
-  itself, a few words at a time, which is why it appears rather than landing.
-  And a line saying which calculation is running, because the model does not do
-  the arithmetic: it asks the server to run the same functions the dashboard
-  uses, and that takes a second worth explaining.
-
-  Which model that is, Gemini or Claude, is the server's business. It picks one
-  from whichever key is set, and nothing in the browser needs to know.
-
-  The API key is not in this file, or anywhere else in frontend/. Anything the
-  browser downloads can be read by anybody who opens the dev tools.
+  A short conversation, so follow-ups like "and if I paid double?" work. The browser
+  keeps the conversation and sends it with each question; the server keeps none.
+  While an answer streams, the server also reports which calculation is running.
+  Which model answers is decided on the server, and no key is ever in frontend/.
 
   Props:
-    hasDebts - whether this person has entered any debts, which decides
-               which example questions are worth suggesting
+    hasDebts  chooses which example questions to suggest
 */
 
 // The suggestions under the box. Kept short so the row does not wrap.
@@ -49,12 +34,7 @@ export default function CoachCard({ hasDebts }) {
   // What is typed in the box.
   const [question, setQuestion] = useState('');
 
-  /*
-    The conversation so far, as [{ role, text }].
-
-    'user' and 'assistant' are the words the server's own conversation format
-    uses for the two sides, so nothing has to be renamed on the way out.
-  */
+  // The conversation as [{ role, text }], in the server's own format.
   const [turns, setTurns] = useState([]);
 
   // The answer currently being written, before it becomes a finished turn.
@@ -71,14 +51,8 @@ export default function CoachCard({ hasDebts }) {
     suggestions = DEBT_SUGGESTIONS;
   }
 
-  /*
-    Is this card still on screen?
-
-    A ref is a box that survives a re-render without causing one. An answer can
-    take ten seconds, and somebody can easily click away in that time. Setting
-    state on a card that is no longer there does nothing useful, so we check
-    the box first. Every page in this project does the same with stillMounted.
-  */
+  // Whether the card is still on screen. A ref keeps its value across renders without
+  // causing one, and an answer can take seconds, long enough to click away.
   const isOnScreen = useRef(true);
 
   useEffect(() => {
@@ -87,14 +61,8 @@ export default function CoachCard({ hasDebts }) {
     };
   }, []);
 
-  /*
-    Collects the answer as it arrives.
-
-    This is a ref rather than state on purpose. The pieces land faster than
-    React re-renders, and reading a state variable inside the handler would
-    read whatever it was when the handler was created, losing everything that
-    arrived in between. A ref is always current.
-  */
+  // The answer so far. A ref rather than state, because pieces arrive faster than
+  // re-renders and the handler would otherwise read a stale value.
   const answerSoFar = useRef('');
 
   /*
@@ -318,11 +286,7 @@ export default function CoachCard({ hasDebts }) {
         ) : null}
       </form>
 
-      {/*
-        No provider is named here on purpose. The server decides whether it is
-        talking to Gemini or Claude from whichever key is set, so a name in the
-        browser would be a guess, and would be wrong the moment the key changes.
-      */}
+      {/* No model is named: the server chooses it, so the browser would only be guessing. */}
       <p className="mt-5 text-2xs leading-relaxed text-muted">
         Written by an AI, running this app&rsquo;s own calculations on the numbers you
         entered. Educational guidance, not regulated advice.
@@ -332,11 +296,7 @@ export default function CoachCard({ hasDebts }) {
 }
 
 
-/*
-  Splits an answer on its blank lines so it reads as paragraphs rather than one
-  block. Its own small component because two places need it: the finished turns
-  and the one still being written.
-*/
+// Splits an answer on blank lines into paragraphs.
 function Paragraphs({ text }) {
   const lines = text.split('\n');
   const paragraphs = [];

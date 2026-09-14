@@ -1,10 +1,4 @@
-/*
-  Small helpers to do with the household.
-
-  Reading and saving happens through lib/api.js, since the answers live in the
-  database next to the account. What is left here are the two pieces that are
-  not the server's business.
-*/
+// Household helpers that do not involve the server.
 
 
 // Used while the real answers are still being fetched, and as a starting point
@@ -21,13 +15,7 @@ export const DEFAULT_HOUSEHOLD = {
 };
 
 
-/*
-  "Good morning" before noon, "Good afternoon" until five, "Good evening" after.
-
-  Uses the clock on the reader's own computer, not the server's. The server is
-  in one timezone and the reader could be in any, and "good evening" at
-  breakfast reads as software written for somebody else.
-*/
+// "Good morning", "Good afternoon" or "Good evening" by the reader's own clock.
 export function greetingForNow() {
   const hour = new Date().getHours();
 

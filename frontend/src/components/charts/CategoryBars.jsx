@@ -3,22 +3,14 @@ import { categoryLabel } from '../../lib/categories';
 import { formatRupees } from '../../lib/plan';
 
 /*
-  Where a month's spending went, as a sorted row of bars.
+  A month's spending by category as sorted bars.
 
-  Why bars and not a pie. The question this answers is "which of these is
-  biggest, and by how much", and length along a shared baseline is the one thing
-  the eye compares accurately. Angles are not: two slices within a few percent
-  of each other are genuinely indistinguishable in a pie, and there are twelve
-  categories here, which is far past the three or four a pie can carry.
-
-  Why they are all one colour. Twelve hues would be a rainbow that means
-  nothing, and the reader would spend the whole time looking things up in a
-  legend. The category is already written next to its own bar, so colour has no
-  work left to do, and giving one bar a different colour would say it mattered
-  more than the others when it only means it is bigger.
+  Bars rather than a pie, because lengths on a shared baseline are easy to compare
+  and angles are not, especially across twelve categories. One colour, because
+  each bar is already labelled.
 
   Props:
-    categories - [{ key, total, share }], already sorted by the server
+    categories  [{ key, total, share }], sorted by the server
 */
 
 // A bar this short is a sliver nobody can see, so it is given a floor. The
@@ -26,13 +18,7 @@ import { formatRupees } from '../../lib/plan';
 const MINIMUM_BAR_WIDTH = 1.5;
 
 export default function CategoryBars({ categories }) {
-  /*
-    The bars start at nothing and grow to their share once the list has been
-    scrolled to. The hook is called in here rather than by the page, because it
-    watches an element and can only do that once the element exists. This
-    component is not drawn until the numbers have arrived, so by the time the
-    hook runs there is something on the page to watch.
-  */
+  // The bars grow from zero once they are scrolled into view.
   const [listRef, isVisible] = useReveal();
 
   if (categories.length === 0) {

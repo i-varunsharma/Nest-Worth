@@ -1,13 +1,3 @@
-/*
-  The goals maths lives in shared/goals.js at the top of the project, and this file
-  passes it straight through.
-
-  It moved there when the AI coach started calling these same functions. The
-  browser draws the dashboard with them and the server hands them to the AI as
-  tools, and two copies would eventually disagree: the page would show one
-  payoff date and the coach would say another, and there would be no way to
-  tell which was right.
-
-  Every import in the app still says '../lib/goals', so nothing else had to change.
-*/
+// Re-exports shared/goals.js, which the server also uses, so the browser and the
+// AI coach calculate with the same code.
 export * from '../../../shared/goals.js';

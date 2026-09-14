@@ -1,15 +1,8 @@
 /*
-  A made-up bank statement, so the import can be tried without a real one.
-
-  Nobody has a CSV to hand the first time they open this page, and an upload box
-  with nothing to upload is a dead end. This is one month of an invented
-  household on ₹85,000: a salary, a rent payment, a SIP, and the ordinary
-  scatter of Swiggy and Uber underneath.
-
-  It is written in the shape HDFC exports, preamble and all, because that is the
-  shape the parser has to survive: two lines of account details before the
-  headings, a description with a comma in it, two identical payments on the same
-  day, and a totals row at the bottom that is not a transaction.
+  A made-up month of an HDFC-style statement, for trying the import without a real
+  file. It includes what the parser must handle: account details above the
+  headings, a comma inside a description, two identical payments on one day, and a
+  totals row.
 */
 export const SAMPLE_STATEMENT = [
   'Account Number: XXXXXXXX4471',

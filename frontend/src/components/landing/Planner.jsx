@@ -2,16 +2,14 @@ import { useState } from 'react';
 import { buildPlan, formatRupees } from '../../lib/plan';
 
 /*
-  The white card in the hero. This is the real product in miniature: move the
-  slider, pick how many people you support, flick the loan switch, and the whole
-  card recalculates.
+  The planner card in the landing page hero: change the income, dependents or
+  loan and the plan recalculates.
 
-  It does NOT own the household data. The landing page owns it and passes it in,
-  because the sections further down the page need the same numbers. That pattern
-  has a name in React: "lifting state up".
+  The landing page owns the household and passes it in, because the projection
+  further down needs the same numbers ("lifting state up").
 
-    household - the current numbers, for example { income: 62000, dependents: 2, hasLoan: true }
-    onChange  - a function to call with a NEW household object when something is edited
+    household  the current numbers
+    onChange   called with a new household object
 */
 
 // The slider runs between these two salaries.
@@ -68,24 +66,14 @@ export default function Planner({ household, onChange }) {
     variesKnobClasses = 'translate-x-[20px]';
   }
 
-  /*
-    Each handler builds a brand new household object rather than editing the old
-    one. React compares objects by identity, so changing a property in place
-    would not tell it that anything happened, and the screen would not update.
-  */
+  // Each handler builds a new household object, because React only re-renders when
+  // state is replaced rather than edited.
   const handleIncomeChange = (event) => {
     // input values arrive as text, so convert
     const income = Number(event.target.value);
 
-    /*
-      Spread the existing household rather than listing the fields by hand.
-
-      Listing them meant every new answer had to be remembered here as well, and
-      forgetting one silently wiped it the moment somebody touched this slider.
-
-      The living costs are then pulled back under the new ceiling, because
-      dropping the income can leave them above what the slider below allows.
-    */
+    // Copies every existing field, so a new field is never dropped by accident, then
+    // keeps living costs under the new ceiling.
     const highest = Math.round(income * 0.7);
 
     let essentialCosts = household.essentialCosts;
