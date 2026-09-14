@@ -39,8 +39,9 @@ const BASE_URL = process.env.GEMINI_BASE_URL
   Flash is the small, fast one, and it is the one the free tier covers. Google
   renames these fairly often, so it is a setting rather than a constant: if the
   name below stops working the error further down says exactly where to look.
+  gemini-2.0-flash was the old default and has been shut down.
 */
-const DEFAULT_MODEL = 'gemini-2.0-flash';
+export const DEFAULT_MODEL = 'gemini-3.8-flash';
 
 
 /*
@@ -109,7 +110,15 @@ export function toGeminiContents(messages) {
       return {
         role: 'model',
         parts: entry.toolCalls.map((call) => {
-          return { functionCall: { name: call.name, args: call.input } };
+          const part = { functionCall: { name: call.name, args: call.input } };
+
+          // Newer models sign their tool calls and refuse the next round if
+          // the signature is not sent back with the call.
+          if (call.signature) {
+            part.thoughtSignature = call.signature;
+          }
+
+          return part;
         }),
       };
     }
@@ -278,11 +287,18 @@ export async function runGeminiRound(options) {
             loop needs something to match a result back to its request, so one
             is made here from the position in the list.
           */
-          toolCalls.push({
+          const call = {
             id: 'call_' + toolCalls.length,
             name: part.functionCall.name,
             input: part.functionCall.args || {},
-          });
+          };
+
+          // Kept so toGeminiContents can send it back next round.
+          if (part.thoughtSignature) {
+            call.signature = part.thoughtSignature;
+          }
+
+          toolCalls.push(call);
         }
       });
     });

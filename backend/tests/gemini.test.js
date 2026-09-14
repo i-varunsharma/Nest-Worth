@@ -51,7 +51,13 @@ const server = http.createServer((req, res) => {
     const parts = [];
 
     if (nextReply.toolCall) {
-      parts.push({ functionCall: { name: nextReply.toolCall, args: nextReply.args || {} } });
+      const callPart = { functionCall: { name: nextReply.toolCall, args: nextReply.args || {} } };
+
+      if (nextReply.signature) {
+        callPart.thoughtSignature = nextReply.signature;
+      }
+
+      parts.push(callPart);
     }
 
     if (nextReply.text) {
@@ -168,6 +174,16 @@ test('a tool request goes back as the model’s own turn', () => {
 });
 
 
+test('a signed tool call is sent back with its signature', () => {
+  // Newer Gemini models reject the next round if the signature goes missing.
+  const contents = toGeminiContents([
+    { toolCalls: [{ id: 'c0', name: 'emergency_fund', input: {}, signature: 'sig-123' }] },
+  ]);
+
+  assert.equal(contents[0].parts[0].thoughtSignature, 'sig-123');
+});
+
+
 test('a tool result goes back as a user turn, wrapped in an object', () => {
   /*
     It reads oddly and it is right: as far as the model is concerned the answer
@@ -240,7 +256,11 @@ test('a tool call comes back with something to match its result to', async () =>
     needs one to pair a result with its request, so gemini.js makes one up.
   */
   received.length = 0;
-  nextReply = { toolCall: 'simulate_extra_payment', args: { debt_name: 'Card', extra_per_month: 3000 } };
+  nextReply = {
+    toolCall: 'simulate_extra_payment',
+    args: { debt_name: 'Card', extra_per_month: 3000 },
+    signature: 'sig-abc',
+  };
 
   const reply = await runGeminiRound({
     system: 'be helpful',
@@ -254,6 +274,7 @@ test('a tool call comes back with something to match its result to', async () =>
   assert.ok(reply.toolCalls[0].id, 'a tool call with no id cannot be answered');
   assert.equal(reply.toolCalls[0].name, 'simulate_extra_payment');
   assert.deepEqual(reply.toolCalls[0].input, { debt_name: 'Card', extra_per_month: 3000 });
+  assert.equal(reply.toolCalls[0].signature, 'sig-abc');
 });
 
 

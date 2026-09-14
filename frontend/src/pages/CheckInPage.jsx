@@ -5,8 +5,8 @@ import { SkeletonPage } from '../components/shared/Skeleton';
 import Button from '../components/shared/Button';
 import TextField from '../components/shared/TextField';
 import * as api from '../lib/api';
-import { buildPlan, bucketAmount, formatRupees } from '../lib/plan';
-import { summariseDebts } from '../lib/debt';
+import { bucketAmount, formatRupees } from '../lib/plan';
+import { loadFinances } from '../lib/loadFinances';
 import { currentMonth, monthLabel } from '../lib/checkins';
 
 /*
@@ -78,10 +78,9 @@ export default function CheckInPage({ user }) {
     let stillMounted = true;
 
     const load = async () => {
-      const [checkinResult, householdResult, debtsResult, insightResult] = await Promise.all([
+      const [checkinResult, loaded, insightResult] = await Promise.all([
         api.getCheckins(),
-        api.getHousehold(),
-        api.getDebts(),
+        loadFinances(),
         api.getInsights(),
       ]);
 
@@ -102,23 +101,29 @@ export default function CheckInPage({ user }) {
         setInsights(insightResult.data.insights);
       }
 
-      if (householdResult.ok && debtsResult.ok) {
-        const debts = debtsResult.data.debts;
-
-        const built = buildPlan({
-          income: householdResult.data.household.income,
-          dependents: householdResult.data.household.dependents,
-          hasLoan: debts.length > 0,
-          incomeVaries: householdResult.data.household.incomeVaries,
-          essentialCosts: householdResult.data.household.essentialCosts,
-          emi: summariseDebts(debts).totalEmi,
-        });
+      // The same plan the dashboard shows. This page used to build its own.
+      if (loaded.ok === true && loaded.finances !== null) {
+        const built = loaded.finances.plan;
 
         setPlan(built);
 
-        // Start the income box at the planned figure, since it is usually right
-        // and typing it again every month is tedious.
-        setIncome(String(built.income));
+        /*
+          Start the income box at the planned figure, since it is usually right
+          and typing it again every month is tedious.
+
+          Only when the box is still empty. The spending page can arrive with the
+          real income from a bank statement in the address, and that used to be
+          overwritten here by the planned figure.
+
+          Passing a function to setIncome gives us the latest value of the box,
+          rather than the value from when this effect started.
+        */
+        setIncome((current) => {
+          if (current === '') {
+            return String(built.income);
+          }
+          return current;
+        });
       }
     };
 

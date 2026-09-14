@@ -120,6 +120,10 @@ export function readFacts(userId) {
     .prepare('SELECT * FROM assets WHERE user_id = ? ORDER BY value DESC LIMIT ?')
     .all(userId, MAX_ROWS_IN_PROMPT);
 
+  const family = db
+    .prepare('SELECT * FROM family_members WHERE user_id = ? ORDER BY monthly_support DESC LIMIT ?')
+    .all(userId, MAX_ROWS_IN_PROMPT);
+
   // Only the recent months. A year of check-ins would fill the prompt with
   // history nobody is asking about, and cost more for a worse answer.
   const checkins = db
@@ -151,6 +155,7 @@ export function readFacts(userId) {
     debts: debts,
     goals: goals,
     assets: assets,
+    family: family,
     checkins: checkins,
     totalOwed: round(totalOwed),
     totalEmi: round(totalEmi),
@@ -193,7 +198,29 @@ export function factsToText(facts) {
 
   lines.push('HOUSEHOLD');
   lines.push('Take-home income: ₹' + round(household.income) + ' a month');
-  lines.push('People depending on this income: ' + household.dependents);
+
+  // Older callers and tests may not pass a family list at all.
+  let family = [];
+  if (Array.isArray(facts.family)) {
+    family = facts.family;
+  }
+
+  if (family.length === 0) {
+    lines.push('People depending on this income: ' + household.dependents
+      + ' (a count only; the family page is empty, so support is estimated)');
+  } else {
+    lines.push('People depending on this income, from the family page:');
+
+    family.forEach((member) => {
+      let cover = 'no health cover';
+      if (member.has_health_cover === 1) {
+        cover = 'has health cover';
+      }
+
+      lines.push('- ' + member.name + ' (' + member.relation + '): ₹'
+        + round(member.monthly_support) + ' a month, ' + cover);
+    });
+  }
 
   if (household.income_varies === 1) {
     lines.push('Income changes month to month.');

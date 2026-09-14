@@ -47,6 +47,12 @@ const tables = [
     query: 'SELECT id, user_id, name, target_amount, saved_amount, target_date FROM goals ORDER BY user_id, id',
   },
   {
+    name: 'family_members',
+    title: 'People supported',
+    query: `SELECT id, user_id, name, relation, monthly_support, has_health_cover
+            FROM family_members ORDER BY user_id, id`,
+  },
+  {
     name: 'checkins',
     title: 'Monthly check-ins',
     query: 'SELECT id, user_id, month, income, spent, saved, invested FROM checkins ORDER BY user_id, month',

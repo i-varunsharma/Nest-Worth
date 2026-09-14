@@ -137,8 +137,11 @@ the API would refuse it, and then wonder why a page looks broken.
 | Delete your account and everything in it | Working, on the settings page |
 | Progress against the plan, from your check-ins | Working, on the dashboard |
 | Plan subtracts real rent and bills before splitting | Working |
-| Backend tests (`npm test` in `backend/`) | Working, 141 of them |
-| Frontend tests (`npm test` in `frontend/`) | Working, 78 of them |
+| Family circle: real support amounts replace the estimate | Working, on `/family` |
+| Stress test: four shocks, month by month | Working, on `/stress-test` and the dashboard |
+| Backend tests (`npm test` in `backend/`) | Working, 221 of them |
+| Frontend tests (`npm test` in `frontend/`) | Working, 95 of them |
+| CI on every push | Working, `.github/workflows/ci.yml` |
 | AI coach (Gemini free, or Claude) | Working, needs an API key: section 4 |
 | Continue with Google | Code is finished, needs a client id: section 5 |
 | Real text messages | Needs section 6 |
@@ -197,7 +200,7 @@ and the rest of the app carries on.
    `.env` does, so it has to be stopped and started.
 
 You will know it worked, because the line the server prints when it starts
-changes from `AI coach: not configured` to `AI coach: Gemini (gemini-2.0-flash)`.
+changes from `AI coach: not configured` to `AI coach: Gemini (gemini-3.8-flash)`.
 
 If it says there is no such model, Google has renamed it. Pick a current one
 from [ai.google.dev](https://ai.google.dev/gemini-api/docs/models) and add
@@ -404,10 +407,16 @@ about deployment.
    people are using this, those printouts have to become real messages, or every
    code your users receive is sitting in a log file.
 
-7. **Set a spending limit on the Anthropic key.** The route is rate limited per
-   person, but a hundred real people asking a hundred questions is still a bill.
-   The console has a monthly cap, and it is easier to set it now than to explain
-   it later.
+7. **Set a spending limit on the AI key.** The route is rate limited per person,
+   but a hundred real people asking a hundred questions is still a bill. The
+   Anthropic console has a monthly cap. On Gemini, stay on the free tier or set
+   a budget alert in Google Cloud billing.
+
+8. **Put the frontend and the API on the same site.** The session cookie is
+   `sameSite: 'lax'`, so a browser will not send it from `app.vercel.app` to
+   `api.onrender.com`, and nobody stays signed in. Use one domain, such as
+   `nestworth.in` for the app and `api.nestworth.in` for the API, and build the
+   frontend with `VITE_API_URL` set to the API address.
 
 ---
 
@@ -420,8 +429,8 @@ about deployment.
 - [ ] Create an account and check the dashboard appears
 - [ ] Try the Phone tab and read the code from the API terminal
 - [ ] Try "Forgot password?" and read the link from the API terminal
-- [ ] `cd backend && npm test` and see 141 passing
-- [ ] `cd frontend && npm test` and see 78 passing
+- [ ] `cd backend && npm test` and see 221 passing
+- [ ] `cd frontend && npm test` and see 95 passing
 
 **AI coach (section 4)**
 
@@ -455,3 +464,5 @@ about deployment.
 - [ ] `CLIENT_ORIGIN` set to the real domain
 - [ ] `DISABLE_RATE_LIMIT` not set anywhere
 - [ ] Database on storage that survives a deploy, and backed up
+- [ ] App and API on the same domain, frontend built with `VITE_API_URL`
+- [ ] Real domain added to the Google OAuth origins

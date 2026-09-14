@@ -1,6 +1,7 @@
 import express from 'express';
 import db from '../database/db.js';
 import { requireUser } from '../lib/sessions.js';
+import { debtFromRow } from '../lib/rows.js';
 
 /*
     GET    /api/debts      list mine
@@ -16,19 +17,6 @@ import { requireUser } from '../lib/sessions.js';
 const router = express.Router();
 
 const KINDS = ['education', 'personal', 'credit_card', 'home', 'vehicle', 'other'];
-
-
-/* Turns a database row into the shape the frontend uses. */
-function publicDebt(row) {
-  return {
-    id: row.id,
-    name: row.name,
-    kind: row.kind,
-    principal: row.principal,
-    annualRate: row.annual_rate,
-    emi: row.emi,
-  };
-}
 
 
 /*
@@ -84,7 +72,7 @@ router.get('/', requireUser, (req, res) => {
   `).all(req.user.id);
 
   // Highest rate first, because that is the order they should be cleared in.
-  return res.json({ debts: rows.map(publicDebt) });
+  return res.json({ debts: rows.map(debtFromRow) });
 });
 
 
@@ -116,7 +104,7 @@ router.post('/', requireUser, (req, res) => {
 
   const row = db.prepare('SELECT * FROM debts WHERE id = ?').get(result.lastInsertRowid);
 
-  return res.status(201).json({ debt: publicDebt(row) });
+  return res.status(201).json({ debt: debtFromRow(row) });
 });
 
 
@@ -161,7 +149,7 @@ router.put('/:id', requireUser, (req, res) => {
   const row = db.prepare('SELECT * FROM debts WHERE id = ? AND user_id = ?')
     .get(req.params.id, req.user.id);
 
-  return res.json({ debt: publicDebt(row) });
+  return res.json({ debt: debtFromRow(row) });
 });
 
 
