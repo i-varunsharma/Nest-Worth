@@ -72,7 +72,9 @@ export async function runClaudeRound(options) {
     });
 
     stream.on('text', (piece) => {
-      options.onText(piece);
+      if (typeof options.onText === 'function') {
+        options.onText(piece);
+      }
     });
 
     reply = await stream.finalMessage();

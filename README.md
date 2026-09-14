@@ -52,7 +52,7 @@ Open <http://localhost:5173> and create an account.
 To run the tests:
 
 ```bash
-cd backend  && npm test    # 221 tests: the API, the SQL, the money maths, the AI tools
+cd backend  && npm test    # 234 tests: the API, the SQL, the money maths, the AI tools
 cd frontend && npm test    # 95 tests: the money maths, the components and the charts
 ```
 

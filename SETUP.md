@@ -139,7 +139,7 @@ the API would refuse it, and then wonder why a page looks broken.
 | Plan subtracts real rent and bills before splitting | Working |
 | Family circle: real support amounts replace the estimate | Working, on `/family` |
 | Stress test: four shocks, month by month | Working, on `/stress-test` and the dashboard |
-| Backend tests (`npm test` in `backend/`) | Working, 221 of them |
+| Backend tests (`npm test` in `backend/`) | Working, 234 of them |
 | Frontend tests (`npm test` in `frontend/`) | Working, 95 of them |
 | CI on every push | Working, `.github/workflows/ci.yml` |
 | AI coach (Gemini free, or Claude) | Working, needs an API key: section 4 |
@@ -200,7 +200,7 @@ and the rest of the app carries on.
    `.env` does, so it has to be stopped and started.
 
 You will know it worked, because the line the server prints when it starts
-changes from `AI coach: not configured` to `AI coach: Gemini (gemini-3.8-flash)`.
+changes from `AI coach: not configured` to `AI coach: Gemini (gemini-3.6-flash)`.
 
 If it says there is no such model, Google has renamed it. Pick a current one
 from [ai.google.dev](https://ai.google.dev/gemini-api/docs/models) and add
@@ -236,8 +236,13 @@ one line in `lib/ai/index.js`.
 
 ### What it costs
 
-Gemini's free allowance covers ordinary use of this app comfortably. If it runs
-out the coach says so and everything else keeps working.
+Gemini's free tier allows **5 requests a minute per model**, shared by everyone
+using your key. A question that runs a tool uses 2 requests. When a model is
+busy or over its allowance the coach moves on to `gemini-3.5-flash`, then
+`gemini-3.5-flash-lite`, so for one person testing this is plenty. For real
+users, turn on billing in Google AI Studio: the per-minute limits rise a long
+way and a question costs a fraction of a rupee. If every model is refused, the
+coach says so and the rest of the app keeps working.
 
 On Claude, a question with no tool call is about 1,500 tokens in and a few
 hundred out; one that runs a tool goes round the loop two or three times. Even
@@ -429,7 +434,7 @@ about deployment.
 - [ ] Create an account and check the dashboard appears
 - [ ] Try the Phone tab and read the code from the API terminal
 - [ ] Try "Forgot password?" and read the link from the API terminal
-- [ ] `cd backend && npm test` and see 221 passing
+- [ ] `cd backend && npm test` and see 234 passing
 - [ ] `cd frontend && npm test` and see 95 passing
 
 **AI coach (section 4)**

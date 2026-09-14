@@ -115,6 +115,16 @@ work on numbers the visitor has not saved yet.
    description or the system prompt in `lib/advice.js`. If the text is wrong,
    the bug is in `tools.js` or `shared/`.
 
+| The coach card says | Cause | Look at |
+|---|---|---|
+| "Gemini is busy right now" | Every model returned 503 | Try again; `FALLBACK_MODELS` in `lib/ai/gemini.js` |
+| "The free Gemini allowance is used up" | 5 requests a minute per model on the free tier | The API terminal shows `429` per model; turn on billing for real users |
+| "The coach did not come back with an answer" | The model finished without text | The API terminal for `stopped at the token limit`; `MAX_TOKENS` in `lib/advice.js` |
+| "That Gemini API key was refused" | Wrong or revoked key | `GEMINI_API_KEY` in `backend/.env`, then restart the API |
+
+Every refusal is printed in the API terminal as `Gemini refused the request:`
+with the model name and status.
+
 ---
 
 ## 5. Something looks wrong but no number is wrong
