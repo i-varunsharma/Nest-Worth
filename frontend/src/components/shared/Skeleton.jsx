@@ -1,17 +1,9 @@
 /*
-  A grey placeholder in the shape of the thing that has not arrived yet.
-
-  Why bother, when a "Loading…" line is two words and works? Because the word
-  sits in the middle of an empty screen and then the real page appears around
-  it, so everything jumps. A skeleton is the same size and in the same place as
-  what replaces it, so nothing moves when the answer comes back. It also makes
-  the wait feel shorter, because the reader can already see the shape of what
-  they are getting.
-
-  The moving shimmer is the ".skeleton" class in global.css.
+  A grey placeholder the same size and place as what is loading, so nothing jumps
+  when the data arrives. The shimmer is the .skeleton class in global.css.
 
   Props:
-    className - the size, as Tailwind classes. Always give it a height.
+    className  the size as Tailwind classes; always include a height
 */
 export function Skeleton({ className }) {
   let classes = 'skeleton ';
@@ -26,10 +18,7 @@ export function Skeleton({ className }) {
   return <div className={classes} aria-hidden="true" />;
 }
 
-/*
-  One of the four cards across the top of a page: a small label, a big number,
-  a caption. Drawn hollow while the real numbers are being fetched.
-*/
+// A placeholder for a small stat card.
 export function SkeletonStat() {
   return (
     <div className="rounded-[18px] border border-line bg-surface p-5 shadow-card">
@@ -40,12 +29,7 @@ export function SkeletonStat() {
   );
 }
 
-/*
-  A card-shaped block, for the bigger panels lower down a page.
-
-  Props:
-    className - usually just a height, since the grid decides the width.
-*/
+// A placeholder for a larger panel. className is usually just a height.
 export function SkeletonCard({ className }) {
   let classes = 'rounded-[18px] border border-line bg-surface p-6 shadow-card ';
 
@@ -63,17 +47,8 @@ export function SkeletonCard({ className }) {
   );
 }
 
-/*
-  The wrapper to put a whole loading screen in.
-
-  aria-busy tells a screen reader the region is still filling in, and the
-  visually hidden sentence is what actually gets read out. "sr-only" is a
-  Tailwind class that hides something from the eye but not from a reader.
-
-  Props:
-    label    - what is being waited for, read out to screen readers
-    children - the skeleton shapes
-*/
+// Wraps a loading screen. aria-busy and the hidden label tell screen readers
+// what is being waited for.
 export function SkeletonScreen({ label, children }) {
   return (
     <div aria-busy="true">
@@ -84,14 +59,12 @@ export function SkeletonScreen({ label, children }) {
 }
 
 /*
-  A whole page's worth of shapes: a row of small stat cards, then some bigger
-  panels. Four pages wait on their own list of things and all four look roughly
-  like this, so they share one loading screen rather than writing four.
+  A whole page of placeholders: stat cards across the top, panels below.
 
   Props:
-    label - what is being waited for, read out to screen readers
-    stats - how many small cards across the top
-    cards - how many big panels below them
+    label  read out to screen readers
+    stats  how many small cards
+    cards  how many panels
 */
 export function SkeletonPage({ label, stats, cards }) {
   // Build the two lists as arrays of numbers first. A map needs something to

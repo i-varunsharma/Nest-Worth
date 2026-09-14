@@ -5,22 +5,11 @@ import * as api from '../../lib/api';
 import { checkOtp, checkPhone, keepOnlyDigits } from '../../lib/validation';
 
 /*
-  Signing in with a mobile number, in two steps.
-
-    Step 1  "number"  ->  type your number, press Send code
-    Step 2  "code"    ->  type the 6 digits we texted you
-
-  Both the login and signup pages use this same component, so the flow exists in
-  one place only.
-
-  Where the real work happens: the server. This form checks that what was typed
-  LOOKS right before bothering the network, but it has no idea whether a code is
-  correct. It sends it to /api/auth/otp/verify and shows whatever comes back.
-  Checking a code in the browser would be pointless, because anyone can edit
-  what runs in their own browser.
+  Phone sign-in in two steps: enter the number, then the six digit code. Used by
+  both the login and signup pages. Only the server decides whether a code is right.
 
   Props:
-    onVerified - runs once the server accepts the code, given (user, isNew)
+    onVerified  called with (user, isNew) once the code is accepted
 */
 
 // How long before "Resend code" becomes clickable again. The server enforces
@@ -50,17 +39,8 @@ export default function PhoneOtpForm({ onVerified }) {
 
   const [secondsLeft, setSecondsLeft] = useState(0);
 
-  /*
-    The countdown.
-
-    Each time secondsLeft changes, this sets one timer for one second, and that
-    timer lowers the number by one. Lowering it runs this again, and so on down
-    to zero, where we stop.
-
-    The returned function cancels the pending timer. React runs it before the
-    next round and when this form leaves the screen, which stops a timer firing
-    into a component that is no longer there.
-  */
+  // The resend countdown: each change of secondsLeft sets a one second timer that
+  // lowers it. The cleanup cancels the timer when the form leaves the screen.
   useEffect(() => {
     if (secondsLeft <= 0) {
       return;
@@ -256,12 +236,8 @@ export default function PhoneOtpForm({ onVerified }) {
           6 digit code
         </label>
 
-        {/*
-          One wide box rather than six little ones. Far less code, it works with
-          password managers, and autoComplete="one-time-code" lets a phone offer
-          the code straight from the text message, which six boxes tend to break.
-          The wide letter spacing is what makes it look like separate digits.
-        */}
+        {/* One box rather than six: it works with password managers, and
+            autoComplete="one-time-code" lets a phone fill it from the text message. */}
         <input
           id="otp"
           name="otp"

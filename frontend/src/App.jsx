@@ -19,47 +19,14 @@ import StressTestPage from './pages/StressTestPage';
 import RequireAuth from './components/auth/RequireAuth';
 
 /*
-  Decides which page to show for which address in the browser bar.
+  Which page shows at which address.
 
-  Open to anybody:
-    /                 the landing page
-    /login            sign in
-    /signup           create an account
-    /forgot-password  ask for a password reset link
-    /reset-password   choose a new password, using the token in that link
+  Open to anybody: /, /login, /signup, /forgot-password, /reset-password.
+  Signed in only: /onboarding, /dashboard, /family, /plans, /stress-test, /debts,
+  /goals, /net-worth, /spending, /recap, /check-in, /settings.
+  Anything else shows the landing page.
 
-  The two password pages are open to anybody, because somebody who cannot sign
-  in is exactly who needs them. What protects /reset-password is the one-time
-  token in its address, which only the account's own inbox receives.
-
-  Only when signed in:
-    /onboarding   the questions everything else is built from
-    /dashboard    the overview
-    /family       the people this salary supports, by name
-    /plans        the same money spent several ways, and where each one lands
-    /stress-test  what a job loss, pay cut or hospital bill does to the cash
-    /debts        every debt, with payoff dates and the extra-payment slider
-    /goals        what you are saving for, and what each costs per month
-    /net-worth    what you own against what you owe
-    /spending     a bank statement, read and sorted into categories
-    /recap        a whole year of those, added up and looked back on
-    /check-in     what actually happened this month
-    /settings     your name, household and account
-
-  Anything else falls through to the landing page, so a bad link is never a
-  dead end.
-
-  The journey is:
-
-    signup  ->  onboarding  ->  dashboard
-    login   ->  dashboard
-
-  Somebody signing up has not answered the questions yet. Somebody signing in
-  has, so they go straight to their plan.
-
-  Every private page is wrapped in RequireAuth, which asks the server who is
-  signed in. That decides what to show; what protects the data is the same
-  check on the server.
+  RequireAuth decides what to show. The data itself is protected on the server.
 */
 
 // Keeps the private routes below readable. Without it, each of those seven

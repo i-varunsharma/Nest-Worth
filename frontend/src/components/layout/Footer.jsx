@@ -1,22 +1,8 @@
 import { Link } from 'react-router-dom';
 import Container from '../shared/Container';
 
-/*
-  Three columns of links plus the small print.
-
-  The links live in this array rather than being typed out one by one, so
-  adding one is a single line of editing.
-
-  Two kinds of link appear here and they are not interchangeable:
-
-    href  jumps to a section further down this same page
-    to    moves to a different page, and has to use the router's Link so the
-          app does not do a full browser reload
-
-  Every entry below goes somewhere real. An earlier version had About, Notes,
-  Contact, Privacy and Terms all pointing at "#", which looks finished until
-  somebody clicks one and the page just scrolls to the top.
-*/
+// The landing page footer. href links jump within this page; to links go to another
+// page through the router, without a full reload.
 const linkColumns = [
   {
     title: 'Product',

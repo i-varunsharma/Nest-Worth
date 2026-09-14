@@ -7,35 +7,15 @@ import * as api from '../lib/api';
 import { checkPassword } from '../lib/validation';
 
 /*
-  The screen at /reset-password. Step two of two.
-
-  Somebody arrives here by pressing the link in their email, which looks like:
-
-      /reset-password?token=12.4f3a9c...
-
-  Everything after the "?" is called the query string, and the token in it is
-  the proof that this person can read the account's email. We never ask who
-  they are, because holding a working token already answers that.
-
-  Two consequences, both handled below:
-
-    The token is only passed through to the server. This page cannot tell
-    whether it is real and does not try, since only the server holds the hash
-    to check it against.
-
-    A successful reset also signs them in, so we go straight to the dashboard
-    rather than to a login form for the password they chose a moment ago.
+  /reset-password: step two of a password reset. The link in the email carries
+  ?token=..., which proves the person can read the account's email. The token is
+  only passed to the server, which holds the hash to check it. Success signs in.
 */
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
 
-  /*
-    useSearchParams reads the "?token=..." part of the address.
-
-    It gives back an array whose first item is the collection of values. We only
-    need to read, never to change, which is why the second item is ignored.
-  */
+  // useSearchParams reads the ?token=... part of the address.
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
 
@@ -66,11 +46,7 @@ export default function ResetPasswordPage() {
       foundErrors.password = passwordError;
     }
 
-    /*
-      Asking for the password twice is not about security, it is about typing.
-      A password box hides what you type, so a slip goes unnoticed until you are
-      locked out of your own account. Comparing two attempts catches it now.
-    */
+    // Typing the password twice catches a slip that a hidden password box would hide.
     if (!passwordError && confirmPassword !== password) {
       foundErrors.confirmPassword = 'Those two passwords do not match.';
     }
@@ -104,14 +80,7 @@ export default function ResetPasswordPage() {
   };
 
 
-  /*
-    Somebody who reaches this address without a token has almost certainly
-    typed the URL by hand, or pressed a link that was cut in half by their mail
-    program. There is nothing to submit, so we do not show a form at all.
-
-    Checking for this first, and returning early, means the rest of the file
-    can assume a token exists.
-  */
+  // No token means the link was typed by hand or cut short, so there is nothing to submit.
   if (!token) {
     return (
       <AuthLayout
@@ -195,12 +164,7 @@ export default function ResetPasswordPage() {
           autoComplete="new-password"
         />
 
-        {/*
-          Worth saying on the page, because it is otherwise a nasty surprise:
-          changing the password signs out every other browser. That is on
-          purpose. Somebody resetting because a stranger got into their account
-          would gain nothing if the stranger stayed signed in.
-        */}
+        {/* Resetting signs out every other browser, so a stranger who got in is removed too. */}
         <p className="text-2xs leading-relaxed text-muted">
           Setting a new password signs you out everywhere else, on every device.
         </p>

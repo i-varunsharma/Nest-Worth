@@ -3,20 +3,12 @@ import { formatRupees } from '../../lib/plan';
 import { monthLabel } from '../../lib/checkins';
 
 /*
-  How the plan is actually going, built from the monthly check-ins.
-
-  Everything else on the dashboard describes a plan. This is the only part that
-  can say whether any of it is happening, which is why it earns a place next to
-  the plan rather than being buried on the check-in page.
-
-  It is written to be encouraging without lying. Somebody two points under their
-  target is told they are on track, and somebody slipping is told plainly but
-  without a scolding, because a tool that makes you feel bad is one you stop
-  opening.
+  How the plan is going, from the monthly check-ins. Encouraging without being
+  untrue: close to target counts as on track.
 
   Props:
-    summary          from summariseCheckins, or null when nothing is recorded
-    plannedKeptShare what the plan asks for, as a percentage of income
+    summary           from summariseCheckins, or null when nothing is recorded
+    plannedKeptShare  the plan's kept share of income, as a percentage
 */
 
 // Only claim a direction once there are enough months for it to mean something.

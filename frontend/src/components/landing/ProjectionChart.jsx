@@ -1,25 +1,14 @@
 import useReveal from '../../hooks/useReveal';
 
 /*
-  Draws the two lines showing money invested versus what it grows into.
-
-  This file contains ONLY the drawing. The words and the big number next to it
-  live in Projection.jsx. Splitting them means neither file is doing two jobs at
-  once, and you can read the maths here without wading through layout.
-
-  The chart is hand-drawn with SVG rather than a chart library, because it only
-  ever draws two lines. Pulling in a whole charting library for that would be
-  heavier than the entire rest of the page.
-
-  How the drawing works, in short:
-  we pick a made-up canvas 560 wide and 240 tall, turn every year into an x and y
-  point on that canvas, and join the points into a line. The browser then
-  stretches that canvas to whatever width the card happens to be, so the chart
-  looks right on a phone and on a monitor without any extra code.
+  The landing page projection: money invested against what it grows into, as two
+  lines. Hand-drawn in SVG, because a charting library would be heavier than the
+  rest of the page for two lines. The drawing uses its own 560 by 240 units and the
+  browser scales it to the card.
 
   Props:
-    rows  - one entry per year, each { year, invested, value }
-    years - how many years the chart covers, used for the labels
+    rows   one per year: { year, invested, value }
+    years  how many years are shown
 */
 
 // The canvas size. These are not pixels, they are just numbers we made up.
@@ -30,12 +19,8 @@ const CANVAS_HEIGHT = 240;
 // A small gap at the top, so the highest point is not glued to the edge.
 const TOP_PADDING = 12;
 
-/*
-  SVG and inline styles cannot take a Tailwind class, so colours have to be
-  written out here. They point at the same CSS variables the Tailwind classes
-  use, which is what keeps a chart in step with the rest of the page and lets it
-  follow the dark theme without this file knowing there is one.
-*/
+// SVG attributes cannot use Tailwind classes, so colours point at the same CSS
+// variables the theme uses, which also makes the dark theme work here.
 const COLOURS = {
   valueLine: 'rgb(var(--color-accent))',
   investedLine: 'rgb(var(--color-line-strong))',
@@ -54,13 +39,7 @@ export default function ProjectionChart({ rows, years }) {
     tallestValue = 1; // never divide by zero
   }
 
-  /*
-    Turns one row into an "x y" pair on our made-up canvas.
-
-    x: year 0 sits at the far left, the final year at the far right.
-    y: SVG counts downwards from the top, so a BIG value needs a SMALL y.
-       That is why this subtracts from CANVAS_HEIGHT instead of adding to it.
-  */
+  // One row as an "x y" point. SVG y counts down from the top, so larger values get a smaller y.
   function pointFor(row, whichNumber) {
     const x = (row.year / years) * CANVAS_WIDTH;
     const heightAvailable = CANVAS_HEIGHT - TOP_PADDING;

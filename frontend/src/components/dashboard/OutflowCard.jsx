@@ -1,17 +1,13 @@
 import { formatRupees } from '../../lib/plan';
 
 /*
-  Where the salary actually goes, as four rows with a bar under each.
-
-  It is the same idea as the "where it actually goes" section on the landing
-  page, but this version is for someone already signed in: no argument, no
-  persuading, just the numbers.
+  Where the salary goes each month: one row and bar for each outgoing.
 
   Props:
-    plan          - the plan from summariseFinances
-    dependents    - how many people are supported, used for the small print
-    familyListed  - true once the family page has people on it
-    hasLoan       - whether a loan is running, used for the small print
+    plan          from summariseFinances
+    dependents    how many people are supported
+    familyListed  true once the Family page has people on it
+    hasLoan       whether any debt is running
 */
 
 const barColours = {

@@ -1,15 +1,5 @@
-/*
-  The little two-way switch that chooses between signing in with an email
-  address and signing in with a mobile number.
-
-      [  Email  ][  Phone  ]
-
-  It does not decide anything by itself. The page above it holds the current
-  choice and passes it down, and this component just calls onChange when a
-  button is pressed. A component that only shows what it is told and reports
-  clicks back is called a "controlled" component, and it is much easier to reason
-  about than one that keeps its own secret copy of the answer.
-*/
+// The Email and Phone switch on the auth pages. A controlled component: the page
+// holds the choice and this only reports clicks.
 
 const options = [
   { value: 'email', label: 'Email' },

@@ -7,21 +7,9 @@ import * as api from '../lib/api';
 import { checkEmail } from '../lib/validation';
 
 /*
-  The screen at /forgot-password. Step one of two.
-
-  Somebody types their email, and the server sends a link to it. Pressing the
-  link opens ResetPasswordPage, where they choose a new password.
-
-  The one surprising thing on this page is what happens after the form is sent.
-  We show the same confirmation whether or not that email has an account,
-  because the server deliberately answers the same way either way. If it did
-  not, this form could be used as a way to check which of your friends have
-  signed up: type an address, see which message comes back.
-
-  That means a person who mistypes their address is left waiting for an email
-  that will never arrive, which is why the confirmation below says out loud to
-  check the address if nothing turns up. It is the honest way to soften a
-  trade-off we cannot avoid.
+  /forgot-password: step one of a reset. The confirmation is the same whether or
+  not the email has an account, so the form cannot be used to find out who has
+  signed up. It therefore tells people to check the address if no email arrives.
 */
 
 export default function ForgotPasswordPage() {
@@ -79,13 +67,7 @@ export default function ForgotPasswordPage() {
   }
 
 
-  /*
-    The confirmation, shown after the form has been sent.
-
-    Pulled out into its own variable rather than written inline below, so the
-    return statement at the bottom of this file stays short enough to read in
-    one go.
-  */
+  // The confirmation shown after the form is sent.
   let body = null;
 
   if (isSent === true) {
@@ -103,11 +85,7 @@ export default function ForgotPasswordPage() {
           </p>
         </div>
 
-        {/*
-          While there is no email provider connected, the link is printed in the
-          terminal running the API instead of being sent anywhere. Saying so
-          here saves the next person a confusing ten minutes.
-        */}
+        {/* Until an email provider is connected, the link is printed in the API terminal. */}
         <p className="rounded-xl border border-line bg-surface px-4 py-3 text-2xs leading-relaxed text-muted">
           Running this locally? No email provider is connected yet, so the link
           is printed in the terminal running the backend. See SETUP.md.

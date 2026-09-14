@@ -1,13 +1,7 @@
 import useTheme from '../../hooks/useTheme';
 
-/*
-  The little sun/moon button in the top bar.
-
-  Both icons are drawn in the same box, one on top of the other, and the switch
-  fades and rotates between them rather than swapping one element for another.
-  Swapping would be simpler, but it snaps, and a control that snaps feels
-  cheap on a page where everything else eases.
-*/
+// The sun and moon button. Both icons sit in the same box and cross-fade, so the
+// switch eases like the rest of the page instead of snapping.
 export default function ThemeToggle({ className }) {
   const [theme, toggleTheme] = useTheme();
 
