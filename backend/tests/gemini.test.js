@@ -21,7 +21,7 @@ import http from 'node:http';
 process.env.GEMINI_API_KEY = 'fake-key-for-tests';
 process.env.GEMINI_BASE_URL = 'http://localhost:4455/';
 
-const { runGeminiRound, toGeminiContents, toGeminiTools } =
+const { DEFAULT_MODEL, FALLBACK_MODELS, runGeminiRound, toGeminiContents, toGeminiTools } =
   await import('../src/lib/ai/gemini.js');
 
 // Every request the stand-in received, so the tests can look at them.
@@ -38,7 +38,17 @@ const server = http.createServer((req, res) => {
   });
 
   req.on('end', () => {
-    received.push({ url: req.url, body: JSON.parse(body) });
+    // The model name is the part of the address before the colon.
+    const model = req.url.split(':')[0].replace('/', '');
+
+    received.push({ url: req.url, model: model, headers: req.headers, body: JSON.parse(body) });
+
+    // Lets a test make one model busy while the others answer.
+    if (nextReply.busyModels && nextReply.busyModels.includes(model)) {
+      res.writeHead(503, { 'Content-Type': 'application/json' });
+      res.end('{"error":{"status":"UNAVAILABLE"}}');
+      return;
+    }
 
     if (nextReply.status && nextReply.status !== 200) {
       res.writeHead(nextReply.status, { 'Content-Type': 'application/json' });
@@ -47,6 +57,18 @@ const server = http.createServer((req, res) => {
     }
 
     res.writeHead(200, { 'Content-Type': 'text/event-stream' });
+
+    // Google ends each event with \r\n\r\n. A test can ask for \n\n instead.
+    let ending = '\r\n\r\n';
+    if (nextReply.ending !== undefined) {
+      ending = nextReply.ending;
+    }
+
+    // What follows the final event. A test can leave it off.
+    let lastEnding = ending;
+    if (nextReply.lastEnding !== undefined) {
+      lastEnding = nextReply.lastEnding;
+    }
 
     const parts = [];
 
@@ -66,14 +88,14 @@ const server = http.createServer((req, res) => {
 
       res.write('data: ' + JSON.stringify({
         candidates: [{ content: { role: 'model', parts: [{ text: nextReply.text.slice(0, half) }] } }],
-      }) + '\n\n');
+      }) + ending);
 
       parts.push({ text: nextReply.text.slice(half) });
     }
 
     res.write('data: ' + JSON.stringify({
-      candidates: [{ content: { role: 'model', parts: parts } }],
-    }) + '\n\n');
+      candidates: [{ content: { role: 'model', parts: parts }, finishReason: 'STOP' }],
+    }) + lastEnding);
 
     res.end();
   });
@@ -177,10 +199,21 @@ test('a tool request goes back as the model’s own turn', () => {
 test('a signed tool call is sent back with its signature', () => {
   // Newer Gemini models reject the next round if the signature goes missing.
   const contents = toGeminiContents([
-    { toolCalls: [{ id: 'c0', name: 'emergency_fund', input: {}, signature: 'sig-123' }] },
-  ]);
+    { toolCalls: [{ id: 'c0', name: 'emergency_fund', input: {}, signature: 'sig-123', model: 'model-a' }] },
+  ], 'model-a');
 
   assert.equal(contents[0].parts[0].thoughtSignature, 'sig-123');
+});
+
+
+test('a call signed by a different model gets the skip value instead', () => {
+  // After a fallback, the new model cannot check the old model's signature.
+  // Tested against the real API: a foreign or missing signature is a 400.
+  const contents = toGeminiContents([
+    { toolCalls: [{ id: 'c0', name: 'emergency_fund', input: {}, signature: 'sig-123', model: 'model-a' }] },
+  ], 'model-b');
+
+  assert.equal(contents[0].parts[0].thoughtSignature, 'skip_thought_signature_validator');
 });
 
 
@@ -242,8 +275,13 @@ test('the request carries the key, the system prompt and the tools', async () =>
 
   const sent = received[0];
 
-  assert.ok(sent.url.includes('key=fake-key-for-tests'));
+  // In a header, not the address, so it cannot end up in a logged URL.
+  assert.equal(sent.headers['x-goog-api-key'], 'fake-key-for-tests');
+  assert.equal(sent.url.includes('fake-key-for-tests'), false);
   assert.ok(sent.url.includes('alt=sse'), 'without alt=sse the reply is not a stream');
+
+  // Low thinking, or the thinking uses up the token limit before the answer.
+  assert.equal(sent.body.generationConfig.thinkingConfig.thinkingLevel, 'low');
   assert.equal(sent.body.systemInstruction.parts[0].text, 'you are the money coach');
   assert.equal(sent.body.generationConfig.maxOutputTokens, 700);
   assert.equal(sent.body.tools[0].functionDeclarations.length, 2);
@@ -317,4 +355,111 @@ test('a used-up free allowance is reported plainly', async () => {
     }),
     /allowance/,
   );
+});
+
+
+// ---------------------------------------------------------------
+// Things only the real API showed
+// ---------------------------------------------------------------
+
+test('regression: events ending in \\r\\n\\r\\n are read', async () => {
+  /*
+    Google separates stream events with \r\n\r\n. The reader used to split on
+    \n\n only, so it found no events and every real answer was empty, while
+    these tests passed against a stand-in that sent \n\n.
+  */
+  received.length = 0;
+  nextReply = { text: 'Clear the card first.', ending: '\r\n\r\n' };
+
+  const reply = await runGeminiRound({
+    system: 'x', messages: [{ role: 'user', text: 'y' }], tools: [], maxTokens: 100,
+  });
+
+  assert.equal(reply.text, 'Clear the card first.');
+  assert.equal(reply.finishReason, 'STOP');
+});
+
+
+test('events ending in plain \\n\\n are still read', async () => {
+  received.length = 0;
+  nextReply = { text: 'Still fine.', ending: '\n\n' };
+
+  const reply = await runGeminiRound({
+    system: 'x', messages: [{ role: 'user', text: 'y' }], tools: [], maxTokens: 100,
+  });
+
+  assert.equal(reply.text, 'Still fine.');
+});
+
+
+test('the last event is read even with no blank line after it', async () => {
+  received.length = 0;
+  nextReply = { text: 'Last words.', lastEnding: '' };
+
+  const reply = await runGeminiRound({
+    system: 'x', messages: [{ role: 'user', text: 'y' }], tools: [], maxTokens: 100,
+  });
+
+  assert.equal(reply.text, 'Last words.');
+});
+
+
+test('regression: a round with no onText does not crash', async () => {
+  // The daily briefing passes no onText. It used to throw, and the briefing
+  // quietly fell back to the plain findings every time.
+  received.length = 0;
+  nextReply = { text: 'A short note.' };
+
+  const reply = await runGeminiRound({
+    system: 'x', messages: [{ role: 'user', text: 'y' }], tools: [], maxTokens: 100,
+  });
+
+  assert.equal(reply.text, 'A short note.');
+});
+
+
+test('a busy model falls back to the next one, and the question remembers it', async () => {
+  received.length = 0;
+  nextReply = { text: 'Answered by the fallback.', busyModels: [DEFAULT_MODEL] };
+
+  const conversation = {};
+
+  const reply = await runGeminiRound({
+    system: 'x', messages: [{ role: 'user', text: 'y' }], tools: [], maxTokens: 100,
+    conversation: conversation,
+  });
+
+  assert.equal(reply.text, 'Answered by the fallback.');
+  assert.equal(received[0].model, DEFAULT_MODEL);
+  assert.equal(received[1].model, FALLBACK_MODELS[0]);
+  assert.equal(conversation.model, FALLBACK_MODELS[0]);
+});
+
+
+test('a tool call records which model signed it', async () => {
+  received.length = 0;
+  nextReply = { toolCall: 'emergency_fund', signature: 'sig-xyz' };
+
+  const reply = await runGeminiRound({
+    system: 'x', messages: [{ role: 'user', text: 'y' }], tools: TOOLS, maxTokens: 100,
+  });
+
+  assert.equal(reply.toolCalls[0].signature, 'sig-xyz');
+  assert.equal(reply.toolCalls[0].model, DEFAULT_MODEL);
+});
+
+
+test('when every model is busy the message says so plainly', async () => {
+  received.length = 0;
+  nextReply = { status: 503, body: '{}' };
+
+  await assert.rejects(
+    () => runGeminiRound({
+      system: 'x', messages: [{ role: 'user', text: 'y' }], tools: [], maxTokens: 100,
+    }),
+    /busy/,
+  );
+
+  // Every model was tried before giving up.
+  assert.equal(received.length, 1 + FALLBACK_MODELS.length);
 });

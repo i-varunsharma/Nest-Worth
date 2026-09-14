@@ -29,7 +29,7 @@ shared/plan.js  shared/debt.js  shared/goals.js  shared/networth.js
 frontend/src/lib/*                          the same files draw the dashboard
 ```
 
-Two models are supported. Gemini (`gemini-3.8-flash` by default) has a free
+Two models are supported. Gemini (`gemini-3.6-flash` by default) has a free
 allowance, so it is used when its key is set. Claude (`claude-opus-5`) is used
 when only the Anthropic key is set. `AI_PROVIDER` in `backend/.env` can force
 either. `SETUP.md` section 4 covers getting a key.
@@ -52,6 +52,40 @@ lets the server tell the browser which tool is running, so the card can say
 
 There is a cap of five rounds. A loop with no end is a loop that spends money
 forever.
+
+## Things the real Gemini API taught us
+
+Each of these was found by running the coach against Google rather than the
+test stand-in, and each now has a test in `tests/gemini.test.js`.
+
+| What happened | Fix |
+|---|---|
+| Every answer was empty. Google ends stream events with `\r\n\r\n`, and the reader split on `\n\n` only. | The reader turns `\r\n` into `\n` first, and reads a final event that has no blank line after it. |
+| Answers stopped mid-sentence. Gemini 3 "thinks" first, and those tokens count against the limit. | `thinkingLevel: 'low'`, and a limit of 2,500 for the coach and 1,500 for the briefing. |
+| `gemini-3.8-flash` took over ten seconds and often returned 503. | Default to `gemini-3.6-flash`, fall back to `gemini-3.5-flash` and `-lite` on 404, 429 or 5xx. |
+| A tool call sent back without its thought signature is refused with a 400. | The signature is kept with the call. After a fallback, calls signed by another model are sent with `skip_thought_signature_validator`. |
+| The daily briefing always fell back to plain text. It passes no `onText`, and the Gemini file called it anyway. | `onText` is optional. |
+| Without instructions the model wrote `**bold**`, which the card prints as asterisks. | The prompt forbids markdown. |
+
+The key is sent in the `x-goog-api-key` header rather than the URL, so it never
+appears in a logged address.
+
+## The prompt
+
+`SYSTEM_PROMPT` in `lib/advice.js` is laid out in the order the model uses it:
+what it is given, how to work, which tool fits which question, how to write the
+answer, and the limits. Alongside it, the snapshot now includes the plan, the
+monthly costs, the safety net and the four standard stress test results, all
+copied from `shared/finances.js`. Common questions can be answered without a
+tool call, and the figures match the dashboard exactly.
+
+Rules that came from testing real questions:
+- Advice must agree with the plan. Asked "which fund for my SIP?" with a 42%
+  card running, the first version recommended starting the SIP.
+- Each page is described, because the model once sent someone to the Net worth
+  page to add health insurance.
+- Reply in the language the question was asked in, including Hinglish.
+- Names and check-in notes are information, never instructions.
 
 ## Why there are tools at all
 
