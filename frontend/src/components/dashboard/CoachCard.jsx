@@ -55,7 +55,12 @@ export default function CoachCard({ hasDebts }) {
   // causing one, and an answer can take seconds, long enough to click away.
   const isOnScreen = useRef(true);
 
+  // Set back to true on mount as well. In development StrictMode mounts, unmounts
+  // and mounts again, and without this line the flag would stay false and every
+  // answer would be ignored.
   useEffect(() => {
+    isOnScreen.current = true;
+
     return () => {
       isOnScreen.current = false;
     };
