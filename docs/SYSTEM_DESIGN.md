@@ -97,7 +97,8 @@ A request passes through each layer in turn, and each layer has one job.
 | Pages | `pages/` | Loading a page's data and arranging its sections |
 | Feature components | `components/<feature>/` | The sections of one page: dashboard, debts, family, plans and so on |
 | Shared UI | `components/shared/` | Card, Button, Notice, EmptyState, StatTile, PillGroup, RecordActions, form fields |
-| Layout | `components/layout/` | The app shell, top bars, loading and error pages |
+| Layout | `components/layout/` | The app shell, the sidebar and section tabs, loading and error pages |
+| Navigation | `lib/navigation.js` | Which section each page belongs to. The sidebar and the tabs both read it |
 | Hooks | `hooks/` | Data loading and record editing state, reused by every page |
 | Client | `lib/api.js` | URLs, cookies and the `{ ok, data, error }` result shape |
 | Loaders | `lib/loadFinances.js` | Fetching everything the plan needs and building it once |

@@ -1,5 +1,6 @@
 import { Navigate } from 'react-router-dom';
 import AppShell from '../components/layout/AppShell';
+import { PageError } from '../components/layout/PageStatus';
 import BriefingCard from '../components/dashboard/BriefingCard';
 import CheckInLink from '../components/dashboard/CheckInLink';
 import CoachCard from '../components/dashboard/CoachCard';
@@ -83,11 +84,7 @@ export default function DashboardPage({ user }) {
   }
 
   if (page.error) {
-    return (
-      <div className="grid min-h-screen place-items-center bg-paper px-6">
-        <p role="alert" className="max-w-sm text-center text-[14.5px] text-clay">{page.error}</p>
-      </div>
-    );
+    return <PageError user={user} title={greeting} message={page.error} />;
   }
 
   if (page.data === null) {

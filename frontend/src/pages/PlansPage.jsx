@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import AppShell from '../components/layout/AppShell';
+import { PageError, PageLoading } from '../components/layout/PageStatus';
 import ScenarioLines from '../components/charts/ScenarioLines';
 import PlanConsequences from '../components/plans/PlanConsequences';
 import PlanOverview from '../components/plans/PlanOverview';
@@ -17,6 +18,9 @@ import { formatRupees } from '../lib/plan';
 */
 
 const COUNT_WORDS = ['no', 'one', 'two', 'three', 'four', 'five'];
+
+// Shown while loading. Once the plans arrive, the heading says how many there are.
+const TITLE = 'Plans';
 
 async function loadPlansPage() {
   const [scenarios, household] = await Promise.all([api.getScenarios(), api.getHousehold()]);
@@ -55,19 +59,11 @@ export default function PlansPage({ user }) {
   const [savedFollowing, setSavedFollowing] = useState({ hasChanged: false, key: null });
 
   if (page.error) {
-    return (
-      <div className="grid min-h-screen place-items-center bg-paper px-6">
-        <p role="alert" className="max-w-sm text-center text-[14.5px] leading-relaxed text-clay">{page.error}</p>
-      </div>
-    );
+    return <PageError user={user} title={TITLE} message={page.error} />;
   }
 
   if (page.data === null) {
-    return (
-      <div className="grid min-h-screen place-items-center bg-paper">
-        <p className="text-[14px] text-muted">Working out your options…</p>
-      </div>
-    );
+    return <PageLoading user={user} title={TITLE} label="Working out your options" stats={3} cards={2} />;
   }
 
   const scenarios = page.data.scenarios;
