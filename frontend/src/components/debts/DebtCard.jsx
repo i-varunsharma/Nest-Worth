@@ -2,9 +2,9 @@ import { useState } from 'react';
 import Card from '../shared/Card';
 import RecordActions from '../shared/RecordActions';
 import StatTile from '../shared/StatTile';
-import { extraPaymentEffect, formatDuration, formatMonthYear, payoff } from '../../lib/debt';
-import { formatRupees } from '../../lib/plan';
+import { extraPaymentEffect, payoff } from '../../lib/debt';
 import { DEBT_KINDS, labelForKind } from '../../lib/networth';
+import { formatDuration, formatMonthYear, formatRupees } from '../../lib/format';
 
 /*
   One debt, with a slider showing what paying extra each month would change.

@@ -1,5 +1,5 @@
 import { summariseGoals } from '../../lib/goals';
-import { formatRupees } from '../../lib/plan';
+import { formatRupees } from '../../lib/format';
 
 /*
   Whether all the goals together fit inside the plan's monthly saving. Five goals

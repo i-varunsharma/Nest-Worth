@@ -96,9 +96,7 @@ function percentagesIn(container) {
 }
 
 
-// ---------------------------------------------------------------
 // Where the money goes
-// ---------------------------------------------------------------
 
 test('the allocation bar draws every segment inside the bar', () => {
   const { container } = render(<AllocationBar allocation={allocation} income={INCOME} />);
@@ -157,9 +155,7 @@ test('an income of zero does not produce NaN widths', () => {
 });
 
 
-// ---------------------------------------------------------------
 // The comparison lines
-// ---------------------------------------------------------------
 
 test('every line is drawn with real coordinates', () => {
   /*
@@ -285,9 +281,7 @@ test('an empty list draws nothing rather than crashing', () => {
 });
 
 
-// ---------------------------------------------------------------
 // The safety net meter
-// ---------------------------------------------------------------
 
 test('the meter fill never runs past the end of its track', () => {
   // Somebody with twenty months of cover against a six month target would
@@ -314,9 +308,7 @@ test('the meter says whether the target is met, in words', () => {
 });
 
 
-// ---------------------------------------------------------------
 // The debt dumbbell
-// ---------------------------------------------------------------
 
 test('the dumbbell places every dot inside the row', () => {
   const { container } = render(
@@ -364,56 +356,42 @@ test('a debt that never clears is said in words, not drawn as a dot', () => {
 });
 
 
-// ---------------------------------------------------------------
 // The page itself
-// ---------------------------------------------------------------
 
 /*
   A smoke test for /plans.
 
   The charts are covered above. What this catches is the page around them: the
-  date coming back from the API as a string and being turned back into a Date,
-  the baseline lookup, the difference against it. Any of those throwing takes
-  the whole screen down, and none of them is exercised by testing a chart on
-  its own.
+  baseline lookup, the difference against it, the starting point built from the
+  finances. Any of those throwing takes the whole screen down, and none of them
+  is exercised by testing a chart on its own.
 
-  The API module is replaced so nothing here touches the network.
+  The API and loadFinances are replaced so nothing here touches the network.
 */
 vi.mock('../src/lib/api', () => {
   return {
-    // The page reads the household too, to find out which plan is being
-    // followed, so it can open on that one.
-    getHousehold: async () => {
-      return { ok: true, data: { household: { chosenPlan: null } } };
-    },
-
     choosePlan: async (plan) => {
       return { ok: true, data: { household: { chosenPlan: plan } } };
     },
+  };
+});
 
-    getScenarios: async () => {
+// The page gets its plans through loadFinances, like every page with plan numbers.
+vi.mock('../src/lib/loadFinances', () => {
+  return {
+    loadFinances: async () => {
       return {
         ok: true,
         data: {
-          today: {
-            income: 85000,
+          household: { chosenPlan: null },
+          debts: [{ id: 1, name: 'Credit card' }],
+          finances: {
+            scenarios: scenarios,
+            recommendedPlan: { income: 85000 },
             monthlyCosts: 46350,
-            liquidSavings: 95000,
-            monthsCovered: 2,
-            monthsTarget: 6,
-            debtCount: 1,
-            totalOwed: 84000,
+            netWorth: { liquidAssets: 95000, totalDebts: 84000 },
+            safety: { monthsCovered: 2, monthsTarget: 6 },
           },
-          // Dates arrive as strings, the way JSON delivers them, not as Dates.
-          scenarios: scenarios.map((one) => {
-            return {
-              ...one,
-              outcomes: {
-                ...one.outcomes,
-                debtFreeDate: one.outcomes.debtFreeDate.toISOString(),
-              },
-            };
-          }),
         },
       };
     },
@@ -441,7 +419,7 @@ test('the plans page draws without crashing, and can switch plan', async () => {
   */
   expect(await screen.findByText('The same money, two ways.')).toBeInTheDocument();
 
-  // The date from the API survived the trip through JSON and back.
+  // The debt free date is written out for the selected plan.
   expect(screen.getByText(/Debt free by/)).toBeInTheDocument();
 
   // Every plan is offered, and the first is selected.

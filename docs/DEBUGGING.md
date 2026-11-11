@@ -69,7 +69,7 @@ Follow the request through the layers. The symptom usually tells you which one.
 | Symptom | Layer | Start in |
 |---|---|---|
 | Wrong status or response shape | Controller | `routes/<name>.js` |
-| A rule refuses good input, or accepts bad input | Validation | `validation/`, `shared/family.js` |
+| A rule refuses good input, or accepts bad input | Validation | `validation/`, `shared/accountFields.js`, `shared/family.js` |
 | Sign-in, sessions, codes or reset links misbehave | Service | `services/authService.js`, `sessionService.js`, `otpService.js` |
 | Right request, wrong stored or returned row | Repository | `repositories/<name>Repository.js` |
 | An average or total is wrong | Report | `reports/insights.js`, `reports/recap.js`, `reports/signals.js` |
@@ -95,7 +95,7 @@ Follow the request through the layers. The symptom usually tells you which one.
 | 400 `invalid_request` | The body failed validation. The message says which rule. | `checkFamilyMember` in `shared/family.js`, or `backend/src/validation/` |
 | 401 with `code: no_session` | Cookie missing or expired | `middleware/auth.js`, and `credentials: 'include'` in `lib/api.js` |
 | 404 `not_found` on an id | The row belongs to another user, or was deleted | `repositories/ownedRecordRepository.js` |
-| 429 `rate_limited` | Rate limit | `middleware/rateLimit.js` |
+| 429 `rate_limited` | Rate limit | the numbers are in `middleware/limits.js`, the counting in `middleware/rateLimit.js` |
 | 500 | A thrown error | The stack trace next to the request id |
 
 ---
@@ -121,7 +121,7 @@ Follow the request through the layers. The symptom usually tells you which one.
    ```bash
    cd backend
    node --input-type=module -e "
-     const { runTool } = await import('./src/ai/tools.js');
+     const { runTool } = await import('./src/ai/tools/index.js');
      console.log(runTool(1, 'stress_test', { shock: 'job_loss', months: 4 }));
    "
    ```
@@ -129,7 +129,7 @@ Follow the request through the layers. The symptom usually tells you which one.
    Replace `1` with your user id from `npm run db:show`.
 3. If the tool's text is right, the model misread it: tighten the tool's
    description or the system prompt in `ai/prompt.js`. If the text is wrong,
-   the bug is in `tools.js` or `shared/`.
+   the bug is in that tool's file in `ai/tools/` or in `shared/`.
 
 | The coach card says | Cause | Look at |
 |---|---|---|

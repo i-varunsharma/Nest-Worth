@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { formatRupees } from '../../lib/plan';
+import { formatRupees } from '../../lib/format';
 
 /*
   Every plan's total (invested plus cash) over fifteen years, on one scale.

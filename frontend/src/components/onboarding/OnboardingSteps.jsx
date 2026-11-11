@@ -2,7 +2,7 @@ import AmountSlider from './AmountSlider';
 import ChoiceCards from './ChoiceCards';
 import Question from './Question';
 import TextField from '../shared/TextField';
-import { formatRupees } from '../../lib/plan';
+import { formatRupees } from '../../lib/format';
 
 /*
   The onboarding questions, one component each. Each receives the household

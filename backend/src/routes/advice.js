@@ -1,6 +1,6 @@
 import express from 'express';
 import { requireUser } from '../middleware/auth.js';
-import { rateLimit } from '../middleware/rateLimit.js';
+import { askLimit } from '../middleware/limits.js';
 import { badRequest } from '../http/errors.js';
 import { MAX_HISTORY_TURNS, askCoach, checkQuestion } from '../ai/advice.js';
 import { readFacts } from '../ai/facts.js';
@@ -19,13 +19,6 @@ import { readFacts } from '../ai/facts.js';
 */
 
 const router = express.Router();
-
-// The only route that costs money per request.
-const askLimit = rateLimit({
-  limit: 20,
-  windowMs: 60 * 60 * 1000,
-  message: 'That is a lot of questions in one hour. Try again a little later.',
-});
 
 const MAX_TURN_LENGTH = 2000;
 

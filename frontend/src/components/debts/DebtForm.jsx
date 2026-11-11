@@ -6,7 +6,7 @@ import SelectField from '../shared/SelectField';
 import TextField from '../shared/TextField';
 import { DEBT_KINDS } from '../../lib/networth';
 import { payoff } from '../../lib/debt';
-import { formatRupees } from '../../lib/plan';
+import { formatRupees } from '../../lib/format';
 
 /*
   Adds a debt, or edits one when "debt" is given.

@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import Card from '../shared/Card';
 import Overline from '../shared/Overline';
-import { formatRupees } from '../../lib/plan';
+import { formatRupees } from '../../lib/format';
 
 /*
   Net worth, with owned and owed drawn as two bars against the larger of the two.

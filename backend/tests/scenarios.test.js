@@ -42,9 +42,7 @@ function scenariosFor(overrides) {
 }
 
 
-// ---------------------------------------------------------------
 // The simulation
-// ---------------------------------------------------------------
 
 test('a freed EMI becomes money to invest', () => {
   /*
@@ -135,9 +133,7 @@ test('two runs of the same choice give the same answer', () => {
 });
 
 
-// ---------------------------------------------------------------
 // The choices offered
-// ---------------------------------------------------------------
 
 test('every plan spends exactly the same income', () => {
   /*
@@ -333,9 +329,7 @@ test('a tiny income still produces plans rather than nonsense', () => {
 });
 
 
-// ---------------------------------------------------------------
 // Following a chosen plan
-// ---------------------------------------------------------------
 
 test('a chosen plan replaces the split the dashboard shows', async () => {
   const { applyChosenPlan } = await import('../../shared/scenarios.js');

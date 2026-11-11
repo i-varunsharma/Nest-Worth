@@ -41,7 +41,7 @@ export default function ResetPasswordPage() {
     // "true" means: this is a NEW password, so insist it is long enough.
     // On the login page the same function is called with false, because
     // telling somebody their existing password is too short helps nobody.
-    const passwordError = checkPassword(password, true);
+    const passwordError = checkPassword(password);
     if (passwordError) {
       foundErrors.password = passwordError;
     }

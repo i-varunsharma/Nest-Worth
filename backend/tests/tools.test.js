@@ -17,7 +17,7 @@ import path from 'node:path';
   out. Every one of those has to return text it can read and recover from,
   because a thrown error takes the whole answer down.
 
-  The throwaway database is set up first, which is why lib/tools.js is loaded
+  The throwaway database is set up first, which is why ai/tools/index.js is loaded
   with "await import" below.
 */
 
@@ -25,7 +25,7 @@ const temporaryFolder = fs.mkdtempSync(path.join(os.tmpdir(), 'nestworth-tools-'
 process.env.NESTWORTH_DB_FILE = path.join(temporaryFolder, 'test.db');
 
 const db = (await import('../src/database/db.js')).default;
-const { describeTool, runTool, toolDefinitions } = await import('../src/ai/tools.js');
+const { describeTool, runTool, toolDefinitions } = await import('../src/ai/tools/index.js');
 const { payoff } = await import('../../shared/debt.js');
 
 const now = new Date().toISOString();
@@ -75,9 +75,7 @@ db.prepare(`
 `).run(now, now);
 
 
-// ---------------------------------------------------------------
 // What Claude is offered
-// ---------------------------------------------------------------
 
 test('every tool is described well enough for Claude to choose it', () => {
   const tools = toolDefinitions();
@@ -96,9 +94,7 @@ test('every tool is described well enough for Claude to choose it', () => {
 });
 
 
-// ---------------------------------------------------------------
 // simulate_extra_payment
-// ---------------------------------------------------------------
 
 test('the payoff tool agrees with the payoff function the app draws with', () => {
   /*
@@ -175,9 +171,7 @@ test('a negative extra payment is refused', () => {
 });
 
 
-// ---------------------------------------------------------------
 // simulate_household_change
-// ---------------------------------------------------------------
 
 test('changing one thing leaves everything else alone', () => {
   /*
@@ -210,9 +204,7 @@ test('changing nothing says so rather than pretending something happened', () =>
 });
 
 
-// ---------------------------------------------------------------
 // check_goals and emergency_fund
-// ---------------------------------------------------------------
 
 test('the goals tool says so when there are none', () => {
   assert.ok(runTool(1, 'check_goals', {}).includes('no goals recorded'));
@@ -265,9 +257,7 @@ test('regression: the emergency fund counts rent and bills as a month of costs',
 });
 
 
-// ---------------------------------------------------------------
 // Family and the stress test
-// ---------------------------------------------------------------
 
 test('extra family support comes off what is left each month', () => {
   const answer = runTool(1, 'simulate_household_change', { extra_family_support: 4000 });
@@ -323,9 +313,7 @@ test('a tool asked about somebody with no household says so', () => {
 });
 
 
-// ---------------------------------------------------------------
 // The rule that matters most
-// ---------------------------------------------------------------
 
 test('no tool can reach another person’s money', () => {
   /*

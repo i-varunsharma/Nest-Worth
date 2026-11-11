@@ -2,7 +2,7 @@ import Card from '../shared/Card';
 import RecordActions from '../shared/RecordActions';
 import StatTile from '../shared/StatTile';
 import { describeGoal } from '../../lib/goals';
-import { formatRupees } from '../../lib/plan';
+import { formatRupees } from '../../lib/format';
 
 /* One goal: progress, what is left, and what it needs each month. */
 export default function GoalCard({ goal, onEdit, onDelete }) {

@@ -27,9 +27,7 @@ db.prepare('INSERT INTO users (name, email, created_at) VALUES (?, ?, ?)')
   .run('Test Person', 'db@example.com', now);
 
 
-// ---------------------------------------------------------------
 // Transactions
-// ---------------------------------------------------------------
 
 test('a transaction that finishes keeps everything it did', () => {
   const addTwoDebts = inTransaction(() => {
@@ -95,15 +93,13 @@ test('a failed transaction leaves the database usable', () => {
 });
 
 
-// ---------------------------------------------------------------
 // The health check
-// ---------------------------------------------------------------
 
 test('the health check runs a real query rather than trusting a flag', () => {
   /*
-    It has to be able to go red, or it is decoration. The interesting failures
-    are the ones where the connection object still looks fine and the first real
-    query throws, which is what a closed database reproduces exactly.
+    A health check that always says ok is useless, so this checks it can fail.
+    A closed database is the easiest way to get a connection object that looks
+    fine but throws on the first real query.
 
     This one opens its own throwaway database and closes it, so the shared
     connection every other test uses is left alone.
@@ -112,9 +108,7 @@ test('the health check runs a real query rather than trusting a flag', () => {
 });
 
 
-// ---------------------------------------------------------------
 // Indexes
-// ---------------------------------------------------------------
 
 test('the queries the app actually runs use an index, not a full scan', () => {
   /*
@@ -168,9 +162,7 @@ test('the reporting queries use an index too', () => {
 });
 
 
-// ---------------------------------------------------------------
 // Rules every table owned by a person has to follow
-// ---------------------------------------------------------------
 
 /*
   These look at the schema itself rather than at one table, so a table added

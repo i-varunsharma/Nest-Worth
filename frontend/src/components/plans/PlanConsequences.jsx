@@ -2,8 +2,7 @@ import DebtDumbbell from '../charts/DebtDumbbell';
 import SafetyMeter from '../charts/SafetyMeter';
 import Card from '../shared/Card';
 import Overline from '../shared/Overline';
-import { formatDuration, formatMonthYear } from '../../lib/debt';
-import { formatRupees } from '../../lib/plan';
+import { formatDuration, formatMonthYear, formatRupees } from '../../lib/format';
 
 /* When the debt clears, and how long savings would last, on the selected plan. */
 

@@ -4,8 +4,8 @@ import Card from '../shared/Card';
 import Notice from '../shared/Notice';
 import TextField from '../shared/TextField';
 import * as api from '../../lib/api';
-import { currentMonth } from '../../lib/checkins';
-import { bucketAmount, formatRupees } from '../../lib/plan';
+import { bucketAmount } from '../../lib/plan';
+import { currentMonth, formatRupees } from '../../lib/format';
 
 /*
   Records what happened in a month, next to what the plan said.

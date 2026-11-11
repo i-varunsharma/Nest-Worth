@@ -1,6 +1,6 @@
 import useReveal from '../../hooks/useReveal';
 import { categoryLabel } from '../../lib/categories';
-import { formatRupees } from '../../lib/plan';
+import { formatRupees } from '../../lib/format';
 
 /*
   A month's spending by category as sorted bars.

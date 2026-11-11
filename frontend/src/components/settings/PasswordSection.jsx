@@ -21,7 +21,7 @@ export default function PasswordSection({ hasPassword }) {
     setIsSaved(false);
 
     // Checked here first, so an obviously short password never leaves the page.
-    const newPasswordError = checkPassword(newPassword, true);
+    const newPasswordError = checkPassword(newPassword);
     if (newPasswordError) {
       setErrors({ newPassword: newPasswordError });
       return;

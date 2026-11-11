@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { buildPlan, formatRupees } from '../../lib/plan';
+import { buildPlan } from '../../lib/plan';
+import { formatRupees } from '../../lib/format';
 
 /*
   The planner card in the landing page hero: change the income, dependents or

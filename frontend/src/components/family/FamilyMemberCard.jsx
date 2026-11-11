@@ -1,7 +1,7 @@
 import Card from '../shared/Card';
 import RecordActions from '../shared/RecordActions';
-import { formatRupees } from '../../lib/plan';
 import { relationLabel } from '../../lib/family';
+import { formatRupees } from '../../lib/format';
 
 /*
   One person on the family page.

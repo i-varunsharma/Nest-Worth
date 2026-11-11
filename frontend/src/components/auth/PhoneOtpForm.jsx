@@ -140,9 +140,7 @@ export default function PhoneOtpForm({ onVerified }) {
   };
 
 
-  // ---------------------------------------------------------------
   // Step 1: ask for the number
-  // ---------------------------------------------------------------
   if (step === 'number') {
     let sendLabel = 'Send code';
     if (isBusy === true) {
@@ -173,9 +171,7 @@ export default function PhoneOtpForm({ onVerified }) {
   }
 
 
-  // ---------------------------------------------------------------
   // Step 2: ask for the code
-  // ---------------------------------------------------------------
 
   // The resend line changes while the countdown is running.
   let resendArea = null;

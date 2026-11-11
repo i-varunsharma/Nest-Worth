@@ -1,12 +1,12 @@
 import Card from '../shared/Card';
 import StatTile from '../shared/StatTile';
-import { formatDuration, formatMonthYear, summariseDebts } from '../../lib/debt';
-import { formatRupees } from '../../lib/plan';
+import { summariseDebts } from '../../lib/debt';
+import { formatDuration, formatMonthYear, formatRupees } from '../../lib/format';
 
 /*
   The four totals above the list of debts.
 
-  When any debt never clears at its EMI there is no honest debt free date, and
+  When any debt never clears at its EMI there is no real debt free date, and
   the interest total only covers the debts that do clear, so both say so.
 */
 export default function DebtSummary({ debts }) {

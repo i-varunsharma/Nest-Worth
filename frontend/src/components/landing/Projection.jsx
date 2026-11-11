@@ -3,7 +3,8 @@ import Container from '../shared/Container';
 import Eyebrow from '../shared/Eyebrow';
 import Reveal from '../shared/Reveal';
 import ProjectionChart from './ProjectionChart';
-import { buildPlan, buildProjectionRows, formatRupees } from '../../lib/plan';
+import { buildPlan, buildProjectionRows } from '../../lib/plan';
+import { formatRupees } from '../../lib/format';
 
 /*
   The "future you" section. It takes the Invest slice of the plan and shows what

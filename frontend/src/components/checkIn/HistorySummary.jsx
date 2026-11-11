@@ -1,6 +1,5 @@
 import Overline from '../shared/Overline';
-import { monthLabel } from '../../lib/checkins';
-import { formatRupees } from '../../lib/plan';
+import { formatRupees, monthLabel } from '../../lib/format';
 
 /*
   What the recorded months add up to, from GET /api/insights, where the running

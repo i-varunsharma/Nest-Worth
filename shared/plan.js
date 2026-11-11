@@ -1,7 +1,10 @@
+import { formatRupees } from './format.js';
+import { keepBetween, roundToNearest500 } from './numbers.js';
+
 /*
-  The recommendation model: how a household's income should be split, and the
-  helpers for formatting and projecting money. Pure functions with no React or
-  database, shared by the browser and the server.
+  The recommendation model: how a household's income should be split, and what a
+  monthly investment grows into. Pure functions with no React or database,
+  shared by the browser and the server. Formatting money is in format.js.
 */
 
 
@@ -27,72 +30,6 @@ export function bucketAmount(plan, key) {
   }
 
   return 0;
-}
-
-
-// keepBetween(70, 10, 50) returns 50.
-function keepBetween(value, lowest, highest) {
-  if (value < lowest) {
-    return lowest;
-  }
-  if (value > highest) {
-    return highest;
-  }
-  return value;
-}
-
-
-// Rounds to the nearest 500, so estimates read like 15,000 rather than 14,880.
-function roundToNearest500(value) {
-  return Math.round(value / 500) * 500;
-}
-
-
-/*
-  A number as rupees, in the Indian style.
-
-    formatRupees(62000)                     ->  "₹62,000"
-    formatRupees(1380000, { short: true })  ->  "₹13.8 L"
-    formatRupees(-850000, { short: true })  ->  "-₹8.5 L"
-
-  The short-form test uses the size of the number without its sign, so negative
-  net worth also gets the short form and fits its card.
-*/
-export function formatRupees(value, options) {
-  // Nothing sensible can be printed for these. Showing "₹NaN" on a page looks
-  // broken, so a dash says "no number" without pretending to have one.
-  if (!Number.isFinite(value)) {
-    return '₹—';
-  }
-
-  const amount = Math.round(value);
-
-  // The size of the number, without its sign.
-  const size = Math.abs(amount);
-
-  let sign = '';
-  if (amount < 0) {
-    sign = '-';
-  }
-
-  // "options" is optional, so it may be undefined. Check carefully before using it.
-  let useShortForm = false;
-  if (options && options.short === true) {
-    useShortForm = true;
-  }
-
-  if (useShortForm === true && size >= 10000000) {
-    const crores = size / 10000000;
-    return sign + '₹' + crores.toFixed(2) + ' Cr';
-  }
-
-  if (useShortForm === true && size >= 100000) {
-    const lakhs = size / 100000;
-    return sign + '₹' + lakhs.toFixed(1) + ' L';
-  }
-
-  // toLocaleString('en-IN') adds Indian-style commas: 6200000 becomes 62,00,000
-  return sign + '₹' + size.toLocaleString('en-IN');
 }
 
 
@@ -130,9 +67,7 @@ export function buildPlan(household) {
     essentialCosts = Math.round(household.essentialCosts);
   }
 
-  // ---------------------------------------------------------------
   // Step 1: work out the money that leaves before it is really yours.
-  // ---------------------------------------------------------------
 
   // With no real figure we assume each dependent costs about 12% of income,
   // capped at 34% in total so a large family never eats the entire salary.
@@ -248,9 +183,7 @@ export function buildPlan(household) {
   const drift = 100 - (spendPercent + savePercent + investPercent);
   savePercent = savePercent + drift;
 
-  // ---------------------------------------------------------------
   // Step 3: turn the percentages into actual rupee amounts.
-  // ---------------------------------------------------------------
 
   const buckets = [
     {

@@ -80,13 +80,13 @@ A request passes through each layer in turn, and each layer has one job.
 | Layer | Folder | Owns | Must not |
 |---|---|---|---|
 | Config | `config.js` | Every environment variable, read in one place | Be bypassed with `process.env` elsewhere |
-| Middleware | `middleware/` | Request ids and logging, who is signed in, rate limits | Contain business rules |
+| Middleware | `middleware/` | Request ids and logging, who is signed in, rate limits (every limit is in `limits.js`) | Contain business rules |
 | Controllers | `routes/` | Reading the request, validating it, calling a service or repository, sending the response | Contain SQL or maths |
 | Validation | `validation/`, `http/validate.js` | Every rule a request body must meet | Touch the database |
 | Services | `services/` | Business rules: signing in, sessions, codes, imports, finances | Know about `req`, `res` or SQL |
 | Repositories | `repositories/` | All SQL for a table, and turning rows into app objects | Contain business rules |
 | Reports | `reports/` | Read-only SQL aggregates: averages, running totals, the year recap | Write anything |
-| AI | `ai/` | The prompt, the data snapshot, the agent loop, tools, providers | Do arithmetic or read the database directly |
+| AI | `ai/` | The prompt, the data snapshot, the agent loop, tools (one file each in `ai/tools/`), providers | Do arithmetic or read the database directly |
 | Errors | `http/errors.js`, `http/errorHandler.js` | One error type and one response shape | Leak stack traces to the browser |
 | Schema | `database/` | Tables, keys, indexes, migrations | Change without a migration |
 
@@ -96,7 +96,7 @@ A request passes through each layer in turn, and each layer has one job.
 |---|---|---|
 | Pages | `pages/` | Loading a page's data and arranging its sections |
 | Feature components | `components/<feature>/` | The sections of one page: dashboard, debts, family, plans and so on |
-| Shared UI | `components/shared/` | Card, Button, Notice, EmptyState, StatTile, PillGroup, RecordActions, form fields |
+| Shared UI | `components/shared/` | Card, Button, Notice, EmptyState, StatTile, MoneyFigure, PillGroup, RecordActions, form fields |
 | Layout | `components/layout/` | The app shell, the sidebar and section tabs, loading and error pages |
 | Navigation | `lib/navigation.js` | Which section each page belongs to. The sidebar and the tabs both read it |
 | Hooks | `hooks/` | Data loading and record editing state, reused by every page |
@@ -118,6 +118,9 @@ A request passes through each layer in turn, and each layer has one job.
 | Custom hooks | `hooks/useAsyncData.js`, `hooks/useRecordEditor.js` | Loading, stale-answer protection and add/edit/delete state are written once instead of in every page. |
 | Composition | `components/shared/` | Pages are assembled from small components, so a visual change is made in one place. |
 | Single source of truth | `shared/finances.js` | Every plan figure comes from one function, on both sides. |
+| Single source of truth | `shared/format.js`, `shared/accountFields.js` | Money and dates are written one way, and the form and the API check account fields with the same functions. |
+| Registry | `ai/tools/index.js` | Each AI tool is its own file; the index maps the name the model uses to the tool, so adding one is a new file and one line. |
+| Central configuration of limits | `middleware/limits.js` | Every rate limit in one table instead of spread across route files. |
 
 ---
 
@@ -159,7 +162,7 @@ flowchart TD
   Plan --> Shocks[shared/shocks.js<br/>runShock]
   Costs --> Shocks
 
-  SF --> Dashboard & Goals & CheckIn & Family & StressTest & ScenariosRoute["GET /api/scenarios"] & Tools[AI tools]
+  SF --> Dashboard & Plans & Goals & CheckIn & Family & StressTest & Tools[AI tools]
 ```
 
 What `summariseFinances` returns:

@@ -306,12 +306,6 @@ export function getInsights() {
 }
 
 
-// Every plan played out fifteen years, by shared/scenarios.js on the server.
-export function getScenarios() {
-  return request('/api/scenarios', 'GET');
-}
-
-
 // Follows a plan from /plans, or goes back to the recommended one with null.
 export function choosePlan(plan) {
   return request('/api/household/plan', 'PUT', { plan: plan });

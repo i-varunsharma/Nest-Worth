@@ -1,5 +1,5 @@
-import { formatRupees } from '../../lib/plan';
 
+import { formatRupees } from '../../lib/format';
 /* Every month of the walk as a table, so nothing is only available as a chart. */
 export default function ShockMonthTable({ rows }) {
   return (

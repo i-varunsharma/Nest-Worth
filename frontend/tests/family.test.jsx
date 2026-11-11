@@ -76,9 +76,7 @@ vi.mock('../src/lib/api', () => {
 });
 
 
-// ---------------------------------------------------------------
 // The chart
-// ---------------------------------------------------------------
 
 const rows = [
   { month: 0, cash: 50000, isCrisis: false },
@@ -120,9 +118,7 @@ test('the crisis months get a band behind them', () => {
 });
 
 
-// ---------------------------------------------------------------
 // The dashboard card
-// ---------------------------------------------------------------
 
 test('the resilience card counts what was survived', () => {
   const summary = {
@@ -148,9 +144,7 @@ test('the resilience card counts what was survived', () => {
 });
 
 
-// ---------------------------------------------------------------
 // The form
-// ---------------------------------------------------------------
 
 test('the family form refuses a missing name without calling the server', async () => {
   const user = userEvent.setup();
@@ -202,9 +196,7 @@ test('an empty support box is saved as zero, not refused', async () => {
 });
 
 
-// ---------------------------------------------------------------
 // The pages
-// ---------------------------------------------------------------
 
 test('the family page shows the real total and warns about missing cover', async () => {
   mockState.familyFails = false;

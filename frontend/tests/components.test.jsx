@@ -36,9 +36,7 @@ function renderWithRouter(element) {
 }
 
 
-// ---------------------------------------------------------------
 // TextField, which every form on the site is built from
-// ---------------------------------------------------------------
 
 test('TextField reports what is typed, one character at a time', async () => {
   const user = userEvent.setup();
@@ -103,9 +101,7 @@ test('TextField can reveal and re-hide a password', async () => {
 });
 
 
-// ---------------------------------------------------------------
 // DebtCard
-// ---------------------------------------------------------------
 
 const clearingDebt = {
   id: 1,
@@ -186,9 +182,7 @@ test('DebtCard asks before deleting', async () => {
 });
 
 
-// ---------------------------------------------------------------
 // DebtForm
-// ---------------------------------------------------------------
 
 test('DebtForm previews the payoff as the numbers are typed', async () => {
   const user = userEvent.setup();
@@ -289,9 +283,7 @@ test('regression: a form given a different debt shows the new one', () => {
 });
 
 
-// ---------------------------------------------------------------
 // ConsistencyCard
-// ---------------------------------------------------------------
 
 test('ConsistencyCard invites a first month when nothing is recorded', () => {
   renderWithRouter(<ConsistencyCard summary={null} plannedKeptShare={30} />);
@@ -343,9 +335,7 @@ test('ConsistencyCard claims a trend only from four months', () => {
 });
 
 
-// ---------------------------------------------------------------
 // The error boundary
-// ---------------------------------------------------------------
 
 test('a crash inside a page shows a message instead of a blank screen', () => {
   /*

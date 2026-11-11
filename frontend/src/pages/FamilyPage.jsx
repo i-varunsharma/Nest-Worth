@@ -11,7 +11,7 @@ import useAsyncData from '../hooks/useAsyncData';
 import useRecordEditor from '../hooks/useRecordEditor';
 import * as api from '../lib/api';
 import { loadFinances } from '../lib/loadFinances';
-import { formatRupees } from '../lib/plan';
+import { formatRupees } from '../lib/format';
 
 /*
   /family: the people this salary supports, by name.

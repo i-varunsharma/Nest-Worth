@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom';
 import ProjectionChart from '../landing/ProjectionChart';
 import Eyebrow from '../shared/Eyebrow';
-import { buildProjectionRows, formatRupees } from '../../lib/plan';
+import { buildProjectionRows } from '../../lib/plan';
+import { formatRupees } from '../../lib/format';
 
 /*
   What this month's investing grows into. With nothing invested there is nothing

@@ -1,6 +1,6 @@
 import express from 'express';
 import { requireUser } from '../middleware/auth.js';
-import { rateLimit } from '../middleware/rateLimit.js';
+import { loginLimit, sendMessageLimit, signupLimit, verifyLimit } from '../middleware/limits.js';
 import { clearSessionCookie, readSessionToken, setSessionCookie } from '../http/cookies.js';
 import { validateFields } from '../http/validate.js';
 import {
@@ -39,39 +39,11 @@ import {
     GET    /api/auth/me          who is signed in
 
   The rules live in services/authService.js. This file checks the input, calls
-  the service, and sets or clears the session cookie.
+  the service, and sets or clears the session cookie. The rate limits on each
+  route are in middleware/limits.js.
 */
 
 const router = express.Router();
-
-const FIFTEEN_MINUTES = 15 * 60 * 1000;
-const ONE_HOUR = 60 * 60 * 1000;
-
-// Every route that takes a guess or sends a message is capped. A real person
-// never reaches these numbers; a script reaches them in seconds.
-const loginLimit = rateLimit({
-  limit: 10,
-  windowMs: FIFTEEN_MINUTES,
-  message: 'Too many sign-in attempts. Please wait fifteen minutes and try again.',
-});
-
-const signupLimit = rateLimit({
-  limit: 5,
-  windowMs: ONE_HOUR,
-  message: 'Too many accounts created from here. Please try again later.',
-});
-
-const sendMessageLimit = rateLimit({
-  limit: 5,
-  windowMs: FIFTEEN_MINUTES,
-  message: 'Too many requests. Please wait fifteen minutes and try again.',
-});
-
-const verifyLimit = rateLimit({
-  limit: 10,
-  windowMs: FIFTEEN_MINUTES,
-  message: 'Too many attempts. Please wait fifteen minutes and try again.',
-});
 
 
 /* Sets the cookie for a signed-in result and sends the user. */

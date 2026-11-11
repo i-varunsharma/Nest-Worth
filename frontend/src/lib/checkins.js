@@ -1,30 +1,6 @@
 // Monthly check-in maths. A check-in is { id, month, income, spent, saved, invested,
 // note } with month as 'YYYY-MM': what actually happened, to compare with the plan.
-
-
-/* 'YYYY-MM' for the current month, which is the form the database expects. */
-export function currentMonth() {
-  const now = new Date();
-
-  // getMonth counts from zero, and a single digit month has to keep its
-  // leading zero or the text will not match what is stored.
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-
-  return now.getFullYear() + '-' + month;
-}
-
-
-/* Turns '2026-08' into 'August 2026'. */
-export function monthLabel(monthText) {
-  const year = Number(monthText.slice(0, 4));
-  const month = Number(monthText.slice(5, 7));
-
-  // Day 1 rather than today's date, so a month with fewer days than today
-  // cannot roll the answer forward into the next one.
-  const date = new Date(year, month - 1, 1);
-
-  return date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
-}
+// Formatting a month (currentMonth, monthLabel) is in lib/format.js.
 
 
 /* Was this month already recorded? */
@@ -94,7 +70,7 @@ export function summariseCheckins(checkins, plannedKeptShare) {
   const SLACK_POINTS = 2;
   const isMeetingPlan = averageKeptShare >= plannedKeptShare - SLACK_POINTS;
 
-  // The trend, once there is enough to say anything honest.
+  // The trend, shown only once there are enough months for it to mean something.
   const MONTHS_NEEDED_FOR_TREND = 4;
 
   let trend = 'unknown';

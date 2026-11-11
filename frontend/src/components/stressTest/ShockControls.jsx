@@ -1,6 +1,6 @@
 import SliderField from '../shared/SliderField';
-import { formatRupees } from '../../lib/plan';
 import { monthsText } from './shockSettings';
+import { formatRupees } from '../../lib/format';
 
 /* The sliders for the selected shock. onChange(key, value) updates one setting. */
 

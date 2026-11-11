@@ -1,5 +1,5 @@
-import { formatRupees } from '../../lib/plan';
 
+import { formatRupees } from '../../lib/format';
 /* A large rupee slider with its value shown above and the range labelled below. */
 export default function AmountSlider({ id, label, value, min, max, step, lowLabel, highLabel, onChange }) {
   let filledPercent = 0;

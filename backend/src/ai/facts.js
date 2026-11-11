@@ -1,7 +1,8 @@
 import { checkinRepository } from '../repositories/checkinRepository.js';
 import { readFinances } from '../services/financeService.js';
-import { bucketAmount, formatRupees } from '../../../shared/plan.js';
+import { bucketAmount } from '../../../shared/plan.js';
 import { runStandardShocks } from '../../../shared/shocks.js';
+import { formatRupees } from '../../../shared/format.js';
 
 /*
   The snapshot of one person's money that goes into the coach's prompt.

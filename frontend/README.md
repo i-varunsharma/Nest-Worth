@@ -1,4 +1,4 @@
-# Nest-Worth — frontend
+# Nest-Worth frontend
 
 The React app. It draws every screen and does all the arithmetic the person
 sees; it stores nothing itself. Everything that has to survive a refresh goes to
@@ -24,31 +24,57 @@ The project README, one folder up, explains how the two halves fit together.
 src/
 ├── main.jsx        hands App to React and mounts it
 ├── App.jsx         which page shows at which address
-├── pages/          one file per address. These hold the state
+├── pages/          one file per address. Loads the data, arranges the sections
 ├── components/
-│   ├── shared/     Button, TextField, Container. Used on every screen
-│   ├── layout/     navbar and footer
+│   ├── shared/     Card, Button, Notice, MoneyFigure, StatTile, form fields. Used everywhere
+│   ├── layout/     app shell, sidebar, top bars, loading and error pages
+│   ├── charts/     hand-drawn SVG charts
+│   ├── auth/       sign-in pieces: Google button, phone code form, RequireAuth
 │   ├── landing/    the marketing page
-│   ├── auth/       sign-in, sign-up, password reset screens
-│   └── app/        the signed-in screens
-├── lib/            plain functions. No React in here at all
-├── hooks/          reusable bits of React behaviour
-└── styles/         one global stylesheet, kept deliberately thin
+│   └── dashboard/ debts/ goals/ family/ plans/ stressTest/ spending/ ...
+│                   one folder per page, holding that page's sections
+├── hooks/          reusable React behaviour: useAsyncData, useRecordEditor, useGoogleSignIn ...
+├── lib/            plain functions, no React
+│   ├── api.js          every request to the backend
+│   ├── loadFinances.js the one way a page gets its plan numbers
+│   ├── format.js       money and dates as text (from shared/format.js)
+│   ├── validation.js   form checks (from shared/accountFields.js)
+│   ├── formErrors.js   puts a server error under the right input
+│   └── plan.js debt.js goals.js ...  one line each, re-exporting shared/
+└── styles/         global.css, the light and dark colour values
 ```
 
 **Pages hold state, components take props.** A page owns the data for a screen
-and passes pieces of it down. A component in `components/` reads what it is
-given and reports back through a callback, which is what makes the same
-`TextField` usable on six different screens.
+and passes pieces of it down. A component reads what it is given and reports
+back through a callback, which is what makes the same `TextField` usable on six
+different screens.
 
 **Nothing in `lib/` imports React.** Those files take numbers and return
-numbers: payoff dates, monthly costs, net worth, the recommendation model. Being
-plain functions means you can reason about them, and later test them, without a
-component anywhere near.
+numbers or text. Most of them just re-export `../shared/`, which the backend
+uses too, so the page and the AI coach can never calculate differently.
 
 **One file talks to the backend.** Every request goes through `lib/api.js`, so a
 page says `api.login(email, password)` and never thinks about URLs, headers or
-cookies. When something about the API changes, there is one file to edit.
+cookies.
+
+---
+
+## Rules for where new code goes
+
+| You are writing... | Put it in | Example |
+|---|---|---|
+| A calculation (money, dates, plans) | `../shared/`, then re-export from `lib/` | `summariseDebts` in `shared/debt.js` |
+| How a number or date is written | `../shared/format.js` | `formatRupees`, `monthLabel` |
+| A form check | `../shared/accountFields.js` (account) or `../shared/family.js` | `checkEmail` |
+| A call to the backend | `lib/api.js` | `api.getDebts()` |
+| State or effects reused by pages | `hooks/` | `useAsyncData` |
+| A piece of UI used by more than one page | `components/shared/` | `Notice`, `MoneyFigure` |
+| A section of one page | `components/<page>/` | `components/debts/DebtCard.jsx` |
+| A new screen | `pages/`, plus a line in `App.jsx` and `lib/navigation.js` | `DebtsPage.jsx` |
+
+Before writing a helper, search for it. If the same function already exists in
+another component, move it to `shared/` or `components/shared/` instead of
+copying it. Two copies always drift apart.
 
 ---
 
@@ -57,15 +83,14 @@ cookies. When something about the API changes, there is one file to edit.
 **The theme is not in the components.** Every colour, font, shadow and animation
 timing is defined in `tailwind.config.js`, with a comment explaining each choice.
 Use `text-ink`, `bg-paper`, `border-line` and so on rather than a raw hex code,
-so a change to the theme reaches the whole site at once. If a value genuinely
-cannot be a Tailwind class — an SVG stroke, say — put it in a named constant with
+so a change to the theme reaches the whole site at once. If a value can't be a
+Tailwind class (like an SVG stroke), put it in a named constant with
 a comment naming the theme colour it copies.
 
-**Checks here are for the person, not for the data.** `lib/validation.js` catches
-a missing `@` before anyone waits on the network. It is not security, and it is
-not meant to be: anyone can bypass this app entirely and post straight at the API.
-The rules that actually protect anything are the ones in the backend's
-`lib/validate.js`, and those two files are meant to be a pair.
+**Form checks here are for the person, not for security.** `lib/validation.js`
+catches a missing `@` before anyone waits on the network. Anyone can skip this
+app and post straight at the API, so the backend runs the same rules again
+(both sides import `shared/accountFields.js`).
 
 ---
 

@@ -13,9 +13,7 @@ import { categorise } from '../src/services/categorise.js';
 */
 
 
-// ---------------------------------------------------------------
 // Splitting a line
-// ---------------------------------------------------------------
 
 test('a plain line splits on its commas', () => {
   assert.deepEqual(splitCsvLine('01/08/2026,SALARY,,85000'), ['01/08/2026', 'SALARY', '', '85000']);
@@ -39,9 +37,7 @@ test('a doubled quote inside a quoted field is one real quote', () => {
 });
 
 
-// ---------------------------------------------------------------
 // Dates
-// ---------------------------------------------------------------
 
 test('the three date shapes banks use all come out the same way', () => {
   assert.equal(parseDate('2026-08-05'), '2026-08-05');
@@ -65,9 +61,7 @@ test('anything that is not a date comes back empty rather than as a wrong date',
 });
 
 
-// ---------------------------------------------------------------
 // Amounts
-// ---------------------------------------------------------------
 
 test('an amount survives the rupee sign, the commas and the spaces', () => {
   assert.equal(parseAmount(' ₹1,23,456.78 '), 123456.78);
@@ -86,9 +80,7 @@ test('brackets mean a negative', () => {
 });
 
 
-// ---------------------------------------------------------------
 // Categories
-// ---------------------------------------------------------------
 
 test('known merchants land in the right category', () => {
   assert.equal(categorise('UPI-SWIGGY-SWIGGY@YBL-PAYMENT', 'debit'), 'food');
@@ -114,9 +106,7 @@ test('the direction wins over the words', () => {
 });
 
 
-// ---------------------------------------------------------------
 // A whole file
-// ---------------------------------------------------------------
 
 const HDFC_STYLE = [
   'Account Number: XXXXXXXX1234',
@@ -200,9 +190,7 @@ test('a file with no recognisable headings is refused with a reason', () => {
 });
 
 
-// ---------------------------------------------------------------
 // Getting a name out of a narration
-// ---------------------------------------------------------------
 
 test('the payment rail and the routing junk are dropped from a merchant name', async () => {
   const { merchantName } = await import('../src/services/statementParser.js');

@@ -47,9 +47,7 @@ function financesFor(overrides) {
 }
 
 
-// ---------------------------------------------------------------
 // One plan for every page
-// ---------------------------------------------------------------
 
 test('regression: the plan knows the debt rate, so a cheap loan does not cut investing', () => {
   /*
@@ -124,9 +122,7 @@ test('a chosen plan that no longer applies falls back to the recommendation', ()
 });
 
 
-// ---------------------------------------------------------------
 // Family
-// ---------------------------------------------------------------
 
 test('listed family replaces the estimate with the real amounts', () => {
   const finances = financesFor();
@@ -193,9 +189,7 @@ test('health cover has to be a real true or false', () => {
 });
 
 
-// ---------------------------------------------------------------
 // The stress test
-// ---------------------------------------------------------------
 
 test('after a shock ends, each month adds the plan\'s saving back', () => {
   // A conservation check. Outside a crisis the walk must match the plan exactly,

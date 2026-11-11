@@ -1,36 +1,35 @@
 # Nest-Worth
 
-A personal finance planner for Indian households where one salary supports a
-family. You list who you support and what each person costs, along with what you
-earn, owe, own and are saving for. It builds a plan from those real amounts,
-works out which debt to clear first and what each goal costs, and stress tests
-the whole thing: what happens to your cash if the income stops for four months,
-or a parent without health cover needs a ₹3,00,000 hospital stay.
+Nest-Worth is a money planner for Indian families where one person's salary
+supports the whole household (parents, a spouse, kids, sometimes siblings).
 
-### What makes it different
+You enter your income, rent and bills, the family members you support, your
+debts, goals and savings. The app then:
 
-- **Family circle.** Most budgeting apps assume the salary is yours alone. Here
-  you name the people it carries, and the plan uses the real amounts.
-- **Stress test.** Four common shocks, walked month by month, with the month the
-  cash runs out and exactly how much more would need to be put by.
-- **One set of numbers.** The dashboard, every page and the AI coach get their
-  figures from the same function, so they never disagree.
+- builds a monthly plan (spend / save / invest) from those real amounts
+- tells you which debt to clear first and what each goal costs per month
+- stress tests the plan, for example "what if I lose my job for 4 months" or
+  "what if a parent without health cover needs a ₹3,00,000 hospital stay"
+- reads a bank statement CSV and sorts the spending into categories
+- has an AI coach (Gemini or Claude) that answers questions using the app's own
+  calculations
 
-Built as a learning project, so the code is written to be read. Files open with
-a comment explaining what they are for and why they are built the way they are,
-and the awkward decisions are argued out in comments rather than left for you to
-guess at.
+I built this as a learning project, so the code has a lot of comments explaining
+why things are done a certain way.
+
+For how the whole thing fits together, see
+[docs/ARCHITECTURE_AND_FLOW.md](docs/ARCHITECTURE_AND_FLOW.md).
 
 ---
 
 ## Running it
 
-You need [Node.js](https://nodejs.org) 20 or newer. Nothing else — there is no
-database server to install.
+You need [Node.js](https://nodejs.org) 20 or newer. There is no database server
+to install, SQLite is just a file.
 
 Open two terminals.
 
-**Terminal one, the API:**
+**Terminal 1, the API:**
 
 ```bash
 cd backend
@@ -39,7 +38,7 @@ cp .env.example .env
 npm run dev
 ```
 
-**Terminal two, the app:**
+**Terminal 2, the app:**
 
 ```bash
 cd frontend
@@ -49,531 +48,335 @@ npm run dev
 
 Open <http://localhost:5173> and create an account.
 
-To run the tests:
+Tests:
 
 ```bash
-cd backend  && npm test    # 246 tests: the API, repositories, the SQL, the money maths, the AI tools
-cd frontend && npm test    # 110 tests: the money maths, hooks, components, charts and pages
+cd backend  && npm test    # API, repositories, SQL, money maths, AI tools
+cd frontend && npm test    # money maths, hooks, components, charts, pages
 ```
 
-To look at what the app has stored:
+To see what is stored in the database:
 
 ```bash
 cd backend
-npm run db:show     # every table, printed as a grid
-npm run db          # the SQLite shell, for your own queries
+npm run db:show     # prints every table
+npm run db          # opens the SQLite shell
 ```
 
-Or install the **SQLite Viewer** extension for VS Code and click
-`backend/data/nestworth.db` to browse it like a spreadsheet.
+You can also install the **SQLite Viewer** extension in VS Code and open
+`backend/data/nestworth.db`.
 
-`SETUP.md` covers the rest: reading and editing the data, Google sign-in, real
-text messages, real email, and what to do before putting this on the internet.
+Other docs:
 
-`docs/SYSTEM_DESIGN.md` explains the architecture, the data model and the
-decisions behind them. `docs/DEBUGGING.md` shows how to trace a wrong number or
-a failing request to the line that causes it.
+- `SETUP.md` - Google sign-in, real SMS and email, and what to do before deploying
+- `docs/ARCHITECTURE_AND_FLOW.md` - architecture diagram and step by step request flows
+- `docs/SYSTEM_DESIGN.md` - requirements, data model and design decisions
+- `docs/DEBUGGING.md` - how to trace a wrong number or a failing request
+- `docs/AI_COACH.md` - how the AI coach, its tools and the two providers fit together
 
 ---
 
-## What it does
+## Pages
 
-| Page | What it is for |
+| Page | What it does |
 |---|---|
-| `/` | Landing page. Runs the real recommendation model on numbers the visitor can change. |
-| `/signup`, `/login` | Three ways in: email and password, a code by text, or Google. |
-| `/forgot-password`, `/reset-password` | Setting a new password, by a one-time link. |
-| `/onboarding` | The questions everything else is calculated from. |
-| `/dashboard` | The overview: what to do this month, and why. How many shocks the household survives. The AI coach, and the note it writes without being asked. |
-| `/family` | The people this salary supports, what each costs, and who has no health cover. |
-| `/plans` | The same money spent several ways, each played out fifteen years, in charts. Pick one and the dashboard follows it. |
-| `/stress-test` | A job loss, pay cut, hospital bill or family need, walked month by month for a year. |
-| `/debts` | Every debt, with payoff dates and an extra-payment slider. |
-| `/goals` | What you are saving for, and what each costs per month. |
-| `/net-worth` | What you own against what you owe. |
-| `/spending` | A bank statement, read line by line and sorted into categories. |
-| `/recap` | A whole year of those, added up and looked back on. |
-| `/check-in` | What actually happened this month, as opposed to the plan, with the totals the database works out. |
-| `/settings` | Name, household, password, and closing the account. |
+| `/` | Landing page with a small planner you can try without signing up |
+| `/signup`, `/login` | Email + password, phone OTP, or Google |
+| `/forgot-password`, `/reset-password` | Reset password with a one-time link |
+| `/onboarding` | The household questions the plan is built from |
+| `/dashboard` | This month's plan, how many shocks you survive, AI coach, daily note |
+| `/family` | People you support, how much each costs, who has no health cover |
+| `/plans` | Compare a few ways to use the same money over 15 years |
+| `/stress-test` | Job loss, pay cut, hospital bill or family need, month by month for a year |
+| `/debts` | All debts with payoff dates and an extra payment slider |
+| `/goals` | Savings goals and how much each needs per month |
+| `/net-worth` | What you own minus what you owe |
+| `/spending` | Upload a bank statement CSV, see spending by category |
+| `/recap` | The whole year added up |
+| `/check-in` | What actually happened this month vs the plan |
+| `/settings` | Name, household, password, delete account |
 
 ---
 
-## How it is put together
+## Tech stack
 
-Two separate programs that talk over HTTP. They are kept apart on purpose: the
-browser can be lied to, so nothing it says is trusted, and every rule that
-matters is enforced again on the server.
+- **Frontend:** React, Vite, Tailwind, React Router. Charts are plain SVG.
+- **Backend:** Node, Express 5, SQLite (better-sqlite3), bcrypt.
+- **Shared:** `shared/` has the money maths and is used by both frontend and backend.
+- **AI:** Gemini (default, has a free tier) or Claude, picked by which API key is set.
+- **CI:** GitHub Actions runs tests, lint and build on every push.
+
+---
+
+## Folder structure
 
 ```
 Nest-Worth/
-├── backend/                     the API: Node, Express and SQLite
+├── backend/
 │   ├── src/
-│   │   ├── server.js            starts the server and shuts it down cleanly
-│   │   ├── app.js               middleware order and route mounting
-│   │   ├── config.js            every environment setting, read in one place
-│   │   ├── database/            schema.sql, and db.js (connection, migrations, transactions)
-│   │   ├── http/                AppError, the error handler, cookies, request validation
-│   │   ├── middleware/          request logging, who is signed in, rate limits
-│   │   ├── routes/              controllers: validate, call a service, respond
-│   │   │   └── recordRoutes.js  the shared list/add/change/remove router
-│   │   ├── services/            business rules: auth, sessions, codes, imports, finances
+│   │   ├── server.js            starts the server, handles shutdown
+│   │   ├── app.js               middleware order and routes
+│   │   ├── config.js            all env variables in one place
+│   │   ├── database/            schema.sql and db.js (connection, migrations, transactions)
+│   │   ├── http/                AppError, error handler, cookies, validation helpers
+│   │   ├── middleware/          logging, who is signed in, rate limits (all limits in limits.js)
+│   │   ├── routes/              controllers: validate, call service, send response
+│   │   ├── services/            business logic: auth, sessions, OTP, imports, finances
 │   │   ├── repositories/        all SQL, one file per table
-│   │   │   └── ownedRecordRepository.js  the shared base for per-user records
-│   │   ├── validation/          request body rules
-│   │   ├── reports/             read-only SQL aggregates: insights, recap, signals
-│   │   ├── ai/                  prompt, facts, agent loop, tools
-│   │   │   └── providers/       Gemini and Claude adapters
-│   │   └── utils/logger.js
-│   └── tests/                   npm test
+│   │   ├── validation/          rules for request bodies (account rules come from shared/)
+│   │   ├── reports/             read-only SQL reports: insights, recap, signals
+│   │   ├── ai/                  prompt, facts, agent loop
+│   │   │   ├── tools/           one file per tool the AI can run, index.js lists them
+│   │   │   └── providers/       Gemini and Claude
+│   │   └── utils/               logger.js, time.js (MINUTE_MS, HOUR_MS, DAY_MS)
+│   └── tests/
 │
-├── frontend/                    the app: React, Vite and Tailwind
-│   ├── tailwind.config.js       every colour, font, shadow and timing
+├── frontend/
+│   ├── tailwind.config.js       all colours, fonts, shadows
 │   └── src/
-│       ├── App.jsx              which page shows at which address
-│       ├── pages/               one file per address: loads data, arranges sections
-│       ├── components/
-│       │   ├── shared/          Card, Button, Notice, EmptyState, StatTile, PillGroup, form fields
-│       │   ├── layout/          app shell, top bars, loading and error pages
-│       │   ├── charts/          hand-drawn SVG charts
-│       │   ├── dashboard/  debts/  goals/  netWorth/  family/  plans/
-│       │   ├── stressTest/  spending/  checkIn/  recap/  settings/  onboarding/
-│       │   ├── landing/         the marketing page
-│       │   └── auth/            sign-in screens
-│       ├── hooks/               useAsyncData, useRecordEditor, useReveal, useTheme
-│       ├── lib/                 api.js, loadFinances.js, and re-exports of shared/
-│       └── styles/global.css    the colour values for the light and dark themes
-│   └── tests/                   npm test
+│       ├── App.jsx              routes
+│       ├── pages/               one file per page
+│       ├── components/          shared/, layout/, charts/, and one folder per feature
+│       ├── hooks/               useAsyncData, useRecordEditor, useGoogleSignIn, useReveal, useTheme
+│       ├── lib/                 api.js, loadFinances.js, format.js, formErrors.js, re-exports of shared/
+│       └── styles/global.css    light and dark theme colour values
+│   └── tests/
 │
-├── shared/                      the money maths, used by both sides
-│   ├── finances.js              the one function every plan figure comes from
-│   ├── plan.js  debt.js  goals.js  networth.js  scenarios.js
-│   ├── family.js  shocks.js  categories.js
+├── shared/                      money maths used by both sides
+│   ├── finances.js              summariseFinances, the main function
+│   ├── format.js                money and dates as text (formatRupees, monthLabel ...)
+│   ├── accountFields.js         name, email, password, phone, OTP rules
+│   ├── numbers.js               keepBetween, roundToNearest500
+│   └── plan.js debt.js goals.js networth.js scenarios.js family.js shocks.js categories.js
 │
-├── docs/                        SYSTEM_DESIGN.md and DEBUGGING.md
-├── .github/workflows/ci.yml     tests, lint and build on every push
-└── ai-integration/              how the AI coach is wired up
+├── docs/                        architecture, system design, debugging, AI coach
+└── .github/workflows/ci.yml
 ```
 
-### Where the work happens
+---
 
-Most of the API hands out rows and lets the browser add them up. That is the
-right call when the browser needs every row anyway, which is what the debts and
-goals pages do.
+## Main design decisions
 
-It is the wrong call for an average, a running total or a share, where the
-answer is one number and the rows are only the raw material. Fetching two years
-of check-ins so JavaScript can work out a mean means sending every column of
-every row across the network to throw nearly all of it away. Those live in
-`backend/src/reports/insights.js` as real SQL instead:
+**Money maths lives in `shared/`.** The browser needs it to update numbers
+instantly when you move a slider. The server needs it for the AI coach. Earlier
+it was only in the frontend, and copying it to the backend would mean two
+versions that could give different answers. So both import the same files.
 
-| What | The SQL that does it |
+**Every plan number comes from one function.** `summariseFinances` in
+`shared/finances.js`. The browser calls it through `lib/loadFinances.js`, the
+server through `services/financeService.js`. Before this, five places built the
+plan separately and they started giving different numbers (for example the
+safety net was leaving out rent). Those bugs now have regression tests.
+
+**Backend is split into layers.** Routes handle HTTP, services have the logic,
+repositories have the SQL, and one error handler formats all errors. Services
+don't know about `req`/`res`, so they can be tested without starting a server.
+
+**Debts, goals, assets and family members share one router and one repository.**
+`recordRoutes.js` and `ownedRecordRepository.js`. The rule "only touch rows of
+the signed-in user" is written once, so a new record type can't forget it.
+
+**Every page loads data the same way.** `useAsyncData` handles loading, errors
+and late responses. `useRecordEditor` handles add, edit and delete.
+
+**The plan subtracts fixed costs first, then splits.** `buildPlan` removes family
+support, EMIs and rent/bills from income, and only then splits what is left into
+spend, save and invest. A fixed percentage of income doesn't work when one family
+pays ₹35,000 rent and another pays ₹8,000.
+
+**Validation runs on both sides, from one set of rules.** The account rules
+(name, email, password, phone, OTP) are in `shared/accountFields.js`. The form
+uses them for quick feedback, and the server runs the same functions as the real
+check, because anyone can call the API directly with `curl`. Before, there were
+two copies and their messages had drifted apart.
+
+**Heavy calculations are done in SQL.** Averages, running totals and month vs
+month changes are in `reports/insights.js` using window functions (`SUM OVER`,
+`LAG`), `GROUP BY`, `WITH` and `NULLIF` to avoid dividing by zero. Sending every
+row to the browser just to calculate one average would be wasteful. Each query
+has a test with the expected answer worked out by hand.
+
+---
+
+## Bank statement import
+
+- **Any bank layout.** Banks export different CSV formats (one Amount column with
+  Dr/Cr, or separate Withdrawal/Deposit columns, different date formats, extra
+  lines above the header). `statementParser.js` finds the header row and figures
+  out which column is which from the header names.
+- **Dates are read day first.** `05/01/2026` is 5 January. There is no way to
+  know from the text alone, so this is a decision, and there's a test for it.
+- **Importing the same file twice adds nothing.** Each row gets a hash of its
+  date, description, amount, direction and how many identical rows came before
+  it in the file (so two ₹420 Swiggy orders on the same day stay as two). The
+  column has a UNIQUE index and the insert uses `INSERT OR IGNORE`.
+- **Categories use rules, not AI.** Rules are instant, free, and give the same
+  answer every time. Unknown merchants go into "everything else" and the user can
+  fix them.
+- **Investments are not counted as spending.** A SIP is money you still own, so
+  it's shown separately as "put away".
+
+---
+
+## Daily note on the dashboard
+
+The AI coach only answers what you ask. The daily note points out things you
+might not think to ask, like food spending doubling this month.
+
+It is done in two steps:
+
+1. `reports/signals.js` finds the facts with SQL (category up or down vs last
+   month, a debt above 15% interest, one big payment, a month where almost
+   nothing was saved). Same data always gives the same facts, so it's testable.
+2. `services/briefingService.js` asks the model to turn those facts into
+   sentences. The model doesn't decide what is true, it only writes it up.
+
+The note is written once a day and stored, since each one costs a model call. If
+no AI key is set, the facts are shown as plain sentences.
+
+---
+
+## Light and dark theme
+
+Every colour is a CSS variable in `frontend/src/styles/global.css`, defined once
+for light (`:root`) and once for dark (`[data-theme="dark"]`). Tailwind classes
+point to those variables, so changing `data-theme` on `<html>` switches the whole
+app and no component needs to know about it.
+
+- Colours are stored as separate R G B numbers so Tailwind opacity classes like
+  `border-accent/25` still work.
+- Some colours should not change, like text on the always-dark landing panels.
+  Those use a separate name, `onNight`.
+- A small script in `index.html` sets the theme before React loads, so there is
+  no white flash on page load.
+
+---
+
+## Security
+
+- **Passwords** are hashed with bcrypt (the `bcryptjs` package, cost 12). Never stored or logged in plain text.
+- **Sessions** are a random 256-bit token in an `httpOnly` cookie, stored in the
+  database. I used this instead of JWT because deleting the row logs that browser
+  out immediately.
+- **OTP codes and reset links** are stored hashed, expire, are deleted after use,
+  and never sent back to the browser.
+- **Changing or resetting a password logs out all other devices.** Changing it
+  while signed in also needs the current password.
+- **Rate limits** on login, signup, OTP, password reset and the AI route.
+- **Login and forgot password don't reveal if an account exists.** Same response
+  for a real or unknown email.
+- **Every query uses the user id from the session**, never from the request
+  body or URL. There is a test that checks one user can't read another's data.
+- **Deleting an account deletes everything** through `ON DELETE CASCADE`. A test
+  checks nothing is left behind.
+- **Every table has an index on `user_id`.**
+- **Expired sessions, codes and reset links are cleaned up on server start.**
+- **The AI key stays on the server** in `backend/.env`. The browser doesn't even
+  know which model is being used. AI is limited to 20 questions per hour per user.
+- **The AI can only read the signed-in user's data.** Tools take the user id from
+  the session. Chat history sent by the browser is cleaned so it can't fake a
+  tool result.
+- **When a session expires mid-use**, the API returns code `no_session` and the
+  browser goes to login. A wrong password or OTP is also a 401 but has a different
+  code, so the user stays on the form.
+
+---
+
+## AI coach
+
+Two providers, Gemini (default) and Claude. The app works the same with either.
+
+The agent loop in `ai/advice.js` is written once and uses its own message format:
+
+```
+{ role, text }          someone said something
+{ toolCalls: [...] }    the model wants a calculation
+{ toolResults: [...] }  we ran it, here is the result
+```
+
+`ai/providers/gemini.js` and `ai/providers/claude.js` convert this to each API's
+format. They differ quite a bit (role names, where the system prompt goes, Gemini
+needing UPPERCASE type names in tool schemas), but all of that stays in the
+provider files.
+
+The model never does maths itself. It calls tools (one file each in `ai/tools/`)
+that use the same `shared/` functions as the pages.
+
+Gemini tests run against a fake local server, so they don't need a key or internet.
+
+---
+
+## Charts
+
+All charts are hand-made SVG. The chart type was picked based on what the user
+needs to read:
+
+| What the user needs | Chart |
 |---|---|
-| Running total of everything kept | `SUM(...) OVER (ORDER BY month)`, a window function |
-| Each month against the one before | `LAG(...) OVER (ORDER BY month)` |
-| Average share of income kept | `AVG`, which skips NULL rather than counting it as zero |
-| Best and worst month | a `WITH` clause, used twice without repeating it |
-| Debts and assets by kind | `GROUP BY`, with each share against a scalar subquery |
-| Never dividing by zero | `NULLIF(income, 0)` |
+| Where one month's money goes | stacked bar |
+| Compare plans over 15 years | multi-line chart |
+| How much sooner a debt clears | dumbbell chart |
+| One number vs a target | meter |
+| Compare 12 spending categories | sorted horizontal bars (not a pie, too many slices to compare) |
 
-There is a test for each, with the expected number worked out by hand in a
-comment. A wrong aggregate does not throw and does not look wrong: it returns a
-number, in the right format, in the right place on the page, and it is simply
-not true.
+- Chart colours are separate from UI colours, because the UI colours were too
+  close to each other. They were checked for colour blindness too.
+- Only choices (spend, save, invest) get a colour. Fixed costs are grey.
+- In the plan comparison, only the selected plan is coloured.
+- Dark theme chart colours were picked separately, not just dimmed.
+- Every chart has a legend and a table with the actual numbers.
 
-### Why it is arranged this way
-
-**`shared/` is shared on purpose.** The money maths is the one thing both sides
-genuinely need: the browser draws the dashboard with it, and the server hands it
-to Claude as tools. It lived in `frontend/src/lib/` until the AI coach needed it
-too. Copying it would have meant the coach and the debts page could quietly
-disagree about a payoff date, with no way to tell which was right. The four files
-left behind in `frontend/src/lib/` are one line each, re-exporting it, so every
-import in the app still reads `../lib/debt`.
-
-**Every number comes from one function.** `summariseFinances` in
-`shared/finances.js` builds the plan, the monthly costs, the safety net and the
-chosen scenario. The browser reaches it through `lib/loadFinances.js` and the
-server through `services/financeService.js`. Before this, five places built the plan and
-they had drifted: the goals page could show a different monthly saving from the
-dashboard, and the safety net left out rent. Both are now regression tests.
-
-**Each backend layer has one job.** Routes handle HTTP, services hold the rules,
-repositories hold the SQL, and one error handler formats every failure. A
-service knows nothing about `req` or `res`, so it can be tested without a
-server, and a bug can usually be placed in one layer from its symptom. See
-`docs/SYSTEM_DESIGN.md` for the patterns and why each was chosen.
-
-**The four record APIs share one implementation.** Debts, goals, assets and
-family members are built from `ownedRecordRepository.js` and `recordRoutes.js`.
-The rule that a query only ever touches the signed-in user's rows is written
-once, so a new record type cannot forget it.
-
-**Every page loads data the same way.** `hooks/useAsyncData.js` handles loading,
-errors and answers that arrive after the page has moved on;
-`hooks/useRecordEditor.js` handles adding, editing and deleting. Pages only
-describe what to load and how to lay it out.
-
-**The plan subtracts before it splits.** `buildPlan` takes the household
-support, the EMI and the fixed living costs off the income first, and only then
-divides what is left three ways. Splitting a percentage straight off income is
-what makes budgeting apps feel written for somebody else: it asks a household
-paying 35,000 in rent to keep the same share as one paying 8,000.
-
-**One theme, one file.** Every colour, font, shadow and animation timing lives in
-`frontend/tailwind.config.js` with a comment saying why. Pages use those tokens
-rather than inventing their own, which is what keeps the whole site looking like
-one product.
-
-**The two form-check files are a pair, not a duplicate.** The frontend's
-`lib/validation.js` exists to be helpful, catching a missing `@` before anyone
-waits on the network. The backend's `validation/` exists to be true, because
-anybody can skip the form entirely and post straight at the API with `curl`.
-
----
-
-## Reading a bank statement
-
-Everything else in this app is built from numbers somebody typed. `/spending`
-is built from their bank's own record, which is the only honest way to know
-what a month actually cost. Nobody remembers what they spent on food.
-
-Upload a CSV and it is parsed, sorted into categories, and added up. There is a
-sample month behind a button, because nobody has a statement to hand the first
-time they open the page and an upload box with nothing to upload is a dead end.
-
-**The parser assumes no layout.** Every bank exports a different shape. Some
-have one Amount column and a separate Dr/Cr marker, some have Withdrawal and
-Deposit as two columns, and the date is `05/01/2026` or `05-Jan-26` or
-`2026-01-05`. The header row is rarely the first line, because banks print the
-account number and a date range above it. So `services/statementParser.js` hunts for the
-header, works out which column is which from the words in it, and reads the rest
-against that.
-
-**Day comes before month.** `05/01/2026` is read as the fifth of January. There
-is no way to tell from the text, so it is a decision rather than a deduction,
-and it is written down in a comment and in a test because a silently wrong month
-pushes transactions into the wrong check-in with nothing on screen looking odd.
-
-**Importing the same file twice adds nothing.** Each line gets a fingerprint:
-a hash of its date, description, amount, direction, and how many identical lines
-came before it in the same file. That last part is what keeps two ₹420 Swiggy
-orders on the same day as two payments rather than one. The column has a UNIQUE
-index and the insert says `INSERT OR IGNORE`, so the database enforces it rather
-than a check-then-insert, which has a gap between the two halves.
-
-**Categories are rules, not an AI.** It would be one prompt to hand every line
-to a model. Rules win here: they are instant where a model is a network round
-trip per statement, they cost nothing, and they give the same answer every time,
-so a category somebody corrects once is not guessed differently next month. The
-trade is that an unknown merchant falls through to "everything else", and the
-answer to that is to let people fix it rather than to guess harder.
-
-**Investing is not spending.** A SIP leaving the account is money moved into
-something you still own. Counting it as an expense would report the worst
-spending month on the month somebody saved the most, which is the opposite of
-useful. The spending total is built from the spending categories only.
-
----
-
-## The note nobody asked for
-
-The coach card answers questions. Useful, and it only ever tells you what you
-already thought to ask. A month where the food spend doubled is not a question
-anybody types.
-
-So there is a second thing on the dashboard that writes itself, and the way it
-is split in two is the whole design.
-
-`reports/signals.js` finds what is true. Each finding is a query with a number
-attached: a category up or down against last month, a debt over 15%, one payment
-that was a quarter of everything that left the account, a check-in where almost
-nothing was kept. It either happened or it did not, and the same data gives the
-same findings every time, which is what makes it testable.
-
-`services/briefingService.js` turns those findings into sentences, and that is the only job
-the model has.
-
-A model asked to do both would decide what is true and how to say it at the same
-time, so a misreading and a well-written sentence would arrive together and be
-indistinguishable. It would also say something different on every run against
-identical data.
-
-It is written once a day and stored, not on every page load, because writing it
-costs a call to a model and wording that changed on every refresh would read as
-noise rather than as something that had been noticed. With no key configured the
-findings are shown as they are, which is why they are written as whole sentences
-with their amounts formatted: the no-model version should not be the rough
-draft.
-
----
-
-## Two themes
-
-Every colour on the site is a CSS variable, defined twice in
-`frontend/src/styles/global.css`: once on `:root` and once under
-`[data-theme="dark"]`. `tailwind.config.js` still owns the names and the
-reasoning, and every class points at a variable.
-
-That means `data-theme="dark"` on the `<html>` tag changes the whole app, and
-not one component knows a dark theme exists. A `bg-accent text-paper` button is
-dark green with cream text in one and mint with near-black text in the other,
-because both halves flip together.
-
-Three things did not come free.
-
-**The values had to leave the config file.** A hex code written in
-`tailwind.config.js` is baked into the stylesheet at build time, and a baked
-value cannot be changed while the page is open.
-
-**They are stored split into red, green and blue** rather than as `#1F5340`,
-because that is what lets `border-accent/25` work: Tailwind substitutes the
-opacity into the middle of `rgb(31 83 64 / 0.25)`, and a hex code cannot be
-sliced open like that.
-
-**Some colours must not flip.** The dark panels on the landing page are
-near-black in both themes, so the writing on them stays cream in both. That is a
-separate name, `onNight`, rather than `paper`, which would have looked correct
-until the dark theme turned it near-black on near-black.
-
-The theme is applied by a small script in `index.html` that runs before the
-page is drawn. Waiting for React would paint the cream page first and repaint it
-black a moment later, and that white flash is the most noticeable bug a dark
-mode can have.
-
----
-
-## The security decisions, in short
-
-These are the parts worth being able to explain out loud.
-
-- **Passwords** are hashed with bcrypt at cost 12. The plain password is never
-  stored, never logged, and never leaves the request it arrived in.
-- **Sessions** are a random 256-bit token in an `httpOnly` cookie, so page
-  JavaScript cannot read it even if a script were injected into the site. The
-  token is stored server-side, which means a session can be revoked instantly —
-  the thing a JWT cannot do without keeping the very table it was avoiding.
-- **One-time codes and reset links** are stored hashed, expire, are destroyed
-  after use, and are never sent back to the browser in a response. A secret the
-  browser can read proves nothing about who is holding it.
-- **Changing or resetting a password signs out every other browser**, because
-  somebody doing either may be doing it precisely because a stranger got in.
-  Changing it while signed in also requires the current password, so an unlocked
-  laptop is not enough to take an account over.
-- **Sign-in, sign-up and message sending are rate limited**, so a password
-  cannot be guessed as fast as the network allows. No password rule can
-  substitute for this.
-- **Login and the forgot-password form never reveal whether an account exists.**
-  Both answer identically for a real and an unknown address, so neither can be
-  used to work out who has signed up here.
-- **Every query filters on the user id from the session cookie**, never on
-  anything the browser sent. This is what stops somebody reading a stranger's
-  finances by changing a number in a URL, and there is a test whose only job is
-  to keep it true.
-- **Deleting an account really deletes it.** One `DELETE` on the users row takes
-  the household, debts, goals, assets and check-ins with it, through the
-  `ON DELETE CASCADE` lines in `schema.sql`. A test checks no orphaned rows are
-  left behind, and that the email can be used to sign up again afterwards.
-- **Every table is indexed on user_id.** Without it SQLite answers
-  "WHERE user_id = ?" by reading every row in the table. It makes no difference
-  at two accounts and a great deal at fifty thousand. `checkins` needs no index
-  of its own, because its `UNIQUE (user_id, month)` line already builds one.
-- **Expired rows are swept at startup.** Sessions, one-time codes and reset
-  links are each destroyed when somebody tries to use an expired one, but that
-  never cleans up after people who do not come back. `db.js` clears them when
-  the server starts.
-- **The AI key never leaves the server.** It lives in `backend/.env`, which git
-  ignores, and only the files in `backend/src/ai/providers/` read it. A key in frontend
-  code is a key anybody can read in their browser and spend money with. Nothing
-  in the browser even names which model is answering, because the server decides
-  that from whichever key is set. The AI route is rate limited to 20 questions an
-  hour per person.
-- **A session that ends mid-use sends you to the login screen.** `requireUser`
-  answers with a `no_session` code, which is what the browser reacts to rather
-  than the bare 401. That distinction matters: a wrong password and a wrong
-  one-time code are also 401s, and bouncing somebody to the login screen for
-  mistyping a code would be worse than the dead end it fixes.
-- **The AI cannot reach another person's money.** Every calculation it can run
-  takes the user id from the session cookie; not one of them accepts an argument
-  naming a person. The conversation the browser sends back is rebuilt from
-  scratch and anything that is not a plain turn of text is dropped, so a browser
-  cannot forge a calculation result and have it repeated back as fact.
-
----
-
-## Which AI
-
-Two are supported and the app behaves the same with either. **Gemini has a free
-allowance, so it is the default**; Claude is there because it was first and
-because having two proves the seam is real.
-
-The interesting part is that the agent loop is written once. `ai/advice.js`
-keeps the conversation in a shape neither provider uses:
-
-```
-{ role, text }          somebody said something
-{ toolCalls: [...] }    the model asked for a calculation
-{ toolResults: [...] }  we ran it, here is the answer
-```
-
-`ai/providers/gemini.js` and `ai/providers/claude.js` translate that to their own wire
-formats, which differ more than you would expect: Gemini calls the two sides
-"user" and "model" where Claude says "assistant", puts the system prompt in its
-own field, needs UPPERCASE type names in a tool schema, and rejects a tool whose
-parameters are an empty object rather than absent. All of that is in the
-translators; none of it is in the loop.
-
-The Gemini tests run against a stand-in server rather than Google, so they cost
-nothing, need no key, and still catch a wrongly shaped request, which is the
-thing most likely to be wrong.
-
----
-
-## The charts
-
-Five, and the type of each was picked from the job it does rather than from what
-looks impressive.
-
-| What the reader has to do | The chart |
-|---|---|
-| See where one month's money goes | a stacked bar, part-to-whole |
-| Compare four plans over fifteen years | multi-line, one axis |
-| See how much sooner the debt clears | a dumbbell, before against after |
-| Judge one number against a target | a meter, not a chart |
-| Compare twelve spending categories | sorted horizontal bars |
-
-The last one is a bar chart and not a pie for a specific reason. The question is
-"which of these is biggest, and by how much", and length along a shared baseline
-is the one thing the eye compares accurately. Angles are not: two slices within
-a few per cent of each other are indistinguishable, and twelve categories is far
-past the three or four a pie can carry. All twelve bars are one colour, because
-each is named beside itself, so colour has no work left to do.
-
-Three rules the colours follow, and they are why the chart colours in
-`tailwind.config.js` are not the UI colours:
-
-**The UI colours failed as chart colours.** `accent` and `ink` are too dark and
-too grey to be told apart as marks. The chart steps sit on the same hues, lifted
-into the band where they stay separable, and they were checked with a validator
-rather than by eye. Roughly one man in twelve cannot distinguish red from green,
-and "these look different to me" is not a test.
-
-**Only choices get a colour.** Spend, save and invest are decisions and each has
-a hue. The money already committed is grey: it is not a choice, and giving it a
-colour would make it compete with the parts somebody can act on.
-
-**One plan at a time is coloured.** On the comparison chart the plan being read
-is green and the other three are one grey. Four coloured lines is a chart where
-the eye has nowhere to land.
-
-Every chart colour has a dark-theme version, and they are not the light ones
-dimmed. Each was lifted separately into the band where it stays separable
-against a dark card. The percentage printed inside a bar has two colours for the
-same reason: the fills deep enough to need white text on the light theme are
-lifted light enough on the dark one to need near-black.
-
-Every chart has a legend, and the page ends with a table of every figure on it,
-so nothing is available only as a picture.
-
-### Looking at them
+### Screenshots
 
 ```bash
 cd frontend
-npm run shots:api    # a throwaway API on 4001, its own database, limits off
-npm run shots:web    # vite on 5174, pointed at it
-npm run shots        # drives a real browser, saves to frontend/screenshots/
+npm run shots:api    # test API on port 4001 with its own database
+npm run shots:web    # vite on 5174 pointed at it
+npm run shots        # opens a real browser and saves screenshots to frontend/screenshots/
 ```
 
-The component tests run in jsdom, which has no layout engine. It can say a
-legend was rendered and that no width came out as NaN; it cannot say a label was
-cut in half, or that the comparison chart collapsed to six pixels tall on a
-phone. Both of those were really here, and both were found by looking at what
-this script produced rather than by a test.
-
-It shoots four pages, at three widths, in both themes. Both themes matter: the
-dark one is not a filter over the light one, every colour in it was chosen
-separately, and it can break on its own. Text vanishing into its own background,
-a shadow that was doing the work of a border, a chart label on a fill it no
-longer contrasts with. All three happened while it was being built and none of
-them is something a component test can see.
-
-It reports horizontal overflow and text clipped by its own box, and it scrolls
-each page before shooting, because several things here only draw once they have
-been scrolled into view. It never touches the real database, for the same reason
-the tests do not: it needs a fresh account with fixed numbers every run.
+Component tests run in jsdom, which can't see layout, so this script catches
+things like cut-off labels or a chart collapsing on mobile. It takes four pages,
+at three screen widths, in both themes, and reports overflow and clipped text.
 
 ---
 
-## Running it as a service
+## Production basics
 
-The parts that have nothing to do with features, and everything to do with
-whether this could be left running.
-
-- **Every request has an id**, returned in an `X-Request-Id` header and printed
-  on every log line for that request. One request produces several lines and
-  several requests overlap, so without an id there is no way to tell which
-  belongs to which. A person reporting a problem can name the exact request
-  instead of a rough time, and a 500 sends the id back in the body.
-- **Every request is timed.** An endpoint that is merely slow never throws, so
-  it never appears anywhere until somebody complains. `ms=` on every line makes
-  it obvious. Signup is the slow one on purpose: bcrypt at cost 12.
-- **Passwords, tokens and one-time codes are never logged.** A log file is the
-  easiest place in a system to leak a secret, because nobody thinks of it as
-  storage: it gets pasted into tickets and kept longer than any database row.
-- **Logs are JSON in production and readable text in development.** A sentence
-  is nicer on a laptop and useless to a machine.
-- **`/api/health` runs a real query.** It used to answer `ok: true` without
-  checking anything, which meant it stayed green while the database was gone. A
-  health check that cannot go red is decoration. It answers 503 when SQLite is
-  unreachable, which is what a load balancer knows how to act on.
-- **SIGTERM and SIGINT shut down in order:** stop accepting new connections,
-  let the requests already in flight finish, close SQLite so it folds its
-  write-ahead log back into the main file, then exit. There is a ten second
-  limit, because one request waiting on a slow AI answer should not hold a
-  deploy open forever.
-- **Multi-step writes are transactions.** Signup, password change and password
-  reset each write several rows, and a failure halfway through the reset would
-  be the worst kind: password changed, old sessions not deleted, success
-  reported. `db.transaction()` means either all of it happens or none does.
+- **Request id** on every request (`X-Request-Id` header and in every log line),
+  so logs for one request can be found. A 500 response includes it too.
+- **Every request is timed** (`ms=` in logs). Signup is slow on purpose because of bcrypt.
+- **Passwords, tokens and OTPs are never logged.**
+- **Logs** are JSON in production and readable text in development.
+- **`/api/health`** runs a real database query and returns 503 if it fails.
+- **Graceful shutdown** on SIGTERM/SIGINT: stop new connections, finish running
+  requests, close SQLite, exit. Max 10 seconds.
+- **Multi-step writes use transactions** (signup, password change, reset), so
+  they either fully happen or don't happen at all.
 
 ---
 
-## Known limits
+## Known limitations
 
-Worth saying plainly, since this is a learning project rather than a product.
-
-- **No SMS or email provider is connected.** The phone code and the password
-  reset link are printed in the terminal running the API. `SETUP.md` explains
-  what to connect and what paperwork India requires first.
-- **Google sign-in needs a client id** before the button does anything.
-- **The AI needs a key** in `backend/.env`, either Gemini's or Anthropic's.
-  Without one the coach card says so, and the daily note falls back to showing
-  its findings as they are, which is why they are written as whole sentences.
-- **The daily note is written on the first dashboard load of the day**, not by a
-  job running overnight. A nightly job would have to write a note for every
-  account whether or not anybody was going to read it, and would need something
-  to run it. The cost of doing it this way is that one page load a day waits for
-  the model.
-- **Statements are imported by hand.** The real version of this is India's
-  Account Aggregator framework, where a bank sends the data directly with the
-  account holder's consent. That needs a licensed aggregator and paperwork, so
-  what is here is the same idea with a CSV in the middle.
-- **The stress test is a model, not a forecast.** It assumes everyday spending
-  halves in a crisis, investing pauses, and health cover leaves 20% of a bill
-  to pay. Each assumption is a named constant in `shared/shocks.js` and is
-  printed on the page.
-- **A merchant nobody has written a rule for** lands in "everything else". The
-  page says how many did and lets them be corrected one at a time.
-- **A language model can be confidently wrong.** Every figure it is shown is read
-  out of the database and summed in JavaScript first, and it is told never to
-  invent one, but nothing stops it drawing a poor conclusion from correct
-  numbers. It is a second opinion on the arithmetic, not the arithmetic.
-- **Rate limit counts live in memory**, so they reset when the server restarts
-  and would need Redis if the app ever ran as more than one copy.
-- **The browser check is not a test.** The component tests run in jsdom, which
-  cannot see layout. `npm run shots` does drive a real browser and reports
-  overflow and clipped text, but it is not part of `npm test`, and deciding
-  whether a page looks right still means looking at the screenshots.
+- **No SMS or email provider connected.** OTP codes and reset links are printed
+  in the backend terminal. `SETUP.md` explains how to connect one.
+- **Google sign-in** needs a client id.
+- **AI** needs a Gemini or Anthropic key in `backend/.env`. Without it the coach
+  shows a message and the daily note shows plain facts.
+- **The daily note is generated on the first dashboard visit of the day**, not by
+  a nightly job. Simpler, but that one page load waits for the model.
+- **Statements are uploaded by hand.** The proper way in India is the Account
+  Aggregator framework, which needs a licensed partner.
+- **The stress test is a model, not a prediction.** It assumes spending halves in
+  a crisis, investing stops, and health cover leaves 20% of a bill to pay. All
+  of these are constants in `shared/shocks.js` and shown on the page.
+- **Unknown merchants** go into "everything else" until the user fixes them.
+- **The AI can still draw a wrong conclusion** from correct numbers. It's a
+  second opinion, not financial advice.
+- **Rate limit counts are in memory**, so they reset on restart. Multiple
+  servers would need Redis.
+- **Screenshot checks are not part of `npm test`.** Someone still has to look at them.
 
 ---
 
-Educational guidance, not regulated investment advice.
+For education only, not regulated investment advice.

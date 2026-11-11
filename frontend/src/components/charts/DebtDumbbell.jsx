@@ -1,5 +1,5 @@
-import { formatDuration } from '../../lib/debt';
 
+import { formatDuration } from '../../lib/format';
 /*
   How much sooner each plan clears the debt: one row per plan with two dots, the
   current plan's finish and this plan's, joined by a bar. Two shades of one hue,
@@ -35,7 +35,7 @@ export default function DebtDumbbell({ scenarios, activeKey }) {
   }
 
   // The scale runs to the slowest plan, so every row is drawn against the same
-  // ruler and the bars are honestly comparable.
+  // ruler and the bars can be compared fairly.
   let longest = baselineMonths;
 
   scenarios.forEach((scenario) => {

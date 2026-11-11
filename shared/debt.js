@@ -113,7 +113,7 @@ export function extraPaymentEffect(principal, annualRate, emi, extra) {
   const withExtra = payoff(principal, annualRate, emi, extra);
 
   // The extra is not enough to make this debt finish, so there is no payoff
-  // date to compare against and nothing honest to show.
+  // date to compare against and nothing useful to show.
   if (!withExtra.clears) {
     return { possible: false };
   }
@@ -211,37 +211,4 @@ export function monthsFromNow(months) {
   date.setMonth(date.getMonth() + months);
 
   return date;
-}
-
-
-/* "March 2029", for showing a payoff date. */
-export function formatMonthYear(date) {
-  if (!date) {
-    return '—';
-  }
-
-  return date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
-}
-
-
-// 52 becomes "4 years 4 months"; 7 becomes "7 months".
-export function formatDuration(months) {
-  if (months <= 0) {
-    return 'now';
-  }
-
-  const years = Math.floor(months / 12);
-  const leftover = months % 12;
-
-  if (years === 0) {
-    return leftover + (leftover === 1 ? ' month' : ' months');
-  }
-
-  const yearText = years + (years === 1 ? ' year' : ' years');
-
-  if (leftover === 0) {
-    return yearText;
-  }
-
-  return yearText + ' ' + leftover + (leftover === 1 ? ' month' : ' months');
 }

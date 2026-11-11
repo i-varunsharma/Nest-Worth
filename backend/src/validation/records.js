@@ -1,4 +1,5 @@
 import { ASSET_KINDS, DEBT_KINDS } from '../../../shared/networth.js';
+import { currentMonth } from '../../../shared/format.js';
 
 /*
   Checks for debts, goals, assets, check-ins, and the month and year values used
@@ -51,9 +52,7 @@ function isAmount(value, allowZero) {
 }
 
 
-// ---------------------------------------------------------------
 // Debts
-// ---------------------------------------------------------------
 
 export function checkDebt(body) {
   const nameError = checkRecordName(body.name, 'Give this debt a name.');
@@ -98,9 +97,7 @@ export function debtValues(body) {
 }
 
 
-// ---------------------------------------------------------------
 // Goals
-// ---------------------------------------------------------------
 
 // A date in the past is allowed: the page marks the goal overdue rather than hiding it.
 export function checkGoal(body) {
@@ -133,9 +130,7 @@ export function goalValues(body) {
 }
 
 
-// ---------------------------------------------------------------
 // Assets
-// ---------------------------------------------------------------
 
 export function checkAsset(body) {
   const nameError = checkRecordName(body.name, 'Give this a name.');
@@ -161,9 +156,7 @@ export function assetValues(body) {
 }
 
 
-// ---------------------------------------------------------------
 // Family members (the rule itself lives in shared/family.js)
-// ---------------------------------------------------------------
 
 export function familyMemberValues(body) {
   return {
@@ -175,9 +168,7 @@ export function familyMemberValues(body) {
 }
 
 
-// ---------------------------------------------------------------
 // Check-ins
-// ---------------------------------------------------------------
 
 const CHECKIN_AMOUNTS = ['income', 'spent', 'saved', 'invested'];
 
@@ -221,14 +212,12 @@ export function checkinValues(body) {
 }
 
 
-// ---------------------------------------------------------------
 // Months and years in addresses
-// ---------------------------------------------------------------
 
 /* The month from a query string, the current month when missing, or '' when invalid. */
 export function readMonth(value) {
   if (value === undefined || value === null || value === '') {
-    return new Date().toISOString().slice(0, 7);
+    return currentMonth();
   }
   if (MONTH_PATTERN.test(String(value)) === false) {
     return '';

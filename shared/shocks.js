@@ -1,4 +1,6 @@
-import { bucketAmount, formatRupees } from './plan.js';
+import { bucketAmount } from './plan.js';
+import { formatRupees } from './format.js';
+import { keepBetween, roundToNearest500 } from './numbers.js';
 
 /*
   The stress test: what happens to this household's cash when something goes
@@ -48,29 +50,6 @@ const DEFAULT_FAMILY_MONTHS = 6;
 const DEFAULT_FAMILY_SHARE_OF_INCOME = 0.2;
 
 export const SHOCK_TYPES = ['job_loss', 'income_cut', 'medical', 'family_support'];
-
-
-/* Keeps a number inside a range, and turns anything that is not a number into the lowest value. */
-function keepBetween(value, lowest, highest) {
-  const number = Number(value);
-
-  if (!Number.isFinite(number)) {
-    return lowest;
-  }
-  if (number < lowest) {
-    return lowest;
-  }
-  if (number > highest) {
-    return highest;
-  }
-  return number;
-}
-
-
-/* Rounds to the nearest 500, so suggested amounts read like amounts people use. */
-function roundToNearest500(value) {
-  return Math.round(value / 500) * 500;
-}
 
 
 /*

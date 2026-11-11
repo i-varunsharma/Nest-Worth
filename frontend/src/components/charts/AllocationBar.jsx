@@ -1,5 +1,5 @@
-import { formatRupees } from '../../lib/plan';
 
+import { formatRupees } from '../../lib/format';
 /*
   Where one month's income goes, as a stacked horizontal bar:
 

@@ -4,7 +4,7 @@ import FormActions from '../shared/FormActions';
 import Notice from '../shared/Notice';
 import TextField from '../shared/TextField';
 import { describeGoal } from '../../lib/goals';
-import { formatRupees } from '../../lib/plan';
+import { formatRupees } from '../../lib/format';
 
 /*
   Adds a savings goal, or edits one when "goal" is given.

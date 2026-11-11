@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import AuthLayout from '../components/auth/AuthLayout';
 import Button from '../components/shared/Button';
+import Notice from '../components/shared/Notice';
 import TextField from '../components/shared/TextField';
 import * as api from '../lib/api';
 import { checkEmail } from '../lib/validation';
@@ -101,11 +102,7 @@ export default function ForgotPasswordPage() {
       // noValidate switches off the browser's own pop-ups, so the message under
       // the box is the only one people see.
       <form onSubmit={handleSubmit} noValidate className="space-y-5">
-        {formError ? (
-          <p className="rounded-xl border border-clay/25 bg-claySoft px-4 py-3 text-[13.5px] text-clay">
-            {formError}
-          </p>
-        ) : null}
+        <Notice tone="error">{formError}</Notice>
 
         <TextField
           id="email"

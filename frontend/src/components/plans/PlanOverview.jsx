@@ -4,7 +4,7 @@ import Card from '../shared/Card';
 import Eyebrow from '../shared/Eyebrow';
 import Overline from '../shared/Overline';
 import * as api from '../../lib/api';
-import { formatRupees } from '../../lib/plan';
+import { formatRupees } from '../../lib/format';
 
 /*
   The selected plan: what it does, where it lands in fifteen years compared with

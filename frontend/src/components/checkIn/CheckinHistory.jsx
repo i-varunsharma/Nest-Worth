@@ -1,6 +1,5 @@
-import { monthLabel } from '../../lib/checkins';
-import { formatRupees } from '../../lib/plan';
 
+import { formatRupees, monthLabel } from '../../lib/format';
 /* One card per recorded month: how the income was split, and any note. */
 export default function CheckinHistory({ checkins }) {
   if (checkins.length === 0) {
