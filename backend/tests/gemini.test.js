@@ -8,10 +8,9 @@ import http from 'node:http';
   Nothing here talks to Google. A stand-in server answers instead, which is
   what GEMINI_BASE_URL is for.
 
-  That is not a compromise, it is the point. The interesting thing to check is
-  whether we build the request Google expects, and the way to find that out is
-  to look at what we sent. Doing it against the real API would spend calls, need
-  a key on every machine that runs the tests, and fail when the wifi does.
+  What we want to test is whether we build the request the way Google expects,
+  so the fake server just records what we sent. Using the real API would use up
+  calls, need a key on every machine, and fail whenever the internet is down.
 
   Two of the checks below are for mistakes that are easy to make and produce
   confusing errors: Gemini rejects lowercase type names, and it rejects a tool
@@ -131,9 +130,7 @@ const TOOLS = [
 ];
 
 
-// ---------------------------------------------------------------
 // Translating the tools
-// ---------------------------------------------------------------
 
 test('tool types are uppercase, which is the only form Gemini accepts', () => {
   const [group] = toGeminiTools(TOOLS);
@@ -169,9 +166,7 @@ test('the required list survives translation', () => {
 });
 
 
-// ---------------------------------------------------------------
 // Translating the conversation
-// ---------------------------------------------------------------
 
 test('our two sides become Gemini’s two sides', () => {
   // Claude says "assistant" and Gemini says "model" for the same thing.
@@ -232,9 +227,7 @@ test('a tool result goes back as a user turn, wrapped in an object', () => {
 });
 
 
-// ---------------------------------------------------------------
 // A real round against the stand-in
-// ---------------------------------------------------------------
 
 test('the answer is streamed piece by piece, not all at once', async () => {
   received.length = 0;
@@ -358,9 +351,7 @@ test('a used-up free allowance is reported plainly', async () => {
 });
 
 
-// ---------------------------------------------------------------
 // Things only the real API showed
-// ---------------------------------------------------------------
 
 test('regression: events ending in \\r\\n\\r\\n are read', async () => {
   /*

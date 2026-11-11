@@ -1,7 +1,6 @@
 import Card from '../shared/Card';
 import Overline from '../shared/Overline';
-import { formatDuration } from '../../lib/debt';
-import { formatRupees } from '../../lib/plan';
+import { formatDuration, formatRupees } from '../../lib/format';
 
 /* Every figure on the plans page as a table, so nothing is only available as a chart. */
 

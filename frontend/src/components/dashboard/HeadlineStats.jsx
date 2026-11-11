@@ -1,9 +1,9 @@
 import { Link } from 'react-router-dom';
 import CountUp from '../shared/CountUp';
 import Overline from '../shared/Overline';
-import { formatDuration, formatMonthYear } from '../../lib/debt';
 import { summariseGoals } from '../../lib/goals';
-import { bucketAmount, formatRupees } from '../../lib/plan';
+import { bucketAmount } from '../../lib/plan';
+import { formatDuration, formatMonthYear, formatRupeesShort } from '../../lib/format';
 
 /*
   The four figures across the top of the dashboard, each a link to its page.
@@ -11,10 +11,6 @@ import { bucketAmount, formatRupees } from '../../lib/plan';
   A figure that is a number counts up to itself; a date or a word is shown as
   it is, because counting towards "March 2027" means nothing.
 */
-
-function formatShortRupees(amount) {
-  return formatRupees(amount, { short: true });
-}
 
 function formatMonths(months) {
   return months.toFixed(1) + ' mo';
@@ -64,8 +60,8 @@ export default function HeadlineStats({ finances, goals, hasDebts }) {
       to: '/net-worth',
       label: 'Net worth',
       countTo: netWorth.netWorth,
-      format: formatShortRupees,
-      note: formatShortRupees(netWorth.totalAssets) + ' owned, ' + formatShortRupees(netWorth.totalDebts) + ' owed',
+      format: formatRupeesShort,
+      note: formatRupeesShort(netWorth.totalAssets) + ' owned, ' + formatRupeesShort(netWorth.totalDebts) + ' owed',
       isNegative: netWorth.netWorth < 0,
     },
     { to: '/debts', label: 'Debt free', value: debt.value, note: debt.note, isNegative: debt.isNegative },

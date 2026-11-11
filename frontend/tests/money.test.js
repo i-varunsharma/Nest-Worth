@@ -1,17 +1,26 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { buildPlan, bucketAmount, formatRupees, ASSUMED_YEARLY_RETURN } from '../src/lib/plan.js';
+import { buildPlan, bucketAmount, ASSUMED_YEARLY_RETURN } from '../src/lib/plan.js';
 import {
   payoff,
   summariseDebts,
   monthsFromNow,
-  formatDuration,
   orderByRate,
   extraPaymentEffect,
 } from '../src/lib/debt.js';
 import { describeGoal, summariseGoals, safetyNet, monthsUntil } from '../src/lib/goals.js';
 import { summariseNetWorth, groupAssetsByKind } from '../src/lib/networth.js';
-import { summariseCheckins, keptShareOf, hasCheckinFor, monthLabel } from '../src/lib/checkins.js';
+import { summariseCheckins, keptShareOf, hasCheckinFor } from '../src/lib/checkins.js';
+import {
+  currentMonth,
+  formatDayMonth,
+  formatDuration,
+  formatMonthYear,
+  formatRupees,
+  formatRupeesShort,
+  monthLabel,
+  monthNameOnly,
+} from '../src/lib/format.js';
 
 /*
   Tests for the money maths. Run with: npm test
@@ -28,9 +37,7 @@ import { summariseCheckins, keptShareOf, hasCheckinFor, monthLabel } from '../sr
 */
 
 
-// ---------------------------------------------------------------
 // Paying off a loan
-// ---------------------------------------------------------------
 
 test('payoff clears an ordinary loan and counts the months', () => {
   const result = payoff(300000, 9.5, 9000, 0);
@@ -154,9 +161,7 @@ test('formatDuration says it the way a person would', () => {
 });
 
 
-// ---------------------------------------------------------------
 // The plan
-// ---------------------------------------------------------------
 
 test('the three shares always add up to exactly 100', () => {
   /*
@@ -314,9 +319,7 @@ test('bucketAmount copes with a missing plan or an unknown name', () => {
 });
 
 
-// ---------------------------------------------------------------
 // Formatting money
-// ---------------------------------------------------------------
 
 test('formatRupees uses Indian grouping and shortens big numbers', () => {
   assert.equal(formatRupees(62000), '₹62,000');
@@ -348,9 +351,7 @@ test('regression: formatRupees never prints NaN', () => {
 });
 
 
-// ---------------------------------------------------------------
 // Goals
-// ---------------------------------------------------------------
 
 test('describeGoal splits what is left over the months remaining', () => {
   const oneYearOn = new Date();
@@ -437,9 +438,7 @@ test('the emergency fund target rises with dependents and a variable income', ()
 });
 
 
-// ---------------------------------------------------------------
 // Net worth
-// ---------------------------------------------------------------
 
 test('net worth is what you own minus what you owe, and can be negative', () => {
   const summary = summariseNetWorth(
@@ -482,9 +481,7 @@ test('groupAssetsByKind leaves out the kinds with nothing in them', () => {
 });
 
 
-// ---------------------------------------------------------------
 // Check-ins
-// ---------------------------------------------------------------
 
 function month(name, income, saved, invested) {
   return { id: name, month: name, income, spent: income - saved - invested, saved, invested, note: '' };
@@ -588,9 +585,7 @@ test('the assumed market return is a sensible long-run figure', () => {
 });
 
 
-// ---------------------------------------------------------------
 // Regressions found in the full read-through
-// ---------------------------------------------------------------
 
 test('regression: no share is ever pushed below its own floor', () => {
   /*
@@ -711,4 +706,23 @@ test('monthsUntil refuses anything that is not a date', () => {
   assert.equal(monthsUntil(''), 0);
   assert.equal(monthsUntil(undefined), 0);
   assert.equal(monthsUntil('2027-06'), 0);
+});
+
+
+// shared/format.js
+
+test('currentMonth is YYYY-MM with a leading zero', () => {
+  assert.match(currentMonth(), /^\d{4}-\d{2}$/);
+});
+
+test('formatRupeesShort is the short form of formatRupees', () => {
+  assert.equal(formatRupeesShort(1380000), formatRupees(1380000, { short: true }));
+  assert.equal(formatRupeesShort(1380000), '₹13.8 L');
+});
+
+test('dates on a statement and in the recap are written the same way everywhere', () => {
+  assert.equal(formatDayMonth('2026-08-05'), '05 Aug');
+  assert.equal(monthNameOnly('2026-08'), 'August');
+  assert.equal(formatMonthYear(new Date(2029, 2, 1)), 'March 2029');
+  assert.equal(formatMonthYear(null), '—');
 });

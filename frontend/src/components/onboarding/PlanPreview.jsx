@@ -1,6 +1,7 @@
 import Card from '../shared/Card';
 import Overline from '../shared/Overline';
-import { buildPlan, formatRupees } from '../../lib/plan';
+import { buildPlan } from '../../lib/plan';
+import { formatRupees } from '../../lib/format';
 
 /* The plan built from the answers so far, updated as each question is answered. */
 export default function PlanPreview({ household }) {

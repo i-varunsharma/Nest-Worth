@@ -25,7 +25,7 @@ import {
 */
 
 // Each extra round doubles the time to hash, which slows an attacker far more
-// than it slows one honest sign-in.
+// than it slows down one normal sign-in.
 const PASSWORD_HASH_ROUNDS = 12;
 
 const GOOGLE_TOKEN_INFO_URL = 'https://oauth2.googleapis.com/tokeninfo?id_token=';

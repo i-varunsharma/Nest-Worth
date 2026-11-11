@@ -9,12 +9,12 @@ import Card from '../components/shared/Card';
 import Overline from '../components/shared/Overline';
 import PillGroup from '../components/shared/PillGroup';
 import useAsyncData from '../hooks/useAsyncData';
-import * as api from '../lib/api';
-import { formatRupees } from '../lib/plan';
+import { formatRupees } from '../lib/format';
+import { loadFinances } from '../lib/loadFinances';
 
 /*
-  /plans: the same money spent several ways, each played out fifteen years by the
-  server. One plan is read at a time, with the others behind it for comparison.
+  /plans: the same money spent several ways, each played out fifteen years. One
+  plan is read at a time, with the others behind it for comparison.
 */
 
 const COUNT_WORDS = ['no', 'one', 'two', 'three', 'four', 'five'];
@@ -22,22 +22,42 @@ const COUNT_WORDS = ['no', 'one', 'two', 'three', 'four', 'five'];
 // Shown while loading. Once the plans arrive, the heading says how many there are.
 const TITLE = 'Plans';
 
-async function loadPlansPage() {
-  const [scenarios, household] = await Promise.all([api.getScenarios(), api.getHousehold()]);
+/*
+  Loads through loadFinances, like every other page that shows plan numbers, so
+  the plans here are built by the same summariseFinances as the dashboard.
 
-  if (scenarios.ok === false) {
-    return scenarios;
+  today is where every plan starts from, used by the cards below the chart.
+*/
+async function loadPlansPage() {
+  const result = await loadFinances();
+
+  if (result.ok === false) {
+    return result;
   }
-  if (household.ok === false) {
-    return household;
+
+  const finances = result.data.finances;
+
+  if (finances === null) {
+    return { ok: false, error: 'Answer the household questions first, then there is something to compare.' };
   }
+
+  // Rounded to one decimal place, so "2.3 months" rather than "2.2857 months".
+  const monthsCovered = Math.round(finances.safety.monthsCovered * 10) / 10;
 
   return {
     ok: true,
     data: {
-      scenarios: scenarios.data.scenarios,
-      today: scenarios.data.today,
-      chosenPlan: household.data.household.chosenPlan,
+      scenarios: finances.scenarios,
+      chosenPlan: result.data.household.chosenPlan,
+      today: {
+        income: finances.recommendedPlan.income,
+        monthlyCosts: finances.monthlyCosts,
+        liquidSavings: finances.netWorth.liquidAssets,
+        monthsCovered: monthsCovered,
+        monthsTarget: finances.safety.monthsTarget,
+        debtCount: result.data.debts.length,
+        totalOwed: finances.netWorth.totalDebts,
+      },
     },
   };
 }

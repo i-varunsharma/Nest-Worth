@@ -1,7 +1,7 @@
 import { chooseProvider } from './providers/index.js';
 import { factsToText } from './facts.js';
 import { DEFAULT_QUESTION, SYSTEM_PROMPT } from './prompt.js';
-import { MAX_TOOL_ROUNDS, describeTool, runTool, toolDefinitions } from './tools.js';
+import { MAX_TOOL_ROUNDS, describeTool, runTool, toolDefinitions } from './tools/index.js';
 
 
 /*

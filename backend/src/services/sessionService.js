@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import { sessionRepository } from '../repositories/sessionRepository.js';
 import { userRepository } from '../repositories/userRepository.js';
+import { DAY_MS } from '../utils/time.js';
 
 /*
   Who is signed in.
@@ -16,7 +17,6 @@ import { userRepository } from '../repositories/userRepository.js';
 
 const SESSION_DAYS = 30;
 const TOKEN_BYTES = 32;
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 
 /*

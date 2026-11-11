@@ -2,9 +2,10 @@ import { Link } from 'react-router-dom';
 import Card from '../shared/Card';
 import Overline from '../shared/Overline';
 import StatTile from '../shared/StatTile';
-import { bucketAmount, formatRupees } from '../../lib/plan';
+import { bucketAmount } from '../../lib/plan';
 import { verdictSentence } from '../../lib/shocks';
 import { VERDICT_LOOKS, monthsText } from './shockSettings';
+import { formatRupees } from '../../lib/format';
 
 /* The verdict, the four key figures, and what would help, for one shock result. */
 

@@ -1,6 +1,6 @@
 import Button from '../shared/Button';
 import Card from '../shared/Card';
-import { formatRupees } from '../../lib/plan';
+import { formatRupees } from '../../lib/format';
 
 /*
   The onboarding answers, read-only. Changing them happens in onboarding, so

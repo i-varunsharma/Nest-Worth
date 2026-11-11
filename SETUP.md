@@ -232,7 +232,7 @@ its own shape and `ai/providers/gemini.js` and `ai/providers/claude.js` translat
 agent loop is written once. Adding a third model means one more file there and
 one line in `ai/providers/index.js`.
 
-`ai-integration/README.md` explains the loop in more detail.
+`docs/AI_COACH.md` explains the loop in more detail.
 
 ### What it costs
 
@@ -366,9 +366,9 @@ For a project this size, **Resend** is usually the right choice.
 ### The code change
 
 One function, exactly as with SMS. Open `backend/src/services/passwordResetService.js` and
-replace the body of `deliver()` with a call to your provider. Everything else —
-the hashing, the one hour expiry, the resend wait, destroying the token after
-use and signing out every other browser — already works and does not change.
+replace the body of `deliver()` with a call to your provider. Everything else
+(hashing, the one hour expiry, the resend wait, deleting the token after use,
+logging out other browsers) already works and does not change.
 
 Two things worth getting right in the email itself:
 

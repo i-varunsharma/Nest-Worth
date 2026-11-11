@@ -49,6 +49,7 @@ delete process.env.AI_PROVIDER;
 
 // Now, and only now, is it safe to load the app.
 const { createApp } = await import('../src/app.js');
+const { readFinances } = await import('../src/services/financeService.js');
 
 
 // Port 0 means any free port. Asking for a specific one would fail whenever
@@ -136,9 +137,7 @@ async function makeAccount() {
 }
 
 
-// ---------------------------------------------------------------
 // The server is alive
-// ---------------------------------------------------------------
 
 test('the health check answers', async () => {
   const result = await call('GET', '/api/health');
@@ -156,9 +155,7 @@ test('an unknown address gives a clear 404', async () => {
 });
 
 
-// ---------------------------------------------------------------
 // Accounts
-// ---------------------------------------------------------------
 
 test('signing up creates an account and signs the person in', async () => {
   const account = await makeAccount();
@@ -225,9 +222,7 @@ test('signing out makes the old cookie useless', async () => {
 });
 
 
-// ---------------------------------------------------------------
 // Nothing private is readable without signing in
-// ---------------------------------------------------------------
 
 test('every private route refuses a request with no cookie', async () => {
   const privatePaths = [
@@ -237,7 +232,6 @@ test('every private route refuses a request with no cookie', async () => {
     '/api/assets',
     '/api/checkins',
     '/api/family',
-    '/api/scenarios',
   ];
 
   for (const path of privatePaths) {
@@ -247,9 +241,7 @@ test('every private route refuses a request with no cookie', async () => {
 });
 
 
-// ---------------------------------------------------------------
 // Saving and reading a person's own data
-// ---------------------------------------------------------------
 
 test('a household can be saved and read back', async () => {
   const account = await makeAccount();
@@ -432,9 +424,7 @@ test('saving the same month twice updates it rather than adding a second', async
 });
 
 
-// ---------------------------------------------------------------
 // One person cannot touch another person's data
-// ---------------------------------------------------------------
 
 test('one account cannot read, change or delete another account\'s debt', async () => {
   /*
@@ -478,9 +468,7 @@ test('one account cannot read, change or delete another account\'s debt', async 
 });
 
 
-// ---------------------------------------------------------------
 // Forgotten passwords
-// ---------------------------------------------------------------
 
 test('the forgot form answers the same way for a real and a made-up email', async () => {
   // Otherwise the form is a way to check which addresses have accounts: send
@@ -643,9 +631,7 @@ test('a made-up reset token is refused', async () => {
 });
 
 
-// ---------------------------------------------------------------
 // The AI coach
-// ---------------------------------------------------------------
 
 /*
   These two never call Claude. There is no key on a test machine, and a test
@@ -768,9 +754,7 @@ test('the coach ignores rubbish in the conversation history', async () => {
 });
 
 
-// ---------------------------------------------------------------
 // Insights: the reporting endpoint
-// ---------------------------------------------------------------
 
 test('insights needs a session', async () => {
   const result = await call('GET', '/api/insights');
@@ -856,9 +840,7 @@ test('one person’s insights never include another person’s money', async () 
 });
 
 
-// ---------------------------------------------------------------
 // The operational bits
-// ---------------------------------------------------------------
 
 test('health says whether the database is actually reachable', async () => {
   // It used to answer ok: true without checking anything, which meant it stayed
@@ -893,9 +875,7 @@ test('every response carries a request id', async () => {
 });
 
 
-// ---------------------------------------------------------------
 // Importing a bank statement
-// ---------------------------------------------------------------
 
 const STATEMENT = [
   'Account Number: XXXXXXXX1234',
@@ -1112,9 +1092,7 @@ test('a month that is not a month is refused rather than searched for', async ()
 });
 
 
-// ---------------------------------------------------------------
 // The note the dashboard writes without being asked
-// ---------------------------------------------------------------
 
 /* July, then August with the food spend more than doubled. */
 const JULY = [
@@ -1218,9 +1196,7 @@ test('a briefing is only ever built from the signed-in person\'s own money', asy
 });
 
 
-// ---------------------------------------------------------------
 // The year, looked back on
-// ---------------------------------------------------------------
 
 test('the recap adds a year up without counting investing as spending', async () => {
   /*
@@ -1329,9 +1305,7 @@ test('the recap does not call rent a habit', async () => {
 });
 
 
-// ---------------------------------------------------------------
 // The family circle
-// ---------------------------------------------------------------
 
 const PAPA = { name: 'Papa', relation: 'parent', monthlySupport: 9000, hasHealthCover: false };
 
@@ -1419,13 +1393,14 @@ test('listing family replaces the estimated support in the plans', async () => {
     body: { income: 80000, dependents: 2, hasLoan: false, essentialCosts: 20000 },
   });
 
-  const before = await call('GET', '/api/scenarios', { cookie: account.cookie });
-  const committedBefore = before.data.scenarios[0].allocation.committed;
+  // readFinances is what the AI tools use, and it runs the same summariseFinances
+  // the plans page runs in the browser.
+  const userId = (await call('GET', '/api/auth/me', { cookie: account.cookie })).data.user.id;
+  const committedBefore = readFinances(userId).finances.scenarios[0].allocation.committed;
 
   await call('POST', '/api/family', { cookie: account.cookie, body: PAPA });
 
-  const after = await call('GET', '/api/scenarios', { cookie: account.cookie });
-  const committedAfter = after.data.scenarios[0].allocation.committed;
+  const committedAfter = readFinances(userId).finances.scenarios[0].allocation.committed;
 
   // Before: 20000 living costs plus the estimate for two dependents.
   // After: 20000 living costs plus Papa's real 9000.
@@ -1456,9 +1431,7 @@ test('deleting an account takes the family list with it', async () => {
 });
 
 
-// ---------------------------------------------------------------
 // One error format for the whole API
-// ---------------------------------------------------------------
 
 test('regression: a body that is not valid JSON is a 400, not a 500', async () => {
   // The JSON parser throws before any route runs. It used to reach the generic

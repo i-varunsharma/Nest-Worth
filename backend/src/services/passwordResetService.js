@@ -4,6 +4,7 @@ import { config } from '../config.js';
 import { passwordResetRepository } from '../repositories/passwordResetRepository.js';
 import { userRepository } from '../repositories/userRepository.js';
 import { badRequest } from '../http/errors.js';
+import { MINUTE_MS } from '../utils/time.js';
 
 /*
   The "forgot password" link. Built like the phone code: the token only travels
@@ -16,7 +17,6 @@ const LINK_LIFETIME_MINUTES = 60;
 const RESEND_WAIT_SECONDS = 60;
 const HASH_ROUNDS = 10;
 const TOKEN_BYTES = 32;
-const MINUTE_MS = 60 * 1000;
 
 const INVALID_LINK = 'That reset link is not valid any more. Please ask for a new one.';
 

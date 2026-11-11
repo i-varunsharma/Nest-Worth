@@ -8,7 +8,7 @@ import MonthDetail from '../components/spending/MonthDetail';
 import StatementImport from '../components/spending/StatementImport';
 import useAsyncData from '../hooks/useAsyncData';
 import * as api from '../lib/api';
-import { monthLabel } from '../lib/checkins';
+import { monthLabel } from '../lib/format';
 
 /*
   /spending: what a bank statement says really happened, sorted into categories.

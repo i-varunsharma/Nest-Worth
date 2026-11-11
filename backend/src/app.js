@@ -17,7 +17,6 @@ import goalRoutes from './routes/goals.js';
 import householdRoutes from './routes/household.js';
 import insightRoutes from './routes/insights.js';
 import recapRoutes from './routes/recap.js';
-import scenarioRoutes from './routes/scenarios.js';
 import transactionRoutes from './routes/transactions.js';
 
 /*
@@ -103,7 +102,6 @@ export function createApp() {
   app.use('/api/checkins', checkinRoutes);
   app.use('/api/transactions', transactionRoutes);
   app.use('/api/insights', insightRoutes);
-  app.use('/api/scenarios', scenarioRoutes);
   app.use('/api/briefing', briefingRoutes);
   app.use('/api/recap', recapRoutes);
   app.use('/api/advice', adviceRoutes);

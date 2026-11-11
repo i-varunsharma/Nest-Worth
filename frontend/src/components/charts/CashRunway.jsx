@@ -1,5 +1,5 @@
-import { formatRupees } from '../../lib/plan';
 
+import { formatRupees } from '../../lib/format';
 /*
   Cash in hand at the end of each month, through one shock.
 

@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom';
-import { formatRupees } from '../../lib/plan';
-import { monthLabel } from '../../lib/checkins';
+import { formatRupees, monthLabel } from '../../lib/format';
 
 /*
   How the plan is going, from the monthly check-ins. Encouraging without being

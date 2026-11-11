@@ -1,5 +1,5 @@
 import db from '../database/db.js';
-import { formatRupees } from '../../../shared/plan.js';
+import { formatRupees } from '../../../shared/format.js';
 
 /*
   Findings for the daily note: what changed in the account, found in SQL before

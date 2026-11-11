@@ -189,9 +189,7 @@ export function buildScenarios(options) {
 
   const choices = [];
 
-  // ---------------------------------------------------------------
   // 1. What the plan already says. Always shown, as the thing to compare to.
-  // ---------------------------------------------------------------
   choices.push({
     key: 'balanced',
     name: 'Your plan as it stands',
@@ -202,9 +200,7 @@ export function buildScenarios(options) {
     extraToDebt: 0,
   });
 
-  // ---------------------------------------------------------------
   // 2. Clear the expensive debt first. Only if there is one.
-  // ---------------------------------------------------------------
   if (worstDebt) {
     // The investing money and half the saving go at the worst debt. Half the saving
     // stays, so a small emergency does not become a new debt.
@@ -223,9 +219,7 @@ export function buildScenarios(options) {
     });
   }
 
-  // ---------------------------------------------------------------
   // 3. Fill the emergency fund. Only if it is not already full.
-  // ---------------------------------------------------------------
   const fundTarget = options.monthlyCosts * options.monthsTarget;
 
   if (options.liquidSavings < fundTarget) {
@@ -241,9 +235,7 @@ export function buildScenarios(options) {
     });
   }
 
-  // ---------------------------------------------------------------
   // 4. Spend less, invest more. Always available, and always the hardest.
-  // ---------------------------------------------------------------
   const cutFromSpending = Math.round(baseSpend * 0.2);
 
   if (cutFromSpending > 0) {

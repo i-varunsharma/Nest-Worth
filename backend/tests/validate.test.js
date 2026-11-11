@@ -5,6 +5,7 @@ import {
   checkName,
   checkOtp,
   checkPassword,
+  checkPasswordEntered,
   checkPhone,
   keepOnlyDigits,
 } from '../src/validation/accountFields.js';
@@ -22,9 +23,7 @@ import { checkHousehold } from '../src/validation/householdFields.js';
 */
 
 
-// ---------------------------------------------------------------
 // Names
-// ---------------------------------------------------------------
 
 test('checkName accepts an ordinary name', () => {
   assert.equal(checkName('Varun Sharma'), '');
@@ -41,9 +40,7 @@ test('checkName rejects a missing name', () => {
 });
 
 
-// ---------------------------------------------------------------
 // Emails
-// ---------------------------------------------------------------
 
 test('checkEmail accepts an ordinary address', () => {
   assert.equal(checkEmail('varun@example.com'), '');
@@ -69,9 +66,7 @@ test('checkEmail rejects anything that is not text', () => {
 });
 
 
-// ---------------------------------------------------------------
 // Passwords
-// ---------------------------------------------------------------
 
 test('checkPassword accepts eight characters', () => {
   assert.equal(checkPassword('password'), '');
@@ -93,9 +88,7 @@ test('checkPassword rejects a password longer than 72 characters', () => {
 });
 
 
-// ---------------------------------------------------------------
 // Phone numbers
-// ---------------------------------------------------------------
 
 test('keepOnlyDigits strips everything that is not a number', () => {
   assert.equal(keepOnlyDigits('+91 98765-43210'), '919876543210');
@@ -125,9 +118,7 @@ test('checkPhone rejects a number starting below 6', () => {
 });
 
 
-// ---------------------------------------------------------------
 // One time codes
-// ---------------------------------------------------------------
 
 test('checkOtp accepts six digits, including leading zeros', () => {
   assert.equal(checkOtp('123456'), '');
@@ -143,9 +134,7 @@ test('checkOtp rejects a code of the wrong length', () => {
 });
 
 
-// ---------------------------------------------------------------
 // The household answers
-// ---------------------------------------------------------------
 
 test('checkHousehold accepts sensible answers', () => {
   assert.equal(checkHousehold({ income: 62000, dependents: 2, hasLoan: true }), '');
@@ -166,4 +155,31 @@ test('checkHousehold rejects a missing loan answer', () => {
   // hasLoan has to be a real true or false. Leaving it out must not become
   // "no" by accident.
   assert.notEqual(checkHousehold({ income: 62000, dependents: 2 }), '');
+});
+
+
+// The browser and the server now share these rules (shared/accountFields.js)
+
+test('the browser and the server use the very same account checks', async () => {
+  // If someone copies the rules back into the frontend, this fails.
+  const browser = await import('../../frontend/src/lib/validation.js');
+  assert.equal(browser.checkEmail, checkEmail);
+  assert.equal(browser.checkPassword, checkPassword);
+  assert.equal(browser.checkPhone, checkPhone);
+});
+
+test('checkPasswordEntered only asks that something was typed', () => {
+  // The login form: an old short password must still be allowed to try.
+  assert.equal(checkPasswordEntered('abc'), '');
+  assert.notEqual(checkPasswordEntered(''), '');
+  assert.notEqual(checkPasswordEntered(undefined), '');
+});
+
+test('checkPhone says to leave out +91 when there are too many digits', () => {
+  assert.match(checkPhone('919876543210'), /\+91/);
+});
+
+test('checkName survives a value that is not text', () => {
+  assert.notEqual(checkName(42), '');
+  assert.notEqual(checkName(null), '');
 });

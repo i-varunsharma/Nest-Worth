@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import { otpCodeRepository } from '../repositories/otpCodeRepository.js';
 import { tooManyRequests, unauthorized } from '../http/errors.js';
+import { MINUTE_MS } from '../utils/time.js';
 
 /*
   The six digit code for phone sign-in.
@@ -16,7 +17,6 @@ const MAX_ATTEMPTS = 5;
 const RESEND_WAIT_SECONDS = 30;
 const HASH_ROUNDS = 10;
 const CODE_DIGITS = 6;
-const MINUTE_MS = 60 * 1000;
 
 
 /* A random six digit code as text, keeping leading zeros. */

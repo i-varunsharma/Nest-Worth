@@ -1,7 +1,6 @@
-# AI integration
+# AI coach
 
-This folder is notes only. Nothing here runs, and nothing imports from it. The
-feature itself lives in the files listed below.
+How the AI coach is wired up. The code itself lives in the files listed below.
 
 ## What was built
 
@@ -19,7 +18,7 @@ backend/src/routes/advice.js                auth, rate limit, Server-Sent Events
 backend/src/ai/advice.js                    the agent loop, streaming
 backend/src/ai/prompt.js                    the system prompt
 backend/src/ai/facts.js                     the data snapshot the model reads
-backend/src/ai/tools.js                     what the model is allowed to run
+backend/src/ai/tools/                       what the model is allowed to run, one file per tool
 backend/src/ai/providers/index.js           picks Gemini or Claude from the keys set
 backend/src/ai/providers/gemini.js          Gemini, over plain fetch
 backend/src/ai/providers/claude.js          Claude, over @anthropic-ai/sdk
@@ -144,7 +143,7 @@ argument naming a person. That is what makes it safe rather than merely
 untested, and `tests/tools.test.js` has a test whose only job is to keep it true.
 
 **It is rate limited.** Twenty questions an hour per person, using the same
-`middleware/rateLimit.js` the OTP route uses. Every question costs real money, and a
+rate limiter the OTP route uses (`askLimit` in `middleware/limits.js`). Every question costs real money, and a
 question with tool rounds costs several times one without.
 
 **Nothing happens until you press the button.** The card does not call the API

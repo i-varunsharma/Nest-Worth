@@ -1,5 +1,5 @@
-import { formatRupees } from '../../lib/plan';
 
+import { formatRupees } from '../../lib/format';
 /*
   Where the salary goes each month: one row and bar for each outgoing.
 

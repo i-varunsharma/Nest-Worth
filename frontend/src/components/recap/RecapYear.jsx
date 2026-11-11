@@ -2,13 +2,14 @@ import { Link } from 'react-router-dom';
 import CategoryBars from '../charts/CategoryBars';
 import Card from '../shared/Card';
 import CountUp from '../shared/CountUp';
+import MoneyFigure from '../shared/MoneyFigure';
 import Overline from '../shared/Overline';
 import Reveal from '../shared/Reveal';
 import { SkeletonPage } from '../shared/Skeleton';
 import useAsyncData from '../../hooks/useAsyncData';
 import * as api from '../../lib/api';
 import { categoryLabel } from '../../lib/categories';
-import { formatRupees } from '../../lib/plan';
+import { formatRupees, monthNameOnly } from '../../lib/format';
 
 /*
   One year of statements, added up, laid out as a story down the page. Every
@@ -28,33 +29,12 @@ async function loadRecap(year) {
   return { ok: true, data: result.data.recap };
 }
 
-function formatShort(value) {
-  return formatRupees(value, { short: true });
-}
-
 function formatFull(value) {
   return formatRupees(value);
 }
 
-function Figure({ label, amount, note, isNegative }) {
-  let valueColour = 'text-ink';
-  if (isNegative === true) {
-    valueColour = 'text-clay';
-  }
-
-  return (
-    <Card size="section">
-      <Overline>{label}</Overline>
-      <p className={'tnum mt-3 font-display text-[30px] leading-none ' + valueColour}>
-        <CountUp to={amount} format={formatShort} />
-      </p>
-      <p className="mt-2.5 text-2xs leading-relaxed text-muted">{note}</p>
-    </Card>
-  );
-}
-
 function MonthPanel({ label, month, total }) {
-  const name = new Date(month + '-01T00:00:00').toLocaleDateString('en-IN', { month: 'long' });
+  const name = monthNameOnly(month);
 
   return (
     <Card size="section" className="sm:p-8">
@@ -117,9 +97,9 @@ export default function RecapYear({ year }) {
 
       <Reveal delay={80}>
         <div className="mt-6 grid gap-6 sm:grid-cols-3">
-          <Figure label="Spent" amount={recap.totals.spent} note="rent, food, bills, everything that went" />
-          <Figure label="Kept" amount={recap.kept} note={Math.round(keptShare) + '% of what came in'} isNegative={recap.kept < 0} />
-          <Figure label="Put away" amount={recap.totals.putAway} note="investing, which is not spending" />
+          <MoneyFigure size="section" tone="ink" label="Spent" amount={recap.totals.spent} note="rent, food, bills, everything that went" />
+          <MoneyFigure size="section" tone="ink" label="Kept" amount={recap.kept} note={Math.round(keptShare) + '% of what came in'} isNegative={recap.kept < 0} />
+          <MoneyFigure size="section" tone="ink" label="Put away" amount={recap.totals.putAway} note="investing, which is not spending" />
         </div>
       </Reveal>
 

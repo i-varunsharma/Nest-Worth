@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
-import { formatRupees } from '../../lib/plan';
 import { runShock, verdictSentence } from '../../lib/shocks';
+import { formatRupees } from '../../lib/format';
 
 // The bill used for the warning, the same default as the stress test.
 const WARNING_BILL = 300000;

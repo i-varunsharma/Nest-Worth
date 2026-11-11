@@ -1,5 +1,5 @@
-import { formatRupees } from '../../lib/plan';
 
+import { formatRupees } from '../../lib/format';
 /*
   How much of the month is yours to direct, and how the plan splits it.
 

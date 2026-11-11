@@ -28,7 +28,7 @@ const { checkQuestion } = await import('../src/ai/advice.js');
 const { factsToText, readFacts } = await import('../src/ai/facts.js');
 const { SYSTEM_PROMPT } = await import('../src/ai/prompt.js');
 const { readFinances } = await import('../src/services/financeService.js');
-const { formatRupees } = await import('../../shared/plan.js');
+const { formatRupees } = await import('../../shared/format.js');
 
 // One person, with a bit of everything, so the prompt has something to say.
 const now = new Date().toISOString();
@@ -68,9 +68,7 @@ db.prepare(`
 `).run(now, now);
 
 
-// ---------------------------------------------------------------
 // The question box
-// ---------------------------------------------------------------
 
 // These return an error message when something is wrong and an empty string
 // when it is fine, so an empty string means the question was accepted.
@@ -90,9 +88,7 @@ test('checkQuestion rejects something far too long to be a question', () => {
 });
 
 
-// ---------------------------------------------------------------
 // The facts that go into the prompt
-// ---------------------------------------------------------------
 
 test('readFacts adds up the totals itself', () => {
   const facts = readFacts(1);
@@ -199,9 +195,7 @@ test('a household with nothing else entered gets zeros, not blanks', () => {
 });
 
 
-// ---------------------------------------------------------------
 // The plan section and the prompt rules
-// ---------------------------------------------------------------
 
 test('the snapshot carries the plan with the same figures the app shows', () => {
   // Copied from summariseFinances, so the coach and the dashboard agree.

@@ -1,6 +1,6 @@
 import RecordActions from '../shared/RecordActions';
 import { ASSET_KINDS, groupAssetsByKind, labelForKind } from '../../lib/networth';
-import { formatRupees } from '../../lib/plan';
+import { formatRupees } from '../../lib/format';
 
 /* The breakdown bar by kind of asset, then one row per asset. */
 

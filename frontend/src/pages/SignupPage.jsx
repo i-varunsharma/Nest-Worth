@@ -6,8 +6,11 @@ import GoogleButton from '../components/auth/GoogleButton';
 import MethodTabs from '../components/auth/MethodTabs';
 import PhoneOtpForm from '../components/auth/PhoneOtpForm';
 import Button from '../components/shared/Button';
+import Notice from '../components/shared/Notice';
 import TextField from '../components/shared/TextField';
+import useGoogleSignIn from '../hooks/useGoogleSignIn';
 import * as api from '../lib/api';
+import { showServerError } from '../lib/formErrors';
 import { checkEmail, checkName, checkPassword } from '../lib/validation';
 
 /*
@@ -48,7 +51,7 @@ export default function SignupPage() {
     }
 
     // "true" means: this is a brand new password, so ask for a decent one.
-    const passwordError = checkPassword(password, true);
+    const passwordError = checkPassword(password);
     if (passwordError) {
       foundErrors.password = passwordError;
     }
@@ -68,14 +71,10 @@ export default function SignupPage() {
     const result = await api.signup(name, email, password);
     setIsBusy(false);
 
-    if (!result.ok) {
-      // The most likely failure here is "that email is already taken", and the
-      // server tells us it was the email field, so the message lands under it.
-      if (result.field) {
-        setErrors({ [result.field]: result.error });
-      } else {
-        setFormError(result.error);
-      }
+    // The most likely failure is "that email is already taken". The server
+    // names the email field, so the message lands under that box.
+    if (result.ok === false) {
+      showServerError(result, setErrors, setFormError);
       return;
     }
 
@@ -83,28 +82,8 @@ export default function SignupPage() {
   };
 
 
-  // Google provides the name and email, so this needs no form. An existing account
-  // is simply signed in.
-  const handleGoogleCredential = async (credential) => {
-    setFormError('');
-    setIsBusy(true);
-
-    const result = await api.google(credential);
-
-    setIsBusy(false);
-
-    if (!result.ok) {
-      setFormError(result.error);
-      return;
-    }
-
-    if (result.data.isNew === true) {
-      navigate('/onboarding');
-      return;
-    }
-
-    navigate('/dashboard');
-  };
+  // Google gives us the name and email, so this needs no form.
+  const handleGoogleCredential = useGoogleSignIn(setFormError, setIsBusy);
 
 
   const handlePhoneVerified = () => {
@@ -194,11 +173,7 @@ export default function SignupPage() {
     >
       <div className="space-y-6">
 
-        {formError ? (
-          <p className="rounded-xl border border-clay/25 bg-claySoft px-4 py-3 text-[13.5px] text-clay">
-            {formError}
-          </p>
-        ) : null}
+        <Notice tone="error">{formError}</Notice>
 
         <GoogleButton onCredential={handleGoogleCredential} />
 

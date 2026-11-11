@@ -22,9 +22,7 @@ function deferred() {
 }
 
 
-// ---------------------------------------------------------------
 // useAsyncData
-// ---------------------------------------------------------------
 
 test('useAsyncData starts empty, then holds the loaded data', async () => {
   const load = async () => {
@@ -107,9 +105,7 @@ test('useAsyncData loads again when reload is called', async () => {
 });
 
 
-// ---------------------------------------------------------------
 // useRecordEditor
-// ---------------------------------------------------------------
 
 function editorOptions(overrides) {
   return {
@@ -207,9 +203,7 @@ test('regression: each record gets its own form key', () => {
 });
 
 
-// ---------------------------------------------------------------
 // Shared components
-// ---------------------------------------------------------------
 
 test('RecordActions asks before deleting', async () => {
   const user = userEvent.setup();

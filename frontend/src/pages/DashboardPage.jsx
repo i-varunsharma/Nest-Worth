@@ -15,11 +15,11 @@ import ResilienceCard from '../components/dashboard/ResilienceCard';
 import { Skeleton, SkeletonCard, SkeletonScreen, SkeletonStat } from '../components/shared/Skeleton';
 import useAsyncData from '../hooks/useAsyncData';
 import * as api from '../lib/api';
-import { currentMonth, hasCheckinFor, summariseCheckins } from '../lib/checkins';
-import { greetingForNow } from '../lib/household';
+import { hasCheckinFor, summariseCheckins } from '../lib/checkins';
 import { loadFinances } from '../lib/loadFinances';
 import { bucketAmount } from '../lib/plan';
 import { runStandardShocks } from '../lib/shocks';
+import { currentMonth, greetingForNow, monthLabel } from '../lib/format';
 
 /*
   /dashboard: the overview. Every figure comes from shared/finances.js through
@@ -76,7 +76,7 @@ function DashboardLoading({ user, greeting, subtitle }) {
 export default function DashboardPage({ user }) {
   const page = useAsyncData(loadDashboard);
 
-  const thisMonth = new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+  const thisMonth = monthLabel(currentMonth());
 
   let greeting = greetingForNow() + '.';
   if (user.name) {

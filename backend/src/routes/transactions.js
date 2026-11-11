@@ -1,6 +1,6 @@
 import express from 'express';
 import { requireUser } from '../middleware/auth.js';
-import { rateLimit } from '../middleware/rateLimit.js';
+import { importLimit } from '../middleware/limits.js';
 import { badRequest, notFound } from '../http/errors.js';
 import { readId } from '../http/validate.js';
 import { transactionRepository } from '../repositories/transactionRepository.js';
@@ -21,13 +21,6 @@ const router = express.Router();
 router.use(requireUser);
 
 const BAD_MONTH = 'A month looks like 2026-08.';
-
-// Parsing is real work, so imports are capped more tightly than reads.
-const importLimit = rateLimit({
-  limit: 20,
-  windowMs: 60 * 60 * 1000,
-  message: 'That is a lot of statements in one hour. Try again a little later.',
-});
 
 function monthFromQuery(req) {
   const month = readMonth(req.query.month);

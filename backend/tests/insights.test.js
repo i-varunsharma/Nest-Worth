@@ -101,9 +101,7 @@ for (const row of assets) {
 }
 
 
-// ---------------------------------------------------------------
 // The monthly trend
-// ---------------------------------------------------------------
 
 test('the running total is built oldest to newest and never resets', () => {
   /*
@@ -163,9 +161,7 @@ test('the trend never includes another person’s months', () => {
 });
 
 
-// ---------------------------------------------------------------
 // The overall summary
-// ---------------------------------------------------------------
 
 test('the totals add up to what was put in', () => {
   const summary = overallSummary(1);
@@ -212,9 +208,7 @@ test('somebody with nothing recorded gets zeros, not nulls', () => {
 });
 
 
-// ---------------------------------------------------------------
 // Best and worst month
-// ---------------------------------------------------------------
 
 test('the best and worst months are picked on share, not on amount', () => {
   /*
@@ -244,9 +238,7 @@ test('no months at all means no best and no worst', () => {
 });
 
 
-// ---------------------------------------------------------------
 // Grouping
-// ---------------------------------------------------------------
 
 test('debts are grouped by kind, with the biggest group first', () => {
   /*
@@ -302,9 +294,7 @@ test('grouping never reaches another person’s rows', () => {
 });
 
 
-// ---------------------------------------------------------------
 // The whole thing
-// ---------------------------------------------------------------
 
 test('buildInsights returns every section, even when empty', () => {
   // The frontend reads all six. A missing one is a crash rather than a blank,

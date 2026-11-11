@@ -6,9 +6,12 @@ import GoogleButton from '../components/auth/GoogleButton';
 import MethodTabs from '../components/auth/MethodTabs';
 import PhoneOtpForm from '../components/auth/PhoneOtpForm';
 import Button from '../components/shared/Button';
+import Notice from '../components/shared/Notice';
 import TextField from '../components/shared/TextField';
+import useGoogleSignIn from '../hooks/useGoogleSignIn';
 import * as api from '../lib/api';
-import { checkEmail, checkPassword } from '../lib/validation';
+import { showServerError } from '../lib/formErrors';
+import { checkEmail, checkPasswordEntered } from '../lib/validation';
 
 // /login: Google, email and password, or a phone code. The form checks obvious
 // mistakes before sending; the server decides whether the password is right.
@@ -21,7 +24,6 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(true);
 
   // Messages attached to a particular input box.
   const [errors, setErrors] = useState({});
@@ -47,9 +49,8 @@ export default function LoginPage() {
       foundErrors.email = emailError;
     }
 
-    // "false" means: do not demand a strong password on the login screen.
-    // Telling someone their existing password is too short helps nobody.
-    const passwordError = checkPassword(password, false);
+    // Only checks something was typed. The server decides if it is right.
+    const passwordError = checkPasswordEntered(password);
     if (passwordError) {
       foundErrors.password = passwordError;
     }
@@ -66,14 +67,8 @@ export default function LoginPage() {
     const result = await api.login(email, password);
     setIsBusy(false);
 
-    if (!result.ok) {
-      // When the server names a field, put the message under that box.
-      // Otherwise show it above the form.
-      if (result.field) {
-        setErrors({ [result.field]: result.error });
-      } else {
-        setFormError(result.error);
-      }
+    if (result.ok === false) {
+      showServerError(result, setErrors, setFormError);
       return;
     }
 
@@ -81,28 +76,8 @@ export default function LoginPage() {
   };
 
 
-  // The token goes to the server, which verifies it with Google. isNew means the
-  // account has no household yet, so it goes to onboarding.
-  const handleGoogleCredential = async (credential) => {
-    setFormError('');
-    setIsBusy(true);
-
-    const result = await api.google(credential);
-
-    setIsBusy(false);
-
-    if (!result.ok) {
-      setFormError(result.error);
-      return;
-    }
-
-    if (result.data.isNew === true) {
-      navigate('/onboarding');
-      return;
-    }
-
-    navigate('/dashboard');
-  };
+  // The same on the signup page, so it lives in hooks/useGoogleSignIn.js.
+  const handleGoogleCredential = useGoogleSignIn(setFormError, setIsBusy);
 
 
   const handlePhoneVerified = (user) => {
@@ -154,18 +129,8 @@ export default function LoginPage() {
           autoComplete="current-password"
         />
 
-        <div className="flex items-center justify-between">
-          <label htmlFor="remember" className="flex cursor-pointer items-center gap-2.5 text-[13.5px] text-ink2">
-            <input
-              id="remember"
-              type="checkbox"
-              checked={rememberMe}
-              onChange={(event) => setRememberMe(event.target.checked)}
-              className="h-4 w-4 cursor-pointer rounded border-line accent-accent"
-            />
-            Keep me signed in
-          </label>
-
+        {/* Sessions last 30 days, so there is no "keep me signed in" choice to make. */}
+        <div className="flex justify-end">
           <Link
             to="/forgot-password"
             className="sweep text-[13.5px] text-muted transition-colors hover:text-ink"
@@ -196,11 +161,7 @@ export default function LoginPage() {
       <div className="space-y-6">
 
         {/* Problems with the whole attempt, rather than one box. */}
-        {formError ? (
-          <p className="rounded-xl border border-clay/25 bg-claySoft px-4 py-3 text-[13.5px] text-clay">
-            {formError}
-          </p>
-        ) : null}
+        <Notice tone="error">{formError}</Notice>
 
         <GoogleButton onCredential={handleGoogleCredential} />
 

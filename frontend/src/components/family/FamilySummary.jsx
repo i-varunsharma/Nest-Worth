@@ -1,6 +1,6 @@
 import Card from '../shared/Card';
 import StatTile from '../shared/StatTile';
-import { formatRupees } from '../../lib/plan';
+import { formatRupees } from '../../lib/format';
 
 /* The total sent each month, its share of income, and how many people. */
 export default function FamilySummary({ finances, peopleCount }) {
