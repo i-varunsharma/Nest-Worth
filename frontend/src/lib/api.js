@@ -6,9 +6,29 @@
   like it came from a stranger. The server's CORS setting allows it.
 */
 
-// Where the backend lives. A different port from the React app in development,
-// which is why CORS has to be set up. Set VITE_API_URL when you deploy.
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+/*
+  Where the backend lives.
+
+  In development the API runs on its own port (4000), a different address from
+  the React app, which is why CORS has to be set up.
+
+  When deployed, the API_URL is an empty string. That makes every request go to
+  the same website the page came from, for example /api/auth/login. Vercel then
+  forwards anything under /api to the real backend on Railway (see
+  frontend/vercel.json). To the browser it all looks like one site, so the
+  sign-in cookie just works.
+
+  Setting VITE_API_URL overrides both of these.
+*/
+let API_URL = 'http://localhost:4000';
+
+if (import.meta.env.PROD) {
+  API_URL = '';
+}
+
+if (import.meta.env.VITE_API_URL) {
+  API_URL = import.meta.env.VITE_API_URL;
+}
 
 
 /*

@@ -75,6 +75,11 @@ function ensureBody(req, res, next) {
 export function createApp() {
   const app = express();
 
+  // Only when deployed behind proxies. See trustProxyHops in config.js.
+  if (config.trustProxyHops > 0) {
+    app.set('trust proxy', config.trustProxyHops);
+  }
+
   app.use(requestLogger);
 
   // credentials: true lets the browser send the session cookie. It needs one
