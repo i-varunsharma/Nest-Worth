@@ -35,6 +35,23 @@ export const config = {
     return process.env.DISABLE_RATE_LIMIT === 'true';
   },
 
+  /*
+    How many proxies sit in front of the server. 0 (the default) means none.
+
+    Deployed, a request travels: browser -> Vercel -> Railway -> this server.
+    Each proxy adds the address it received the request from to the
+    X-Forwarded-For header. Telling Express how many proxies to trust lets
+    req.ip be the visitor's real address instead of Railway's. The rate limiter
+    counts strangers by req.ip, so without this every visitor would share one
+    counter and lock each other out.
+
+    Never set it higher than the real number of proxies: a visitor could then
+    fake their address and dodge the rate limiter.
+  */
+  get trustProxyHops() {
+    return Number(process.env.TRUST_PROXY_HOPS) || 0;
+  },
+
   get googleClientId() {
     return process.env.GOOGLE_CLIENT_ID || '';
   },

@@ -1,0 +1,9 @@
+# Keeps these out of the backend image built by the Dockerfile.
+# Secrets and the local database must never be baked into an image.
+**/node_modules
+**/.env
+**/.env.*
+backend/data
+frontend
+docs
+.git
