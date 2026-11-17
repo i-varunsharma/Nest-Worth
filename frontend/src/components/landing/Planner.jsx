@@ -17,9 +17,17 @@ import { formatRupees } from '../../lib/format';
 const LOWEST_INCOME = 20000;
 const HIGHEST_INCOME = 250000;
 
+// The loan rate slider, in percent a year. Bank education loans sit around
+// 8 to 10.5%, NBFC loans and credit cards go much higher.
+const LOWEST_RATE = 7;
+const HIGHEST_RATE = 20;
+
+// The dependents buttons. Joint families often support more than three people.
+const DEPENDENT_CHOICES = [0, 1, 2, 3, 4, 5];
+
 // Colours and one line of explanation for each of the three buckets.
 const bucketLooks = {
-  spend: { barColour: 'bg-ink/25', dotColour: 'bg-ink/40', note: 'Rent, food, the life you are living now' },
+  spend: { barColour: 'bg-ink/25', dotColour: 'bg-ink/40', note: 'Eating out, shopping, trips' },
   save: { barColour: 'bg-brass', dotColour: 'bg-brass', note: 'Emergency buffer and near-term goals' },
   invest: { barColour: 'bg-accent', dotColour: 'bg-accent', note: 'Index funds, left alone for a decade' },
 };
@@ -31,6 +39,18 @@ const reasoningLooks = {
   clay: 'border-clay/20 bg-claySoft',
 };
 
+// Turns a part of the income into a width for the bar, never above 100%.
+function shareOfIncome(amount, income) {
+  if (income <= 0) {
+    return 0;
+  }
+  const percent = (amount / income) * 100;
+  if (percent > 100) {
+    return 100;
+  }
+  return percent;
+}
+
 export default function Planner({ household, onChange }) {
   // True only while the slider is being dragged, so the card can say "Recalculating".
   const [isDragging, setIsDragging] = useState(false);
@@ -39,32 +59,45 @@ export default function Planner({ household, onChange }) {
   // it is a handful of additions, far too fast to notice.
   const plan = buildPlan(household);
 
-  // How much of the salary is already claimed, as a percentage. The little bar
-  // under "Actually yours to direct" uses this for its width.
-  const claimedPercent = ((plan.support + plan.emi) / plan.income) * 100;
+  const isShort = plan.shortfall > 0;
 
-  // How far along the slider the handle sits, as a percentage.
+  // The bar under "Actually yours to direct" has three parts: living costs,
+  // then support and EMI, then what is left. Each is a share of the income.
+  const committed = plan.support + plan.emi;
+  const costsWidth = shareOfIncome(plan.essentialCosts, plan.income);
+  let committedWidth = shareOfIncome(committed, plan.income);
+  if (costsWidth + committedWidth > 100) {
+    committedWidth = 100 - costsWidth;
+  }
+
+  // How far along each slider the handle sits, as a percentage.
   const sliderPercent = ((household.income - LOWEST_INCOME) / (HIGHEST_INCOME - LOWEST_INCOME)) * 100;
+  const rateSliderPercent = ((household.topRate - LOWEST_RATE) / (HIGHEST_RATE - LOWEST_RATE)) * 100;
 
-  // The living-costs slider stops at 70% of income, the same ceiling the server
-  // enforces, so the demo cannot be dragged into a household that spends more
-  // than it earns.
-  const highestCosts = Math.round(household.income * 0.7);
+  // Living costs can go up to the whole income, the same limit the server uses.
+  // In a big city rent and food can really take most of a first salary.
+  const highestCosts = household.income;
 
   let costsSliderPercent = 0;
   if (highestCosts > 0) {
     costsSliderPercent = (household.essentialCosts / highestCosts) * 100;
   }
 
-  // The varying-income switch, worked out here rather than as ternaries inside
-  // the markup. Brass rather than clay, because a variable income is a fact to
-  // plan around and not a problem the way an expensive debt is.
+  // The switches, worked out here rather than as ternaries inside the markup.
+  // Brass for a varying income, because it is a fact to plan around and not a
+  // problem the way an expensive debt is.
   let variesSwitchClasses = 'border-line bg-paperDeep';
   let variesKnobClasses = 'translate-x-0';
-
   if (household.incomeVaries === true) {
     variesSwitchClasses = 'border-brass bg-brass';
     variesKnobClasses = 'translate-x-[20px]';
+  }
+
+  let loanSwitchClasses = 'border-line bg-paperDeep';
+  let loanKnobClasses = 'translate-x-0';
+  if (household.hasLoan === true) {
+    loanSwitchClasses = 'border-clay bg-clay';
+    loanKnobClasses = 'translate-x-[20px]';
   }
 
   // Each handler builds a new household object, because React only re-renders when
@@ -73,13 +106,12 @@ export default function Planner({ household, onChange }) {
     // input values arrive as text, so convert
     const income = Number(event.target.value);
 
-    // Copies every existing field, so a new field is never dropped by accident, then
-    // keeps living costs under the new ceiling.
-    const highest = Math.round(income * 0.7);
-
+    // Living costs cannot be more than the income, so they come down with it.
+    // The slider now reaches the whole income, so this only happens when the
+    // income is dragged below the rent.
     let essentialCosts = household.essentialCosts;
-    if (essentialCosts > highest) {
-      essentialCosts = highest;
+    if (essentialCosts > income) {
+      essentialCosts = income;
     }
 
     onChange({ ...household, income: income, essentialCosts: essentialCosts });
@@ -87,6 +119,10 @@ export default function Planner({ household, onChange }) {
 
   const handleCostsChange = (event) => {
     onChange({ ...household, essentialCosts: Number(event.target.value) });
+  };
+
+  const handleRateChange = (event) => {
+    onChange({ ...household, topRate: Number(event.target.value) });
   };
 
   const handleDependentsChange = (newCount) => {
@@ -104,15 +140,27 @@ export default function Planner({ household, onChange }) {
 
   // The line under the "actually yours" bar changes depending on the situation.
   let claimedSentence = 'Nothing is claimed on this income yet.';
-  if (plan.support + plan.emi > 0) {
+  if (committed > 0) {
     claimedSentence =
-      formatRupees(plan.support + plan.emi)
-      + ' leaves for household support and EMI before you decide anything.';
+      formatRupees(committed) + ' goes to household support and EMI before you decide anything.';
+  }
+  if (isShort === true) {
+    claimedSentence = 'Your fixed costs are bigger than your take-home.';
   }
 
-  let statusText = 'Updated just now';
+  let statusText = '';
   if (isDragging === true) {
     statusText = 'Recalculating';
+  }
+
+  // The big number: what is free, or how short the month is.
+  let freeLabel = 'Actually yours to direct';
+  let freeAmount = formatRupees(plan.free);
+  let freeClasses = 'tnum font-display text-[26px] leading-none text-accent';
+  if (isShort === true) {
+    freeLabel = 'Short every month';
+    freeAmount = '−' + formatRupees(plan.shortfall);
+    freeClasses = 'tnum font-display text-[26px] leading-none text-clay';
   }
 
   return (
@@ -138,14 +186,14 @@ export default function Planner({ household, onChange }) {
           <span className="text-2xs font-medium text-muted">{statusText}</span>
         </div>
 
-        {/* ---------- The three controls ---------- */}
+        {/* ---------- The controls ---------- */}
         <div className="space-y-4 px-6 py-5">
 
           {/* Income slider */}
           <div>
             <div className="flex items-baseline justify-between">
               <label htmlFor="income" className="text-[13px] font-medium text-ink2">
-                Monthly income
+                Monthly take-home
               </label>
               {/* "tnum" makes every digit the same width, so the number does not
                   jiggle sideways while you drag. */}
@@ -201,18 +249,18 @@ export default function Planner({ household, onChange }) {
             />
           </div>
 
-          {/* Dependents: four round buttons, 0 to 3 */}
+          {/* Dependents: one round button per choice */}
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-lineSoft pt-4">
             <span className="text-[13px] font-medium text-ink2">People you support</span>
 
             <div className="flex gap-1.5">
-              {[0, 1, 2, 3].map((count) => {
+              {DEPENDENT_CHOICES.map((count) => {
                 const isChosen = household.dependents === count;
 
                 // Build the class list step by step instead of cramming it into
                 // one long line, so it stays readable.
                 let buttonClasses =
-                  'h-9 w-9 rounded-full border text-[13px] font-semibold transition-all duration-300 ease-smooth ';
+                  'h-8 w-8 rounded-full border text-[13px] font-semibold transition-all duration-300 ease-smooth ';
 
                 if (isChosen === true) {
                   buttonClasses = buttonClasses + 'border-ink bg-ink text-paper';
@@ -244,10 +292,7 @@ export default function Planner({ household, onChange }) {
               role="switch"
               aria-checked={household.hasLoan}
               onClick={handleLoanToggle}
-              className={
-                'relative h-7 w-12 rounded-full border transition-colors duration-300 '
-                + (household.hasLoan ? 'border-clay bg-clay' : 'border-line bg-paperDeep')
-              }
+              className={'relative h-7 w-12 rounded-full border transition-colors duration-300 ' + loanSwitchClasses}
             >
               {/* Screen readers need words, not a coloured pill. */}
               <span className="sr-only">Toggle education loan</span>
@@ -259,11 +304,36 @@ export default function Planner({ household, onChange }) {
                 className={
                   'absolute left-[3px] top-[3px] h-5 w-5 rounded-full bg-surface shadow-sm '
                   + 'transition-transform duration-300 ease-smooth '
-                  + (household.hasLoan ? 'translate-x-[20px]' : 'translate-x-0')
+                  + loanKnobClasses
                 }
               />
             </button>
           </div>
+
+          {/* The loan's interest rate. Only shown while the loan is on, because
+              whether it beats the market return decides the whole plan. */}
+          {household.hasLoan === true && (
+            <div>
+              <div className="flex items-baseline justify-between">
+                <label htmlFor="rate" className="text-[13px] font-medium text-ink2">
+                  Loan interest rate
+                </label>
+                <span className="tnum font-display text-[20px] leading-none">{household.topRate}%</span>
+              </div>
+
+              <input
+                id="rate"
+                type="range"
+                min={LOWEST_RATE}
+                max={HIGHEST_RATE}
+                step={0.5}
+                value={household.topRate}
+                onChange={handleRateChange}
+                style={{ backgroundSize: rateSliderPercent + '% 100%' }}
+                className="range-track mt-3"
+              />
+            </div>
+          )}
 
           {/* Does the income move about? */}
           <div className="flex items-center justify-between border-t border-lineSoft pt-4">
@@ -274,10 +344,7 @@ export default function Planner({ household, onChange }) {
               role="switch"
               aria-checked={household.incomeVaries}
               onClick={handleIncomeVariesToggle}
-              className={
-                'relative h-7 w-12 rounded-full border transition-colors duration-300 '
-                + variesSwitchClasses
-              }
+              className={'relative h-7 w-12 rounded-full border transition-colors duration-300 ' + variesSwitchClasses}
             >
               <span className="sr-only">Toggle varying income</span>
 
@@ -295,85 +362,81 @@ export default function Planner({ household, onChange }) {
         {/* ---------- What is actually left ---------- */}
         <div className="border-y border-lineSoft bg-paper/70 px-6 py-4">
           <div className="flex items-baseline justify-between">
-            <span className="text-[13px] font-medium text-ink2">Actually yours to direct</span>
-            <span className="tnum font-display text-[26px] leading-none text-accent">
-              {formatRupees(plan.free)}
-            </span>
+            <span className="text-[13px] font-medium text-ink2">{freeLabel}</span>
+            <span className={freeClasses}>{freeAmount}</span>
           </div>
 
-          {/* A green bar with a grey section on the left showing the claimed part. */}
-          <div className="mt-3.5 flex h-1.5 overflow-hidden rounded-full bg-accent/25">
+          {/* Living costs, then support and EMI, then the green part that is yours. */}
+          <div className="mt-3.5 flex h-1.5 overflow-hidden rounded-full bg-accent/40">
             <div
-              className="h-full bg-ink/20 transition-[width] duration-700 ease-smooth"
-              style={{ width: claimedPercent + '%' }}
+              className="h-full bg-ink/30 transition-[width] duration-700 ease-smooth"
+              style={{ width: costsWidth + '%' }}
+            />
+            <div
+              className="h-full bg-clay/40 transition-[width] duration-700 ease-smooth"
+              style={{ width: committedWidth + '%' }}
             />
           </div>
 
           <p className="mt-2.5 text-2xs text-muted">{claimedSentence}</p>
         </div>
 
-        {/* ---------- The three-way split ---------- */}
-        <div className="space-y-3 px-6 py-5">
+        {/* ---------- The three-way split, only when there is money to split ---------- */}
+        {isShort === false && (
+          <div className="space-y-3 px-6 pt-5">
 
-          {/* One bar made of three coloured pieces sitting side by side. */}
-          <div className="flex h-2 overflow-hidden rounded-full bg-paperDeep">
+            {/* One bar made of three coloured pieces sitting side by side. */}
+            <div className="flex h-2 overflow-hidden rounded-full bg-paperDeep">
+              {plan.buckets.map((bucket) => {
+                return (
+                  <div
+                    key={bucket.key}
+                    className={'h-full transition-[width] duration-700 ease-smooth ' + bucketLooks[bucket.key].barColour}
+                    style={{ width: bucket.percent + '%' }}
+                  />
+                );
+              })}
+            </div>
+
+            {/* One row per bucket: name and note on the left, money on the right. */}
             {plan.buckets.map((bucket) => {
+              const look = bucketLooks[bucket.key];
+
+              // The EMI is already taken off above. While a loan is running, the
+              // Save bucket is also where extra payments on it come from.
+              let note = look.note;
+              if (bucket.key === 'save' && household.hasLoan === true) {
+                note = 'Buffer, then extra loan payments';
+              }
+
               return (
                 <div
                   key={bucket.key}
-                  className={
-                    'h-full transition-[width] duration-700 ease-smooth '
-                    + bucketLooks[bucket.key].barColour
-                  }
-                  style={{ width: bucket.percent + '%' }}
-                />
+                  className="flex items-center justify-between gap-4 border-b border-lineSoft pb-2.5 last:border-0 last:pb-0"
+                >
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <span className={'h-1.5 w-1.5 shrink-0 rounded-full ' + look.dotColour} />
+                    <div className="min-w-0">
+                      <p className="text-[13.5px] font-semibold text-ink">{bucket.label}</p>
+                      <p className="truncate text-2xs text-muted">{note}</p>
+                    </div>
+                  </div>
+
+                  <div className="shrink-0 text-right">
+                    <span className="tnum block text-[15px] font-semibold text-ink">
+                      {formatRupees(bucket.amount)}
+                    </span>
+                    <span className="tnum text-2xs text-muted">{bucket.percent}%</span>
+                  </div>
+                </div>
               );
             })}
           </div>
-
-          {/* One row per bucket: name and note on the left, money on the right. */}
-          {plan.buckets.map((bucket) => {
-            const look = bucketLooks[bucket.key];
-
-            // While a loan is running, part of the Save bucket is really going
-            // at the loan, so say that instead of the usual note.
-            let note = look.note;
-            if (bucket.key === 'save' && household.hasLoan === true) {
-              note = 'Buffer, plus everything spare thrown at the loan';
-            }
-
-            return (
-              <div
-                key={bucket.key}
-                className="flex items-center justify-between gap-4 border-b border-lineSoft pb-2.5 last:border-0 last:pb-0"
-              >
-                <div className="flex min-w-0 items-center gap-2.5">
-                  <span className={'h-1.5 w-1.5 shrink-0 rounded-full ' + look.dotColour} />
-                  <div className="min-w-0">
-                    <p className="text-[13.5px] font-semibold text-ink">{bucket.label}</p>
-                    <p className="truncate text-2xs text-muted">{note}</p>
-                  </div>
-                </div>
-
-                <div className="shrink-0 text-right">
-                  <span className="tnum block text-[15px] font-semibold text-ink">
-                    {formatRupees(bucket.amount)}
-                  </span>
-                  <span className="tnum text-2xs text-muted">{bucket.percent}%</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        )}
 
         {/* ---------- Why the plan looks like this ---------- */}
-        <div className="px-6 pb-5">
-          <div
-            className={
-              'rounded-2xl border p-3.5 transition-colors duration-500 '
-              + reasoningLooks[plan.reasoning.tone]
-            }
-          >
+        <div className="px-6 pb-5 pt-5">
+          <div className={'rounded-2xl border p-3.5 transition-colors duration-500 ' + reasoningLooks[plan.reasoning.tone]}>
             <p className="text-2xs font-semibold uppercase tracking-widest2 text-ink2">
               {plan.reasoning.label}
             </p>

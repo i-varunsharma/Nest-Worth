@@ -338,6 +338,11 @@ One function. Open `backend/src/services/otpService.js` and replace the body of 
 with a call to your provider. Everything else, the hashing, the expiry, the
 attempt limit and the resend wait, already works and does not change.
 
+Then switch the Phone tab on for the live site. It is hidden there until a
+provider is connected, because a code printed in the server log never reaches
+the person. In Vercel, add the environment variable `VITE_PHONE_SIGN_IN=true`
+and redeploy. On your own machine the tab always shows.
+
 ---
 
 ## 7. Real password reset emails
@@ -417,11 +422,16 @@ about deployment.
    Anthropic console has a monthly cap. On Gemini, stay on the free tier or set
    a budget alert in Google Cloud billing.
 
-8. **Put the frontend and the API on the same site.** The session cookie is
-   `sameSite: 'lax'`, so a browser will not send it from `app.vercel.app` to
-   `api.onrender.com`, and nobody stays signed in. Use one domain, such as
-   `nestworth.in` for the app and `api.nestworth.in` for the API, and build the
-   frontend with `VITE_API_URL` set to the API address.
+8. **Keep the frontend and the API on the same site.** The session cookie is
+   `sameSite: 'lax'`, so a browser will not send it from one domain to another.
+   This is already handled: the frontend on Vercel forwards every `/api` request
+   to the backend on Railway (see `frontend/vercel.json`), so the browser only
+   ever talks to one site. Leave `VITE_API_URL` unset on Vercel for that reason.
+
+9. **Google sign-in on the live site.** The button is hidden until
+   `VITE_GOOGLE_CLIENT_ID` is set in Vercel's environment variables (then
+   redeploy), and the live address must be added as an authorized JavaScript
+   origin for that client id in Google Cloud Console.
 
 ---
 

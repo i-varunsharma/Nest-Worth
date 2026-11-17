@@ -13,13 +13,16 @@ import FinalCTA from '../components/landing/FinalCTA';
 // and the projection chart need the same numbers ("lifting state up").
 export default function LandingPage() {
   // The household we start with: a fairly typical first job with two people to
-  // support and an education loan still running.
+  // support and an education loan still running. 10% is about what a bank
+  // charges for an education loan; the visitor can change it.
   const [household, setHousehold] = useState({
     income: 62000,
     dependents: 2,
     hasLoan: true,
     incomeVaries: false,
     essentialCosts: 22000,
+    topRate: 10,
+    topDebtName: 'education loan',
   });
 
   return (

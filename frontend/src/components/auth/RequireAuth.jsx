@@ -1,6 +1,7 @@
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import useAsyncData from '../../hooks/useAsyncData';
 import * as api from '../../lib/api';
+import { loginPathFor } from '../../lib/returnTo';
 
 /*
   Wraps a page that needs somebody signed in, and hands that user to the page:
@@ -18,9 +19,13 @@ import * as api from '../../lib/api';
 export default function RequireAuth({ children }) {
   const session = useAsyncData(api.me);
 
+  // The page the person was trying to open.
+  const location = useLocation();
+
   if (session.error) {
     // replace swaps the history entry, so Back does not return to this page.
-    return <Navigate to="/login" replace />;
+    // The address goes along so login can bring the person back here.
+    return <Navigate to={loginPathFor(location.pathname + location.search)} replace />;
   }
 
   // Without this state the login screen would flash before the answer arrives.

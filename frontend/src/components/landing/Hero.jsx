@@ -2,6 +2,8 @@ import Button from '../shared/Button';
 import Container from '../shared/Container';
 import Reveal from '../shared/Reveal';
 import Planner from './Planner';
+import { DEFAULT_SUPPORT_PER_PERSON, DEFAULT_EMI } from '../../lib/plan';
+import { formatRupees } from '../../lib/format';
 
 /*
   The first thing anyone sees. Headline and buttons on the left, the working
@@ -37,7 +39,9 @@ export default function Hero({ household, onHouseholdChange }) {
       />
 
       <Container className="relative pb-24 pt-14 lg:pb-32 lg:pt-20">
-        <div className="grid items-center gap-14 lg:grid-cols-[1.03fr_0.97fr] lg:items-start lg:gap-16">
+        {/* grid-cols-1 matters on a phone. Without it the single column grows to
+            fit its widest content and pushes the hero past the screen edge. */}
+        <div className="grid grid-cols-1 items-center gap-14 lg:grid-cols-[1.03fr_0.97fr] lg:items-start lg:gap-16">
 
           {/* ---------- Left column: the words ---------- */}
           <div>
@@ -52,8 +56,10 @@ export default function Hero({ household, onHouseholdChange }) {
               {/* clamp(smallest, preferred, largest) lets the heading shrink on a
                   phone and grow on a monitor without needing separate classes. */}
               <h1 className="mt-7 font-display text-[clamp(2.35rem,7.2vw,4.6rem)] font-normal leading-[0.98] tracking-[-0.02em]">
-                Your net worth was
-                <span className="relative mx-3 inline-block italic text-accent">
+                {/* JSX drops line breaks between text and a tag, so the {' '}
+                    spaces are needed or screen readers hear "wasneverjust". */}
+                Your net worth was{' '}
+                <span className="relative mx-1 inline-block italic text-accent">
                   never
                   {/* A hand-drawn looking underline, made from a single curved line. */}
                   <svg
@@ -64,7 +70,7 @@ export default function Hero({ household, onHouseholdChange }) {
                   >
                     <path d="M2 8C46 3 152 2 198 6" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                   </svg>
-                </span>
+                </span>{' '}
                 just yours.
               </h1>
             </Reveal>
@@ -103,40 +109,15 @@ export default function Hero({ household, onHouseholdChange }) {
                 })}
               </ul>
             </Reveal>
-
-            {/* A quiet nudge to keep scrolling. Hidden on small screens, where
-                there is no empty space to fill. */}
-            <Reveal delay={360}>
-              <a href="#how" className="group mt-14 hidden items-center gap-4 border-t border-line pt-7 lg:flex">
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-line transition-all duration-500 ease-smooth group-hover:border-ink group-hover:bg-ink group-hover:text-paper">
-                  <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 transition-transform duration-500 ease-smooth group-hover:translate-y-0.5" aria-hidden="true">
-                    <path
-                      d="M8 2.5v11M3.5 9.5L8 14l4.5-4.5"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </span>
-                <span>
-                  <span className="block text-2xs font-semibold uppercase tracking-widest2 text-muted">
-                    Keep reading
-                  </span>
-                  <span className="sweep mt-1 block text-[14.5px] font-medium text-ink">
-                    How the plan is built
-                  </span>
-                </span>
-              </a>
-            </Reveal>
           </div>
 
           {/* ---------- Right column: the working card ---------- */}
           <Reveal delay={160} className="lg:pl-4 lg:pt-2">
             <Planner household={household} onChange={onHouseholdChange} />
             <p className="mt-9 text-center text-[12.5px] text-muted">
-              The real model. Move a slider.
+              The real model, with typical amounts for support
+              ({formatRupees(DEFAULT_SUPPORT_PER_PERSON)} a person) and EMI ({formatRupees(DEFAULT_EMI)}).
+              Your plan uses yours.
             </p>
           </Reveal>
         </div>

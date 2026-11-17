@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { GOOGLE_CLIENT_ID } from '../../lib/signInOptions';
 
 /*
   "Continue with Google".
@@ -14,9 +15,8 @@ import { useEffect, useRef, useState } from 'react';
     onCredential  called with the token
 */
 
-// Read at build time from frontend/.env.local. Vite replaces this with the
-// real text when it builds, so there is nothing to look up at runtime.
-const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+// Read at build time, see lib/signInOptions.js.
+const CLIENT_ID = GOOGLE_CLIENT_ID;
 
 // How long to wait for Google's script before giving up, in tenths of a second.
 const MAX_TRIES = 40;

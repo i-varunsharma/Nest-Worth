@@ -1,16 +1,18 @@
 import { Link } from 'react-router-dom';
 import Container from '../shared/Container';
 
-// The landing page footer. href links jump within this page; to links go to another
-// page through the router, without a full reload.
+// The landing page footer. href links jump to a section of the landing page (the
+// leading / makes them work from other pages too); to links go to another page
+// through the router, without a full reload. The app links send a signed-out
+// visitor to login, which then brings them back to that page.
 const linkColumns = [
   {
     title: 'Product',
     links: [
-      { label: 'How it works', href: '#how' },
-      { label: 'Why Nestworth', href: '#difference' },
-      { label: 'Your projection', href: '#future' },
-      { label: 'Questions', href: '#questions' },
+      { label: 'How it works', href: '/#how' },
+      { label: 'Why Nestworth', href: '/#difference' },
+      { label: 'Your projection', href: '/#future' },
+      { label: 'Questions', href: '/#questions' },
     ],
   },
   {
@@ -27,7 +29,8 @@ const linkColumns = [
     links: [
       { label: 'Create an account', to: '/signup' },
       { label: 'Sign in', to: '/login' },
-      { label: 'What we do with your data', href: '#questions' },
+      { label: 'What we do with your data', to: '/privacy' },
+      { label: 'Terms of use', to: '/terms' },
     ],
   },
 ];

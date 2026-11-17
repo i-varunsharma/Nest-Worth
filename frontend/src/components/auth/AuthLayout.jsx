@@ -1,5 +1,4 @@
-import { Link } from 'react-router-dom';
-import ThemeToggle from '../shared/ThemeToggle';
+import SiteHeader from '../layout/SiteHeader';
 
 /*
   The frame around the login and signup screens: logo, one narrow column for the
@@ -14,28 +13,7 @@ export default function AuthLayout({ title, subtitle, children, footer }) {
   return (
     <div className="flex min-h-screen flex-col bg-paper">
 
-      {/* ---------- A thin bar, just so there is a way back ---------- */}
-      <header className="border-b border-line">
-        <div className="mx-auto flex w-full max-w-[1180px] items-center justify-between px-6 py-4 sm:px-8">
-          <Link to="/" className="flex items-center gap-2.5">
-            <span className="grid h-8 w-8 place-items-center rounded-[10px] bg-ink text-[13px] font-bold text-paper">
-              N
-            </span>
-            <span className="font-display text-[21px] leading-none tracking-tight">Nestworth</span>
-          </Link>
-
-          <div className="flex items-center gap-4">
-            <Link
-              to="/"
-              className="sweep text-[13.5px] font-medium text-muted transition-colors hover:text-ink"
-            >
-              Back to home
-            </Link>
-
-            <ThemeToggle />
-          </div>
-        </div>
-      </header>
+      <SiteHeader />
 
       {/* ---------- The form, centred ---------- */}
       {/* flex-1 makes this section take all the leftover height, which is what

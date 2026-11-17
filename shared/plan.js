@@ -1,5 +1,5 @@
 import { formatRupees } from './format.js';
-import { keepBetween, roundToNearest500 } from './numbers.js';
+import { keepBetween } from './numbers.js';
 
 /*
   The recommendation model: how a household's income should be split, and what a
@@ -11,6 +11,35 @@ import { keepBetween, roundToNearest500 } from './numbers.js';
 // The long-run yearly return assumed for the market. One constant, so the
 // projection and the debt-versus-invest decision can never use different figures.
 export const ASSUMED_YEARLY_RETURN = 0.11;
+
+// Used to show what a future amount is worth in today's money.
+export const ASSUMED_YEARLY_INFLATION = 0.06;
+
+// Used only when the real figure is not known yet (the landing page demo, or
+// onboarding before the family list is filled in). Fixed rupee amounts rather
+// than a share of salary, because a parent's medicines do not cost more when
+// your salary goes up, and an EMI is set by the loan, not by your pay.
+export const DEFAULT_SUPPORT_PER_PERSON = 7500;
+export const DEFAULT_EMI = 9500;
+
+/*
+  How the split shifts with income. Between two of these points the shift is
+  blended in a straight line, so a ₹1,000 raise never makes the plan jump.
+  The old version used hard steps, and at ₹1,50,000 a ₹1,000 raise cut the
+  Spend amount by over ₹6,000.
+*/
+const INCOME_SHIFT_POINTS = [
+  { income: 35000, spend: 5, save: -2, invest: -3 },
+  { income: 80000, spend: -6, save: 2, invest: 4 },
+  { income: 150000, spend: -11, save: 3, invest: 8 },
+];
+
+// The lowest and highest share each bucket may have, in percent.
+const SHARE_LIMITS = {
+  spend: { lowest: 34, highest: 68 },
+  save: { lowest: 18, highest: 48 },
+  invest: { lowest: 8, highest: 40 },
+};
 
 
 /*
@@ -46,7 +75,8 @@ export function bucketAmount(plan, key) {
   Pages and the server should use buildHouseholdPlan in shared/finances.js, which
   fills these in from stored data the same way everywhere.
 
-  Returns { income, support, emi, essentialCosts, free, buckets, reasoning }.
+  Returns { income, support, emi, essentialCosts, free, shortfall, buckets, reasoning }.
+  shortfall is how much the fixed costs go over the income, 0 when they fit.
 */
 export function buildPlan(household) {
   const income = household.income;
@@ -69,13 +99,8 @@ export function buildPlan(household) {
 
   // Step 1: work out the money that leaves before it is really yours.
 
-  // With no real figure we assume each dependent costs about 12% of income,
-  // capped at 34% in total so a large family never eats the entire salary.
-  let supportPercent = dependents * 0.12;
-  if (supportPercent > 0.34) {
-    supportPercent = 0.34;
-  }
-  let support = roundToNearest500(income * supportPercent);
+  // With no real figure, each dependent is assumed to cost a fixed amount.
+  let support = dependents * DEFAULT_SUPPORT_PER_PERSON;
 
   // Once the person has listed the family they support, the real total
   // replaces the guess. Zero is a real answer here, so only a missing value
@@ -90,48 +115,38 @@ export function buildPlan(household) {
     support = support + Math.round(household.extraSupport);
   }
 
-  // The real total EMI when debts are entered. Otherwise, on the landing page
-  // demo, an estimate of 15% of income capped at ₹24,000.
+  // The real total EMI when debts are entered, otherwise the fixed default.
   let emi = 0;
   if (hasLoan === true) {
     if (Number.isFinite(household.emi) && household.emi > 0) {
       emi = Math.round(household.emi);
     } else {
-      let emiAmount = income * 0.15;
-      if (emiAmount > 24000) {
-        emiAmount = 24000;
-      }
-      emi = roundToNearest500(emiAmount);
+      emi = DEFAULT_EMI;
     }
   }
 
   // What is left after support, EMIs and essentials is the money the person can
   // actually decide about. "Spend" below is therefore only the discretionary part.
-  let free = income - support - emi - essentialCosts;
-  if (free < 0) {
+  const leftOver = income - support - emi - essentialCosts;
+
+  // When the fixed costs are bigger than the income, the gap is kept and shown,
+  // rather than quietly turned into ₹0. Being short every month is the most
+  // important thing the plan can tell someone.
+  let free = leftOver;
+  let shortfall = 0;
+  if (leftOver < 0) {
     free = 0;
+    shortfall = -leftOver;
   }
 
   // Step 2: split what is left, starting from defaults and adjusting for this household.
 
-  let spendPercent = 52;
-  let savePercent = 30;
-  let investPercent = 18;
-
   // A bigger income means fixed costs take a smaller share, so more can be invested.
-  if (income >= 150000) {
-    spendPercent = spendPercent - 11;
-    savePercent = savePercent + 3;
-    investPercent = investPercent + 8;
-  } else if (income >= 80000) {
-    spendPercent = spendPercent - 6;
-    savePercent = savePercent + 2;
-    investPercent = investPercent + 4;
-  } else if (income <= 35000) {
-    spendPercent = spendPercent + 5;
-    savePercent = savePercent - 2;
-    investPercent = investPercent - 3;
-  }
+  const shift = incomeShift(income);
+
+  let spendPercent = 52 + shift.spend;
+  let savePercent = 30 + shift.save;
+  let investPercent = 18 + shift.invest;
 
   // A variable income moves money from investing to saving. The risk for a
   // freelancer is a thin month with nothing set aside, which ends up on a credit card.
@@ -148,17 +163,18 @@ export function buildPlan(household) {
   }
 
   /*
-    A running loan moves money from investing to saving, because clearing debt at
-    11% is a guaranteed return. Not when the loan is cheaper than the assumed market
-    return (a home loan at 8.4%): then investing is kept. When the rate is unknown the
-    expensive case is assumed, the safer mistake.
+    A running loan moves money from investing to saving, because paying off debt
+    that costs more than the market pays is a guaranteed return. A loan at exactly
+    the market return or below it (a home loan at 8.4%) is not rushed, so investing
+    is kept. When the rate is unknown the expensive case is assumed, the safer mistake.
   */
   const marketReturnPercent = ASSUMED_YEARLY_RETURN * 100;
 
   let debtCostsMoreThanMarket = true;
 
   if (Number.isFinite(household.topRate)) {
-    debtCostsMoreThanMarket = household.topRate >= marketReturnPercent;
+    // Strictly more. A loan at 11% does not cost more than an 11% return.
+    debtCostsMoreThanMarket = household.topRate > marketReturnPercent;
   }
 
   if (hasLoan === true && debtCostsMoreThanMarket === true) {
@@ -170,38 +186,42 @@ export function buildPlan(household) {
     Scale the three shares to 100 first, then apply the limits, and let spend take
     the remainder. Applying limits before scaling was a real bug: invest fell to 7%,
     below its 8% floor.
+
+    The shares are kept as exact decimals here. Rounding them to whole percents
+    before working out the rupees made the amounts jump by up to 1% of the free
+    money at a time.
   */
   const currentTotal = spendPercent + savePercent + investPercent;
 
-  savePercent = keepBetween(Math.round((savePercent / currentTotal) * 100), 18, 48);
-  investPercent = keepBetween(Math.round((investPercent / currentTotal) * 100), 8, 40);
+  savePercent = keepBetween((savePercent / currentTotal) * 100, SHARE_LIMITS.save.lowest, SHARE_LIMITS.save.highest);
+  investPercent = keepBetween((investPercent / currentTotal) * 100, SHARE_LIMITS.invest.lowest, SHARE_LIMITS.invest.highest);
+  spendPercent = keepBetween(100 - savePercent - investPercent, SHARE_LIMITS.spend.lowest, SHARE_LIMITS.spend.highest);
 
-  // Guaranteed to make the three add up to 100, because it is the remainder.
-  spendPercent = keepBetween(100 - savePercent - investPercent, 34, 68);
+  // If spend hit one of its limits the three may not add up to 100. Saving takes the difference.
+  savePercent = 100 - spendPercent - investPercent;
 
-  // Rounding can leave the total a point off 100. Saving takes the difference.
-  const drift = 100 - (spendPercent + savePercent + investPercent);
-  savePercent = savePercent + drift;
+  // Whole percents for the screen, chosen so they still add up to exactly 100.
+  const shownPercents = roundToWholePercents([spendPercent, savePercent, investPercent]);
 
-  // Step 3: turn the percentages into actual rupee amounts.
+  // Step 3: turn the shares into actual rupee amounts.
 
   const buckets = [
     {
       key: 'spend',
       label: 'Spend',
-      percent: spendPercent,
+      percent: shownPercents[0],
       amount: Math.round((free * spendPercent) / 100),
     },
     {
       key: 'save',
       label: 'Save',
-      percent: savePercent,
+      percent: shownPercents[1],
       amount: Math.round((free * savePercent) / 100),
     },
     {
       key: 'invest',
       label: 'Invest',
-      percent: investPercent,
+      percent: shownPercents[2],
       amount: Math.round((free * investPercent) / 100),
     },
   ];
@@ -212,8 +232,10 @@ export function buildPlan(household) {
     hasLoan: hasLoan,
     support: support,
     emi: emi,
+    essentialCosts: essentialCosts,
     free: free,
-    investPercent: investPercent,
+    shortfall: shortfall,
+    investPercent: shownPercents[2],
 
     // The most expensive debt, when the caller knows it. The dashboard passes
     // these in from the real debts list; the landing page demo does not have
@@ -226,7 +248,7 @@ export function buildPlan(household) {
     marketReturnPercent: marketReturnPercent,
 
     incomeVaries: incomeVaries,
-    savePercent: savePercent,
+    savePercent: shownPercents[1],
   });
 
   return {
@@ -235,6 +257,7 @@ export function buildPlan(household) {
     emi: emi,
     essentialCosts: essentialCosts,
     free: free,
+    shortfall: shortfall,
     buckets: buckets,
     reasoning: reasoning,
   };
@@ -242,46 +265,150 @@ export function buildPlan(household) {
 
 
 /*
+  How much each bucket's share moves for this income, blended between the
+  points in INCOME_SHIFT_POINTS. Below the first point and above the last one
+  the shift stays flat.
+
+    incomeShift(57500)  ->  halfway between the 35,000 and 80,000 shifts
+*/
+function incomeShift(income) {
+  const first = INCOME_SHIFT_POINTS[0];
+  const last = INCOME_SHIFT_POINTS[INCOME_SHIFT_POINTS.length - 1];
+
+  if (income <= first.income) {
+    return { spend: first.spend, save: first.save, invest: first.invest };
+  }
+  if (income >= last.income) {
+    return { spend: last.spend, save: last.save, invest: last.invest };
+  }
+
+  // Find the two points the income sits between.
+  for (let index = 0; index < INCOME_SHIFT_POINTS.length - 1; index = index + 1) {
+    const lower = INCOME_SHIFT_POINTS[index];
+    const upper = INCOME_SHIFT_POINTS[index + 1];
+
+    if (income >= lower.income && income <= upper.income) {
+      // 0 at the lower point, 1 at the upper point, in between otherwise.
+      const progress = (income - lower.income) / (upper.income - lower.income);
+
+      return {
+        spend: lower.spend + (upper.spend - lower.spend) * progress,
+        save: lower.save + (upper.save - lower.save) * progress,
+        invest: lower.invest + (upper.invest - lower.invest) * progress,
+      };
+    }
+  }
+
+  // Not reachable, the checks above cover every income.
+  return { spend: 0, save: 0, invest: 0 };
+}
+
+
+/*
+  Rounds shares to whole percents that still add up to exactly 100.
+
+  Rounding each one on its own can give 99 or 101. Instead every share is
+  rounded down, and the points still missing go to the shares that lost the
+  most in rounding down. Each result is then the share rounded down or up,
+  never further away, so it can never cross a whole-number limit.
+
+    roundToWholePercents([33.4, 33.3, 33.3])  ->  [34, 33, 33]
+*/
+function roundToWholePercents(shares) {
+  const rounded = [];
+  let total = 0;
+
+  shares.forEach((share) => {
+    const whole = Math.floor(share);
+    rounded.push(whole);
+    total = total + whole;
+  });
+
+  // Positions sorted by how much was cut off, biggest cut first.
+  const positions = [0, 1, 2];
+  positions.sort((first, second) => {
+    const cutFromFirst = shares[first] - Math.floor(shares[first]);
+    const cutFromSecond = shares[second] - Math.floor(shares[second]);
+    return cutFromSecond - cutFromFirst;
+  });
+
+  let pointsMissing = 100 - total;
+  let next = 0;
+  while (pointsMissing > 0) {
+    const position = positions[next];
+    rounded[position] = rounded[position] + 1;
+    pointsMissing = pointsMissing - 1;
+    next = next + 1;
+  }
+
+  return rounded;
+}
+
+
+/*
   The one sentence explaining the plan. The order of the checks is the priority:
-  a running loan first, then a variable income, then dependents, then income.
+  a monthly shortfall first, then a running loan, then a variable income, then
+  dependents, then income.
   tone picks the colour: 'clay' warning, 'brass' note, 'accent' good news.
 */
 function writeReasoning(facts) {
+  // Nothing else matters while the fixed costs are bigger than the income.
+  if (facts.shortfall > 0) {
+    return {
+      tone: 'clay',
+      label: 'Close the gap first',
+      text:
+        'Rent, support and EMIs come to '
+        + formatRupees(facts.support + facts.emi + facts.essentialCosts) + ', which is '
+        + formatRupees(facts.shortfall) + ' more than you take home. No split can fix that, '
+        + 'so the first job is closing the gap: ' + biggestFixedCost(facts) + '.',
+    };
+  }
+
+  // Added to the loan sentences, so turning on "income varies" still changes
+  // the explanation while a loan is running.
+  let variesNote = '';
+  if (facts.incomeVaries === true) {
+    variesNote = ' Your income moves as well, so a bigger share stays in Save as cash.';
+  }
+
   // A loan cheaper than the market return is not cleared first. This is where the
   // usual advice flips, so the sentence says why.
   if (facts.hasLoan === true && facts.debtCostsMoreThanMarket === false) {
+    let debtName = 'loan';
+    if (facts.topDebtName) {
+      debtName = facts.topDebtName;
+    }
+
     return {
       tone: 'accent',
       label: 'Worth knowing',
       text:
-        'Your ' + facts.topDebtName + ' charges ' + facts.topRate + '%, which is less than the '
-        + facts.marketReturnPercent + '% the market has paid over long periods. Clearing it early '
+        'Your ' + debtName + ' charges ' + facts.topRate + '%, which is not more than the '
+        + facts.marketReturnPercent + '% the market has paid over long periods. Paying it off early '
         + 'is not the cheapest move, so we keep investing at ' + facts.investPercent
-        + '% and let the EMI run its course.',
+        + '% and let the ' + formatRupees(facts.emi) + ' EMI run its course.' + variesNote,
     };
   }
 
   if (facts.hasLoan === true) {
     // Names the real worst debt when it is known, so a 42% card is not described as
-    // an 11% education loan.
+    // an education loan.
+    let opening = 'We do not know your loan\'s rate yet, so we assume it costs more than the '
+      + facts.marketReturnPercent + '% the market pays.';
+
     if (facts.topDebtName && Number.isFinite(facts.topRate)) {
-      return {
-        tone: 'clay',
-        label: 'First priority',
-        text:
-          'Your ' + facts.topDebtName + ' charges ' + facts.topRate + '%, more than the market '
-          + 'reliably pays. We hold investing at ' + facts.investPercent + '% and send '
-          + formatRupees(facts.emi) + ' a month at your debts, clearing that one first.',
-      };
+      opening = 'Your ' + facts.topDebtName + ' charges ' + facts.topRate + '%, more than the '
+        + facts.marketReturnPercent + '% the market has paid over long periods.';
     }
 
     return {
       tone: 'clay',
       label: 'First priority',
       text:
-        'An education loan compounds at roughly 11%, faster than the market pays you. '
-        + 'We hold investing at ' + facts.investPercent + '% and route '
-        + formatRupees(facts.emi) + ' a month at the loan until it is gone.',
+        opening + ' The ' + formatRupees(facts.emi) + ' EMI is already taken off above. '
+        + 'Of what is left, Save gets the bigger share so you can prepay, and investing '
+        + 'stays at ' + facts.investPercent + '% so the habit does not stop.' + variesNote,
     };
   }
 
@@ -340,8 +467,33 @@ function writeReasoning(facts) {
 }
 
 
+// Points at the biggest of the three fixed costs, for the shortfall sentence.
+function biggestFixedCost(facts) {
+  if (facts.essentialCosts >= facts.support && facts.essentialCosts >= facts.emi) {
+    return 'rent, food and bills are the biggest line, at ' + formatRupees(facts.essentialCosts);
+  }
+  if (facts.support >= facts.emi) {
+    return 'family support is the biggest line, at ' + formatRupees(facts.support)
+      + ', so it may be worth talking through what is shared';
+  }
+  return 'EMIs are the biggest line, at ' + formatRupees(facts.emi)
+    + ', so ask your lender about a longer term';
+}
+
+
+/*
+  What an amount in the future is worth in today's money, after inflation.
+
+    inTodaysMoney(569000, 15)  ->  about 2,37,000
+*/
+export function inTodaysMoney(futureValue, years) {
+  return futureValue / Math.pow(1 + ASSUMED_YEARLY_INFLATION, years);
+}
+
+
 // What a monthly investment (SIP) grows into after some years, using the
-// standard formula with ASSUMED_YEARLY_RETURN.
+// standard formula with ASSUMED_YEARLY_RETURN. Each month's amount is assumed
+// to go in at the start of the month.
 export function projectInvestment(monthly, years) {
   if (monthly <= 0) {
     return 0;

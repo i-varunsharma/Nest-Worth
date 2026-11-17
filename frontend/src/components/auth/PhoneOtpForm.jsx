@@ -56,6 +56,12 @@ export default function PhoneOtpForm({ onVerified }) {
   }, [secondsLeft]);
 
 
+  // A tel box still lets letters through on a computer, so only digits are kept.
+  const handlePhoneTyped = (text) => {
+    setPhone(keepOnlyDigits(text));
+  };
+
+
   const handleSendCode = async (event) => {
     event.preventDefault();
 
@@ -154,9 +160,9 @@ export default function PhoneOtpForm({ onVerified }) {
           label="Mobile number"
           type="tel"
           value={phone}
-          onChange={setPhone}
+          onChange={handlePhoneTyped}
           error={phoneError}
-          placeholder="98765 43210"
+          placeholder="9876543210"
           prefix="+91"
           inputMode="numeric"
           autoComplete="tel"

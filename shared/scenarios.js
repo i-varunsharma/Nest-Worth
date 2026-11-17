@@ -335,6 +335,7 @@ export function applyChosenPlan(plan, chosen) {
     emi: emi,
     essentialCosts: plan.essentialCosts,
     free: free,
+    shortfall: plan.shortfall,
 
     buckets: [
       { key: 'spend', label: 'Spend', percent: shareOf(allocation.spend), amount: allocation.spend },

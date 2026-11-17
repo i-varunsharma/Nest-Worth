@@ -100,7 +100,7 @@ export default function ValueGrid() {
                   Why so little going into equity?
                 </div>
                 <div className="w-fit rounded-2xl rounded-bl-sm border border-line bg-paper px-3.5 py-2 text-[12.5px] text-ink2 transition-colors duration-500 group-hover:border-accent/30 group-hover:bg-accentSoft">
-                  Your loan costs 11%. Beating that is guaranteed. Beating the market is not.
+                  Your loan costs 14%. Paying it off is a guaranteed 14%. The market is not.
                 </div>
               </div>
             </article>
@@ -161,45 +161,8 @@ export default function ValueGrid() {
                 A plan you drop in March is not a plan.
               </h3>
               <p className="mt-3 max-w-sm text-[14.5px] leading-relaxed text-ink2">
-                Progress you can see, and a streak worth protecting.
+                A short check-in each month and a recap at the end of the year, both built from what you actually did.
               </p>
-
-              <div className="mt-auto grid gap-4 pt-8 sm:grid-cols-[1fr_auto] sm:items-end">
-
-                {/* A progress bar that fills up when you hover the card. */}
-                <div>
-                  <div className="flex justify-between text-2xs font-medium text-muted">
-                    <span>Savings goal</span>
-                    <span className="tnum">68%</span>
-                  </div>
-                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-paperDeep">
-                    <div className="h-full w-[22%] rounded-full bg-accent transition-[width] duration-[1200ms] ease-smooth group-hover:w-[68%]" />
-                  </div>
-                </div>
-
-                {/* Seven small bars, like a week of a streak. The last two are
-                    grey until you hover, then they fill in too. */}
-                <div className="flex gap-1.5">
-                  {[0, 1, 2, 3, 4, 5, 6].map((dayNumber) => {
-                    const isAlreadyDone = dayNumber < 5;
-
-                    let dayClasses = 'h-6 w-2.5 rounded-full transition-all duration-500 ease-smooth ';
-                    if (isAlreadyDone === true) {
-                      dayClasses = dayClasses + 'bg-brass';
-                    } else {
-                      dayClasses = dayClasses + 'bg-paperDeep group-hover:bg-brass';
-                    }
-
-                    return (
-                      <span
-                        key={dayNumber}
-                        className={dayClasses}
-                        style={{ transitionDelay: dayNumber * 70 + 'ms' }}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
             </article>
           </Reveal>
         </div>

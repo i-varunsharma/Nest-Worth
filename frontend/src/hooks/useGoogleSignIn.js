@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import * as api from '../lib/api';
+import { pathAfterLogin } from '../lib/returnTo';
 
 /*
   What happens after the Google button gives us a credential. Used by both the
@@ -35,7 +36,7 @@ export default function useGoogleSignIn(setFormError, setIsBusy) {
       return;
     }
 
-    navigate('/dashboard');
+    navigate(pathAfterLogin('/dashboard'));
   }
 
   return handleGoogleCredential;
