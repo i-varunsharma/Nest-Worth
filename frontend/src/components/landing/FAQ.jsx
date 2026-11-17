@@ -33,8 +33,12 @@ const questions = [
   {
     question: 'Why does the loan come before investing?',
     answer:
-      'Clearing a loan at 14% is a guaranteed 14% return, and no fund guarantees anything. '
-      + 'Below about 11% the model stops rushing it and keeps your investing going instead.',
+      'Paying off a loan at 14% is a guaranteed 14% return, and no fund guarantees anything. '
+      + 'So while a loan costs more than the 11% the market has paid over long periods, most '
+      + 'spare money goes towards it and investing drops to a small amount, so the habit stays. '
+      + 'At 11% or less the model stops rushing it, and many bank education loans are below '
+      + 'that. On the old tax regime, Section 80E also lets you deduct education loan interest, '
+      + 'which makes the loan cheaper still.',
   },
 ];
 

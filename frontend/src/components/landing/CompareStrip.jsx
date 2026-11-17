@@ -21,8 +21,8 @@ const comparisons = [
     ours: 'Every number carries its reason',
   },
   {
-    others: 'Invest first, worry about the 11% loan later',
-    ours: 'Expensive debt clears before you invest a rupee',
+    others: 'Invest first, worry about the 14% loan later',
+    ours: 'A loan that costs more than the market gets paid down first',
   },
 ];
 

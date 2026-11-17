@@ -13,7 +13,6 @@ import ThemeToggle from '../shared/ThemeToggle';
 */
 
 const menuLinks = [
-  { href: '#household', label: 'The problem' },
   { href: '#how', label: 'How it works' },
   { href: '#difference', label: 'Why Nestworth' },
   { href: '#questions', label: 'Questions' },

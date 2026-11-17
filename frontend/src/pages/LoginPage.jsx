@@ -11,7 +11,9 @@ import TextField from '../components/shared/TextField';
 import useGoogleSignIn from '../hooks/useGoogleSignIn';
 import * as api from '../lib/api';
 import { showServerError } from '../lib/formErrors';
+import { GOOGLE_SIGN_IN_ON } from '../lib/signInOptions';
 import { checkEmail, checkPasswordEntered } from '../lib/validation';
+import { pathAfterLogin } from '../lib/returnTo';
 
 // /login: Google, email and password, or a phone code. The form checks obvious
 // mistakes before sending; the server decides whether the password is right.
@@ -72,7 +74,8 @@ export default function LoginPage() {
       return;
     }
 
-    navigate('/dashboard');
+    // Back to the page they were trying to open, if there was one.
+    navigate(pathAfterLogin('/dashboard'));
   };
 
 
@@ -88,7 +91,7 @@ export default function LoginPage() {
       return;
     }
 
-    navigate('/dashboard');
+    navigate(pathAfterLogin('/dashboard'));
   };
 
 
@@ -163,9 +166,13 @@ export default function LoginPage() {
         {/* Problems with the whole attempt, rather than one box. */}
         <Notice tone="error">{formError}</Notice>
 
-        <GoogleButton onCredential={handleGoogleCredential} />
-
-        <AuthDivider />
+        {/* Hidden on the live site until Google is set up, see lib/signInOptions.js. */}
+        {GOOGLE_SIGN_IN_ON === true && (
+          <>
+            <GoogleButton onCredential={handleGoogleCredential} />
+            <AuthDivider />
+          </>
+        )}
 
         <MethodTabs value={method} onChange={setMethod} />
 

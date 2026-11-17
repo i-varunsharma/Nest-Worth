@@ -11,6 +11,7 @@ import TextField from '../components/shared/TextField';
 import useGoogleSignIn from '../hooks/useGoogleSignIn';
 import * as api from '../lib/api';
 import { showServerError } from '../lib/formErrors';
+import { GOOGLE_SIGN_IN_ON } from '../lib/signInOptions';
 import { checkEmail, checkName, checkPassword } from '../lib/validation';
 
 /*
@@ -147,7 +148,13 @@ export default function SignupPage() {
               onChange={(event) => setAcceptedTerms(event.target.checked)}
               className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-line accent-accent"
             />
-            I agree that Nestworth gives educational guidance, not regulated investment advice.
+            <span>
+              I agree to the{' '}
+              <Link to="/terms" className="sweep font-medium text-ink">terms</Link>
+              {' '}and{' '}
+              <Link to="/privacy" className="sweep font-medium text-ink">privacy policy</Link>,
+              and understand that Nestworth gives educational guidance, not regulated investment advice.
+            </span>
           </label>
 
           {errors.terms ? <p className="mt-2 text-2xs text-clay">{errors.terms}</p> : null}
@@ -175,15 +182,24 @@ export default function SignupPage() {
 
         <Notice tone="error">{formError}</Notice>
 
-        <GoogleButton onCredential={handleGoogleCredential} />
-
-        <AuthDivider />
+        {/* Hidden on the live site until Google is set up, see lib/signInOptions.js. */}
+        {GOOGLE_SIGN_IN_ON === true && (
+          <>
+            <GoogleButton onCredential={handleGoogleCredential} />
+            <AuthDivider />
+          </>
+        )}
 
         <MethodTabs value={method} onChange={setMethod} />
 
         {chosenForm}
 
+        {/* Google and phone sign-up have no checkbox, so the same agreement is
+            stated here for them. */}
         <p className="text-center text-2xs leading-relaxed text-muted">
+          However you sign up, you agree to the{' '}
+          <Link to="/terms" className="sweep text-ink2">terms</Link> and{' '}
+          <Link to="/privacy" className="sweep text-ink2">privacy policy</Link>.
           We never ask for a bank login, and we do not sell what you tell us.
         </p>
       </div>

@@ -25,29 +25,52 @@ const bucketLooks = {
 };
 
 export default function PlanCard({ plan }) {
-  // How much of the salary was already claimed, as a percentage.
-  const claimedPercent = ((plan.support + plan.emi) / plan.income) * 100;
+  // Everything that leaves before the person decides anything: living costs,
+  // household support and EMIs.
+  const fixedCosts = plan.essentialCosts + plan.support + plan.emi;
+
+  // How much of the salary that is, as a percentage, never wider than the bar.
+  let claimedPercent = 0;
+  if (plan.income > 0) {
+    claimedPercent = (fixedCosts / plan.income) * 100;
+  }
+  if (claimedPercent > 100) {
+    claimedPercent = 100;
+  }
+
+  const isShort = plan.shortfall > 0;
+
+  // The heading, the big number and the sentence change when the month does not add up.
+  let heading = 'Yours to direct this month';
+  let headline = formatRupees(plan.free);
+  let headlineColour = 'text-accent';
+  let sentence = 'Nothing is claimed on it yet.';
+  if (fixedCosts > 0) {
+    sentence = formatRupees(fixedCosts) + ' goes on living costs, support and EMIs before you decide anything.';
+  }
+
+  if (isShort === true) {
+    heading = 'Short every month';
+    headline = '−' + formatRupees(plan.shortfall);
+    headlineColour = 'text-clay';
+    sentence = 'Living costs, support and EMIs come to ' + formatRupees(fixedCosts)
+      + ', which is more than you take home. ' + plan.reasoning.text;
+  }
 
   return (
     <div id="plan" className="rounded-[26px] border border-line bg-surface p-6 shadow-card sm:p-8">
 
-      <div className="flex items-center justify-between border-b border-lineSoft pb-5">
-        <p className="text-2xs font-semibold uppercase tracking-widest2 text-muted">
-          Yours to direct this month
-        </p>
-        <p className="text-2xs text-muted">Recalculated just now</p>
+      <div className="border-b border-lineSoft pb-5">
+        <p className="text-2xs font-semibold uppercase tracking-widest2 text-muted">{heading}</p>
       </div>
 
       {/* The headline number. */}
-      <p className="tnum mt-6 font-display text-[clamp(2.6rem,6vw,3.6rem)] leading-none text-accent">
-        {formatRupees(plan.free)}
+      <p className={'tnum mt-6 font-display text-[clamp(2.6rem,6vw,3.6rem)] leading-none ' + headlineColour}>
+        {headline}
       </p>
 
       <p className="mt-3 text-[14px] leading-relaxed text-ink2">
-        Out of {formatRupees(plan.income)} take-home.{' '}
-        {plan.support + plan.emi > 0
-          ? formatRupees(plan.support + plan.emi) + ' leaves before you decide anything.'
-          : 'Nothing is claimed on it yet.'}
+        Out of {formatRupees(plan.income)} take-home. {sentence}
       </p>
 
       {/* A green bar with a grey section on the left for the claimed part. */}
@@ -58,35 +81,37 @@ export default function PlanCard({ plan }) {
         />
       </div>
 
-      {/* One row per bucket. */}
-      <div className="mt-8 space-y-5">
-        {plan.buckets.map((bucket) => {
-          const look = bucketLooks[bucket.key];
+      {/* One row per bucket. Hidden when there is nothing to split. */}
+      {isShort === false && (
+        <div className="mt-8 space-y-5">
+          {plan.buckets.map((bucket) => {
+            const look = bucketLooks[bucket.key];
 
-          return (
-            <div key={bucket.key}>
-              <div className="flex items-baseline justify-between gap-4">
-                <p className="text-[15px] font-semibold text-ink">{bucket.label}</p>
-                <div className="text-right">
-                  <span className="tnum text-[16px] font-semibold text-ink">
-                    {formatRupees(bucket.amount)}
-                  </span>
-                  <span className="tnum ml-2 text-[13px] text-muted">{bucket.percent}%</span>
+            return (
+              <div key={bucket.key}>
+                <div className="flex items-baseline justify-between gap-4">
+                  <p className="text-[15px] font-semibold text-ink">{bucket.label}</p>
+                  <div className="text-right">
+                    <span className="tnum text-[16px] font-semibold text-ink">
+                      {formatRupees(bucket.amount)}
+                    </span>
+                    <span className="tnum ml-2 text-[13px] text-muted">{bucket.percent}%</span>
+                  </div>
                 </div>
-              </div>
 
-              <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-line/70">
-                <div
-                  className={'h-full rounded-full transition-[width] duration-700 ease-smooth ' + look.barColour}
-                  style={{ width: bucket.percent + '%' }}
-                />
-              </div>
+                <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-line/70">
+                  <div
+                    className={'h-full rounded-full transition-[width] duration-700 ease-smooth ' + look.barColour}
+                    style={{ width: bucket.percent + '%' }}
+                  />
+                </div>
 
-              <p className="mt-2 text-2xs text-muted">{look.note}</p>
-            </div>
-          );
-        })}
-      </div>
+                <p className="mt-2 text-2xs text-muted">{look.note}</p>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

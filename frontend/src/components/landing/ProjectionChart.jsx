@@ -187,7 +187,8 @@ export default function ProjectionChart({ rows, years }) {
       </div>
 
       <p className="mt-4 text-2xs leading-relaxed text-muted">
-        Assumes an 11% annual return, compounded monthly, with no step-up.
+        Assumes an 11% annual return, compounded monthly, with each month's amount
+        invested at the start of the month and no step-up. Before tax and inflation.
         Markets do not move in smooth curves, so this shows the shape of the
         decision, not a promise.
       </p>

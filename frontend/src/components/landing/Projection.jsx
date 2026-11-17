@@ -3,7 +3,7 @@ import Container from '../shared/Container';
 import Eyebrow from '../shared/Eyebrow';
 import Reveal from '../shared/Reveal';
 import ProjectionChart from './ProjectionChart';
-import { buildPlan, buildProjectionRows } from '../../lib/plan';
+import { buildPlan, buildProjectionRows, inTodaysMoney, ASSUMED_YEARLY_INFLATION } from '../../lib/plan';
 import { formatRupees } from '../../lib/format';
 
 /*
@@ -37,6 +37,10 @@ export default function Projection({ household }) {
   const finalValue = lastRow.value;
   const totalInvested = lastRow.invested;
   const totalEarned = finalValue - totalInvested;
+
+  // The same amount in today's money, so a big future number is not misread.
+  const finalValueToday = inTodaysMoney(finalValue, years);
+  const inflationPercent = Math.round(ASSUMED_YEARLY_INFLATION * 100);
 
   return (
     <section id="future" className="border-y border-line bg-paperDeep">
@@ -74,6 +78,11 @@ export default function Projection({ household }) {
                   <span className="tnum font-semibold text-brass">
                     {' '}{formatRupees(totalEarned, { short: true })}
                   </span> earned.
+                </p>
+                <p className="mt-1.5 text-[13px] text-muted">
+                  About{' '}
+                  <span className="tnum font-semibold">{formatRupees(finalValueToday, { short: true })}</span>
+                  {' '}in today's money, if prices rise {inflationPercent}% a year.
                 </p>
               </div>
             </Reveal>

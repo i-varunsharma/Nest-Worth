@@ -1,6 +1,6 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { buildPlan, bucketAmount, ASSUMED_YEARLY_RETURN } from '../src/lib/plan.js';
+import { buildPlan, bucketAmount, ASSUMED_YEARLY_RETURN, DEFAULT_SUPPORT_PER_PERSON, inTodaysMoney } from '../src/lib/plan.js';
 import {
   payoff,
   summariseDebts,
@@ -725,4 +725,91 @@ test('dates on a statement and in the recap are written the same way everywhere'
   assert.equal(monthNameOnly('2026-08'), 'August');
   assert.equal(formatMonthYear(new Date(2029, 2, 1)), 'March 2029');
   assert.equal(formatMonthYear(null), '—');
+});
+
+
+// Rules added after the November 2026 review of the live site
+
+test('a household that cannot cover its fixed costs is told how short it is', () => {
+  // Income 20,000, rent 14,000, three people at 7,500 and a 9,500 EMI.
+  const plan = buildPlan({ income: 20000, dependents: 3, hasLoan: true, essentialCosts: 14000 });
+
+  assert.equal(plan.free, 0);
+  assert.equal(plan.shortfall, 26000);
+  assert.equal(plan.reasoning.label, 'Close the gap first');
+});
+
+
+test('a household that fits has no shortfall', () => {
+  const plan = buildPlan({ income: 62000, dependents: 2, hasLoan: true, essentialCosts: 22000 });
+
+  assert.equal(plan.shortfall, 0);
+  assert.ok(plan.free > 0);
+});
+
+
+test('a raise never lowers any bucket', () => {
+  /*
+    The split used to change in hard steps at 35,000, 80,000 and 1,50,000. At
+    1,50,000 a 1,000 raise cut Spend by more than 6,000. Every bucket must now
+    go up or stay the same as income goes up. 1 rupee of slack is for rounding.
+  */
+  for (const essentialCosts of [0, 15000, 30000]) {
+    for (const dependents of [0, 2, 3]) {
+      for (const hasLoan of [true, false]) {
+        let previous = null;
+
+        for (let income = 20000; income <= 300000; income = income + 1000) {
+          const plan = buildPlan({ income, dependents, hasLoan, essentialCosts });
+
+          if (previous !== null) {
+            for (const key of ['spend', 'save', 'invest']) {
+              const where = `${key} at ${income}/${essentialCosts}/${dependents}/${hasLoan}`;
+              assert.ok(bucketAmount(plan, key) >= bucketAmount(previous, key) - 1, where + ' went down');
+            }
+          }
+
+          previous = plan;
+        }
+      }
+    }
+  }
+});
+
+
+test('estimated support is a fixed amount per person, not a share of salary', () => {
+  const modest = buildPlan({ income: 40000, dependents: 2, hasLoan: false });
+  const high = buildPlan({ income: 250000, dependents: 2, hasLoan: false });
+
+  assert.equal(modest.support, 2 * DEFAULT_SUPPORT_PER_PERSON);
+  assert.equal(high.support, modest.support);
+});
+
+
+test('a loan at exactly the market return is not treated as expensive', () => {
+  const base = { income: 90000, dependents: 1, hasLoan: true, emi: 12000, topDebtName: 'loan' };
+  const marketRate = ASSUMED_YEARLY_RETURN * 100;
+
+  const atMarket = buildPlan({ ...base, topRate: marketRate });
+  const above = buildPlan({ ...base, topRate: marketRate + 1 });
+
+  assert.equal(atMarket.reasoning.label, 'Worth knowing');
+  assert.equal(above.reasoning.label, 'First priority');
+});
+
+
+test('turning on a varying income changes the explanation even with a loan', () => {
+  const base = { income: 62000, dependents: 2, hasLoan: true, essentialCosts: 22000 };
+
+  const steady = buildPlan(base);
+  const varies = buildPlan({ ...base, incomeVaries: true });
+
+  assert.notEqual(steady.reasoning.text, varies.reasoning.text);
+});
+
+
+test('inTodaysMoney takes inflation off a future amount', () => {
+  assert.equal(inTodaysMoney(1000, 0), 1000);
+  assert.ok(inTodaysMoney(569000, 15) < 250000);
+  assert.ok(inTodaysMoney(569000, 15) > 230000);
 });

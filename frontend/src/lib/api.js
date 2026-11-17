@@ -6,6 +6,8 @@
   like it came from a stranger. The server's CORS setting allows it.
 */
 
+import { loginPathFor } from './returnTo';
+
 /*
   Where the backend lives.
 
@@ -30,6 +32,13 @@ if (import.meta.env.VITE_API_URL) {
   API_URL = import.meta.env.VITE_API_URL;
 }
 
+// Shown when a request never reaches the server. The port hint only helps a
+// developer, so real users get a plain message instead.
+let CANNOT_REACH_SERVER = 'Cannot reach the server. Check your connection and try again.';
+if (import.meta.env.DEV) {
+  CANNOT_REACH_SERVER = 'Cannot reach the server. Is the backend running on port 4000?';
+}
+
 
 /*
   Sends one request and always returns the same shape, so pages check result.ok
@@ -44,13 +53,15 @@ if (import.meta.env.VITE_API_URL) {
   A session that ends while a page is open (a tab left overnight) sends the next
   request back with code 'no_session'. The browser goes to the login page for that
   code only: a wrong password is also a 401 and must stay on its own page. A full
-  page load clears state that belonged to the old session.
+  page load is used on purpose rather than the router, because it clears every
+  number that belonged to the old session. The current address goes along, so
+  signing in again returns to the same page.
 */
 function goToLoginAfterSessionEnded() {
   const alreadyThere = window.location.pathname === '/login';
 
   if (alreadyThere === false) {
-    window.location.href = '/login';
+    window.location.href = loginPathFor(window.location.pathname + window.location.search);
   }
 }
 
@@ -76,7 +87,7 @@ async function request(path, method, body, isAuthCheck) {
   } catch {
     // The request never arrived: the server is down, the network is off, or the
     // address is wrong.
-    return { ok: false, error: 'Cannot reach the server. Is the backend running on port 4000?' };
+    return { ok: false, error: CANNOT_REACH_SERVER };
   }
 
   let data = {};
@@ -368,7 +379,7 @@ export async function askCoach(question, history, onEvent) {
       body: JSON.stringify({ question: question, history: history }),
     });
   } catch {
-    onEvent({ type: 'error', error: 'Cannot reach the server. Is the backend running on port 4000?' });
+    onEvent({ type: 'error', error: CANNOT_REACH_SERVER });
     return;
   }
 

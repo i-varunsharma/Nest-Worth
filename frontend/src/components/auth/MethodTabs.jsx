@@ -1,12 +1,20 @@
 // The Email and Phone switch on the auth pages. A controlled component: the page
 // holds the choice and this only reports clicks.
 
+import { PHONE_SIGN_IN_ON } from '../../lib/signInOptions';
+
 const options = [
   { value: 'email', label: 'Email' },
   { value: 'phone', label: 'Phone' },
 ];
 
 export default function MethodTabs({ value, onChange }) {
+  // Hidden while phone sign-in is off (see lib/signInOptions.js). With only one
+  // way in there is nothing to switch between, and the page stays on email.
+  if (PHONE_SIGN_IN_ON === false) {
+    return null;
+  }
+
   return (
     <div className="flex gap-1 rounded-full border border-line bg-paperDeep p-1">
       {options.map((option) => {
