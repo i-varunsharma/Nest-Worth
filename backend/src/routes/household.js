@@ -17,13 +17,15 @@ import { checkHousehold, checkPlanChoice, householdValues } from '../validation/
 const router = express.Router();
 router.use(requireUser);
 
-// Shown before onboarding is finished.
+// Shown before onboarding is finished. Living costs start at about 40% of the
+// default income: the question says guessing high is safer, so starting at
+// zero let somebody skip it and get a plan with no rent in it.
 const DEFAULTS = {
   income: 62000,
   dependents: 2,
   hasLoan: true,
   incomeVaries: false,
-  essentialCosts: 0,
+  essentialCosts: 25000,
   chosenPlan: null,
 };
 

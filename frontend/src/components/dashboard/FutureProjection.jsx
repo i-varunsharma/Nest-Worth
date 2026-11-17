@@ -3,6 +3,7 @@ import ProjectionChart from '../landing/ProjectionChart';
 import Eyebrow from '../shared/Eyebrow';
 import { buildProjectionRows } from '../../lib/plan';
 import { formatRupees } from '../../lib/format';
+import { SAFETY_FIRST_MONTHS } from '../../lib/plan';
 
 /*
   What this month's investing grows into. With nothing invested there is nothing
@@ -11,10 +12,15 @@ import { formatRupees } from '../../lib/format';
 
 const PROJECTION_YEARS = 15;
 
-export default function FutureProjection({ monthlyInvestment, isFollowingPlan }) {
+export default function FutureProjection({ monthlyInvestment, isFollowingPlan, isSafetyFirst }) {
   if (monthlyInvestment <= 0) {
     let note = 'There is nothing left to invest once your household and your debts are paid. That changes as '
       + 'soon as either of those does.';
+
+    if (isSafetyFirst === true) {
+      note = 'Your plan is filling your safety net first. Investing starts once you have '
+        + SAFETY_FIRST_MONTHS + ' months of costs in cash.';
+    }
 
     if (isFollowingPlan === true) {
       note = 'This plan sends that money somewhere else first, which is the point of it. The investing starts '
@@ -49,9 +55,14 @@ export default function FutureProjection({ monthlyInvestment, isFollowingPlan })
         <h2 className="max-w-md font-display text-[clamp(1.7rem,3vw,2.3rem)] leading-[1.1] tracking-[-0.02em]">
           {formatRupees(monthlyInvestment)} a month, for {PROJECTION_YEARS} years.
         </h2>
-        <p className="tnum font-display text-[clamp(2rem,4vw,2.8rem)] leading-none text-accent">
-          {formatRupees(finalValue, { short: true })}
-        </p>
+        <div className="text-right">
+          <p className="tnum font-display text-[clamp(2rem,4vw,2.8rem)] leading-none text-accent">
+            {formatRupees(finalValue, { short: true })}
+          </p>
+          {/* The Plans page shows a bigger total for the same plan, because it
+              adds the cash saved too. Saying so stops the two looking like a bug. */}
+          <p className="mt-2 text-2xs text-muted">from investing alone. Plans adds your savings too.</p>
+        </div>
       </div>
 
       <div className="mt-7">

@@ -4,8 +4,8 @@ import Overline from '../shared/Overline';
 import StatTile from '../shared/StatTile';
 import { bucketAmount } from '../../lib/plan';
 import { verdictSentence } from '../../lib/shocks';
-import { VERDICT_LOOKS, monthsText } from './shockSettings';
-import { formatRupees } from '../../lib/format';
+import { VERDICT_LOOKS } from './shockSettings';
+import { countMonths, formatRupees } from '../../lib/format';
 
 /* The verdict, the four key figures, and what would help, for one shock result. */
 
@@ -18,7 +18,7 @@ function suggestionsFor(result, finances) {
 
     if (result.monthsToFix !== null) {
       text = text + ' Your plan saves ' + formatRupees(bucketAmount(finances.plan, 'save'))
-        + ' a month, so that takes about ' + monthsText(result.monthsToFix) + '.';
+        + ' a month, so that takes about ' + countMonths(result.monthsToFix) + '.';
     }
 
     suggestions.push({ key: 'buffer', text: text, link: '/plans', linkText: 'See the safety net plan' });

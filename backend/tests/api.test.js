@@ -50,6 +50,7 @@ delete process.env.AI_PROVIDER;
 // Now, and only now, is it safe to load the app.
 const { createApp } = await import('../src/app.js');
 const { readFinances } = await import('../src/services/financeService.js');
+const { DEFAULT_SUPPORT_PER_PERSON } = await import('../../shared/plan.js');
 
 
 // Port 0 means any free port. Asking for a specific one would fail whenever
@@ -1403,8 +1404,9 @@ test('listing family replaces the estimated support in the plans', async () => {
   const committedAfter = readFinances(userId).finances.scenarios[0].allocation.committed;
 
   // Before: 20000 living costs plus the estimate for two dependents.
-  // After: 20000 living costs plus Papa's real 9000.
-  assert.equal(committedAfter, 20000 + 9000);
+  // After: 20000 living costs, Papa's real 9000, and the estimate for the
+  // second person, who was counted in onboarding but is not listed yet.
+  assert.equal(committedAfter, 20000 + 9000 + DEFAULT_SUPPORT_PER_PERSON);
   assert.notEqual(committedBefore, committedAfter);
 });
 

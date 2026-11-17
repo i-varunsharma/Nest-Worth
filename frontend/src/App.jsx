@@ -21,6 +21,7 @@ import PrivacyPage from './pages/PrivacyPage';
 import TermsPage from './pages/TermsPage';
 import NotFoundPage from './pages/NotFoundPage';
 import RequireAuth from './components/auth/RequireAuth';
+import ErrorBoundary from './components/shared/ErrorBoundary';
 
 /*
   Which page shows at which address.
@@ -84,34 +85,50 @@ function privateRoute(Page) {
   return <RequireAuth>{(user) => <Page user={user} />}</RequireAuth>;
 }
 
+/*
+  Gives every page its own error boundary.
+
+  The key is the address. When the key changes React throws the old boundary
+  away and makes a fresh one, so a crash on one page clears as soon as somebody
+  clicks to another. Without it, one broken page left "Something broke" on
+  every page after it until a full reload.
+*/
+function PageBoundary({ children }) {
+  const location = useLocation();
+
+  return <ErrorBoundary key={location.pathname}>{children}</ErrorBoundary>;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <PageTitle />
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/signup" element={<SignupPage />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/reset-password" element={<ResetPasswordPage />} />
-        <Route path="/privacy" element={<PrivacyPage />} />
-        <Route path="/terms" element={<TermsPage />} />
+      <PageBoundary>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/terms" element={<TermsPage />} />
 
-        <Route path="/onboarding" element={privateRoute(OnboardingPage)} />
-        <Route path="/dashboard" element={privateRoute(DashboardPage)} />
-        <Route path="/family" element={privateRoute(FamilyPage)} />
-        <Route path="/plans" element={privateRoute(PlansPage)} />
-        <Route path="/stress-test" element={privateRoute(StressTestPage)} />
-        <Route path="/debts" element={privateRoute(DebtsPage)} />
-        <Route path="/goals" element={privateRoute(GoalsPage)} />
-        <Route path="/net-worth" element={privateRoute(NetWorthPage)} />
-        <Route path="/spending" element={privateRoute(SpendingPage)} />
-        <Route path="/recap" element={privateRoute(RecapPage)} />
-        <Route path="/check-in" element={privateRoute(CheckInPage)} />
-        <Route path="/settings" element={privateRoute(SettingsPage)} />
+          <Route path="/onboarding" element={privateRoute(OnboardingPage)} />
+          <Route path="/dashboard" element={privateRoute(DashboardPage)} />
+          <Route path="/family" element={privateRoute(FamilyPage)} />
+          <Route path="/plans" element={privateRoute(PlansPage)} />
+          <Route path="/stress-test" element={privateRoute(StressTestPage)} />
+          <Route path="/debts" element={privateRoute(DebtsPage)} />
+          <Route path="/goals" element={privateRoute(GoalsPage)} />
+          <Route path="/net-worth" element={privateRoute(NetWorthPage)} />
+          <Route path="/spending" element={privateRoute(SpendingPage)} />
+          <Route path="/recap" element={privateRoute(RecapPage)} />
+          <Route path="/check-in" element={privateRoute(CheckInPage)} />
+          <Route path="/settings" element={privateRoute(SettingsPage)} />
 
-        <Route path="*" element={<NotFoundPage />} />
-      </Routes>
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </PageBoundary>
     </BrowserRouter>
   );
 }

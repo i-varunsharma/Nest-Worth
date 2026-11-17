@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildPlan, bucketAmount } from '../../shared/plan.js';
+import { buildPlan, bucketAmount, DEFAULT_EMI, DEFAULT_SUPPORT_PER_PERSON } from '../../shared/plan.js';
 import { buildHouseholdPlan, monthlyCostsOf, summariseFinances } from '../../shared/finances.js';
 import { checkFamilyMember, summariseFamily } from '../../shared/family.js';
 import {
@@ -153,11 +153,58 @@ test('with nobody listed, the onboarding estimate is still used', () => {
 
 test('family listed with no monthly support means zero, not the estimate', () => {
   const finances = financesFor({
+    household: { ...household, dependents: 1 },
     family: [{ ...papa, monthlySupport: 0 }],
   });
 
   assert.equal(finances.plan.support, 0);
   assert.equal(finances.dependents, 1);
+});
+
+
+test('people counted in onboarding but not listed keep the estimate', () => {
+  // Said 2 in onboarding, then listed only Papa.
+  const finances = financesFor({ family: [papa] });
+
+  assert.equal(finances.peopleNotListed, 1);
+  assert.equal(finances.dependents, 2);
+  assert.equal(finances.plan.support, papa.monthlySupport + DEFAULT_SUPPORT_PER_PERSON);
+});
+
+
+test('a loan answered yes in onboarding counts before its details are added', () => {
+  const finances = financesFor({ household: { ...household, hasLoan: true }, debts: [] });
+
+  assert.equal(finances.loanDetailsMissing, true);
+  assert.equal(finances.recommendedPlan.emi, DEFAULT_EMI);
+});
+
+
+test('with under three months of cash, nothing is invested yet', () => {
+  const finances = financesFor({ assets: [] });
+
+  assert.equal(bucketAmount(finances.recommendedPlan, 'invest'), 0);
+  assert.equal(finances.recommendedPlan.reasoning.label, 'Safety net first');
+
+  // The money is moved, not lost: free money is still split in full.
+  let total = 0;
+  finances.recommendedPlan.buckets.forEach((bucket) => {
+    total = total + bucket.amount;
+  });
+  assert.ok(Math.abs(total - finances.recommendedPlan.free) <= 2);
+
+  // And the separate "build the safety net" choice is not offered twice.
+  const keys = finances.scenarios.map((scenario) => {
+    return scenario.key;
+  });
+  assert.equal(keys.includes('buffer'), false);
+});
+
+
+test('with three months of cash or more, investing goes ahead', () => {
+  const finances = financesFor({ assets: [{ id: 9, name: 'FD', kind: 'fd', value: 10000000 }] });
+
+  assert.ok(bucketAmount(finances.recommendedPlan, 'invest') > 0);
 });
 
 

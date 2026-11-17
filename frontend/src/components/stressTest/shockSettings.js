@@ -32,12 +32,6 @@ export function shockFor(type, settings) {
   return { type: 'family_support', extraPerMonth: settings.familyExtra, months: settings.familyMonths };
 }
 
-export function monthsText(months) {
-  if (months === 1) {
-    return '1 month';
-  }
-  return months + ' months';
-}
 
 // How each verdict looks, shared by the tabs and the verdict card.
 export const VERDICT_LOOKS = {

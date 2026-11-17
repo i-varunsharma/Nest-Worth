@@ -2,14 +2,14 @@ import Card from '../shared/Card';
 import RecordActions from '../shared/RecordActions';
 import StatTile from '../shared/StatTile';
 import { describeGoal } from '../../lib/goals';
-import { formatRupees } from '../../lib/format';
+import { countMonths, formatRupees } from '../../lib/format';
 
 /* One goal: progress, what is left, and what it needs each month. */
 export default function GoalCard({ goal, onEdit, onDelete }) {
   const detail = describeGoal(goal);
 
   let barColour = 'bg-accent';
-  let status = detail.months + ' months left';
+  let status = countMonths(detail.months) + ' left';
 
   if (detail.isComplete === true) {
     barColour = 'bg-brass';

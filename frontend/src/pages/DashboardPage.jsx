@@ -12,6 +12,7 @@ import OutflowCard from '../components/dashboard/OutflowCard';
 import PlanCard from '../components/dashboard/PlanCard';
 import PriorityCard from '../components/dashboard/PriorityCard';
 import ResilienceCard from '../components/dashboard/ResilienceCard';
+import SetupCard from '../components/dashboard/SetupCard';
 import { Skeleton, SkeletonCard, SkeletonScreen, SkeletonStat } from '../components/shared/Skeleton';
 import useAsyncData from '../hooks/useAsyncData';
 import * as api from '../lib/api';
@@ -100,6 +101,7 @@ export default function DashboardPage({ user }) {
   const finances = data.finances;
   const plan = finances.plan;
   const hasDebts = data.debts.length > 0;
+  const hasAssets = data.assets.length > 0;
   const plannedKeptShare = plannedKeptShareOf(plan);
 
   return (
@@ -114,7 +116,9 @@ export default function DashboardPage({ user }) {
 
       <FollowedPlanBanner scenario={finances.followedScenario} />
 
-      <HeadlineStats finances={finances} goals={data.goals} hasDebts={hasDebts} />
+      <SetupCard finances={finances} hasAssets={hasAssets} />
+
+      <HeadlineStats finances={finances} goals={data.goals} hasDebts={hasDebts} hasAssets={hasAssets} />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
         <PlanCard plan={plan} />
@@ -137,7 +141,8 @@ export default function DashboardPage({ user }) {
           plan={plan}
           dependents={finances.dependents}
           familyListed={finances.family.hasList}
-          hasLoan={hasDebts}
+          hasLoan={plan.emi > 0}
+          emiEstimated={finances.loanDetailsMissing}
         />
       </div>
 
@@ -148,6 +153,7 @@ export default function DashboardPage({ user }) {
       <FutureProjection
         monthlyInvestment={bucketAmount(plan, 'invest')}
         isFollowingPlan={finances.followedScenario !== null}
+        isSafetyFirst={finances.isSafetyFirst}
       />
 
       <p className="mt-14 border-t border-line pt-7 text-2xs text-muted">Educational guidance, not regulated investment advice.</p>

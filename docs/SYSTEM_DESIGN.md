@@ -169,14 +169,17 @@ What `summariseFinances` returns:
 
 | Field | Meaning |
 |---|---|
-| `recommendedPlan` | The split the model suggests |
+| `recommendedPlan` | The split the model suggests. With under 3 months of costs in cash, the investing share is moved into Save (`putSafetyFirst` in `shared/plan.js`) |
+| `isSafetyFirst` | True while that is happening |
 | `plan` | What to show: the chosen plan if one was picked on `/plans`, otherwise the recommendation |
 | `followedScenario` | The chosen plan, or `null` |
 | `scenarios` | Every plan played out fifteen years |
 | `monthlyCosts` | Rent and bills, family support, EMIs and everyday spending |
 | `safety` | Months of cover against the target for this household |
 | `family` | Total support, count, and who has no health cover |
-| `dependents` | The number of family members listed, or the onboarding count if none |
+| `dependents` | Family members listed, plus anyone counted in onboarding who is not listed yet |
+| `peopleNotListed` | Counted in onboarding but not on the Family page. Each still costs the ₹7,500 estimate |
+| `loanDetailsMissing` | Onboarding said a loan is running, but no debt is added. The plan uses the default ₹9,500 EMI |
 | `debtSummary`, `netWorth` | Totals |
 
 ---

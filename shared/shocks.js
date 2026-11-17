@@ -1,5 +1,5 @@
 import { bucketAmount } from './plan.js';
-import { formatRupees } from './format.js';
+import { countMonths, formatRupees } from './format.js';
 import { keepBetween, roundToNearest500 } from './numbers.js';
 
 /*
@@ -141,13 +141,13 @@ function medicalDetails(amount, family) {
 function describeShock(shock, finances, medical) {
   if (shock.type === 'job_loss') {
     if (finances.incomeVaries === true) {
-      return 'Work dries up completely for ' + shock.months + ' months.';
+      return 'Work dries up completely for ' + countMonths(shock.months) + '.';
     }
-    return 'Your income stops for ' + shock.months + ' months.';
+    return 'Your income stops for ' + countMonths(shock.months) + '.';
   }
 
   if (shock.type === 'income_cut') {
-    return 'Your income falls by ' + shock.percent + '% for ' + shock.months + ' months.';
+    return 'Your income falls by ' + shock.percent + '% for ' + countMonths(shock.months) + '.';
   }
 
   if (shock.type === 'medical') {
@@ -165,7 +165,7 @@ function describeShock(shock, finances, medical) {
   }
 
   return 'Someone in your family needs ' + formatRupees(shock.extraPerMonth)
-    + ' more a month for ' + shock.months + ' months.';
+    + ' more a month for ' + countMonths(shock.months) + '.';
 }
 
 
@@ -343,7 +343,7 @@ export function verdictSentence(result) {
       + '. You would need ' + formatRupees(result.shortfall) + ' more put by to get through it.';
 
     if (result.monthsToFix !== null) {
-      sentence = sentence + ' At your current saving that takes ' + result.monthsToFix + ' months.';
+      sentence = sentence + ' At your current saving that takes ' + countMonths(result.monthsToFix) + '.';
     }
 
     return sentence;

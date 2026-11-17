@@ -19,6 +19,11 @@ function formatMonths(months) {
 function debtHeadline(finances, hasDebts) {
   const summary = finances.debtSummary;
 
+  // Onboarding said a loan is running, but it has not been added yet.
+  if (finances.loanDetailsMissing === true) {
+    return { value: 'Not set', note: 'add your loan', isNegative: false };
+  }
+
   if (hasDebts === false) {
     return { value: 'Now', note: 'Nothing owed', isNegative: false };
   }
@@ -49,11 +54,29 @@ function goalHeadline(finances, goals) {
   return { value: String(goals.length), note: 'over budget', isNegative: true };
 }
 
-export default function HeadlineStats({ finances, goals, hasDebts }) {
+/*
+  With nothing on the Net worth page the app does not know the savings, so it
+  says "Not set" rather than a red 0.0 months that may well be wrong.
+*/
+function safetyHeadline(safety, hasAssets) {
+  if (hasAssets === false) {
+    return { value: 'Not set', note: 'add your savings', isNegative: false };
+  }
+
+  return {
+    countTo: safety.monthsCovered,
+    format: formatMonths,
+    note: 'target ' + safety.monthsTarget + ' months',
+    isNegative: safety.isEnough === false,
+  };
+}
+
+export default function HeadlineStats({ finances, goals, hasDebts, hasAssets }) {
   const netWorth = finances.netWorth;
   const safety = finances.safety;
   const debt = debtHeadline(finances, hasDebts);
   const goal = goalHeadline(finances, goals);
+  const safetyFigure = safetyHeadline(safety, hasAssets);
 
   const headlines = [
     {
@@ -65,14 +88,7 @@ export default function HeadlineStats({ finances, goals, hasDebts }) {
       isNegative: netWorth.netWorth < 0,
     },
     { to: '/debts', label: 'Debt free', value: debt.value, note: debt.note, isNegative: debt.isNegative },
-    {
-      to: '/net-worth',
-      label: 'Safety net',
-      countTo: safety.monthsCovered,
-      format: formatMonths,
-      note: 'target ' + safety.monthsTarget + ' months',
-      isNegative: safety.isEnough === false,
-    },
+    { to: '/net-worth', label: 'Safety net', ...safetyFigure },
     { to: '/goals', label: 'Goals', value: goal.value, note: goal.note, isNegative: goal.isNegative },
   ];
 

@@ -7,24 +7,33 @@ import * as api from '../lib/api';
   up, and again from Settings to change the answers.
 */
 
-// The saved answers, so coming back to edit shows them rather than defaults.
+/*
+  The saved answers, so coming back to edit shows them rather than defaults,
+  and whether any assets exist yet, which decides if savings is asked about.
+*/
 async function loadHouseholdAnswers() {
-  const result = await api.getHousehold();
+  const results = await Promise.all([api.getHousehold(), api.getAssets()]);
 
-  if (result.ok === false) {
-    return result;
+  for (const result of results) {
+    if (result.ok === false) {
+      return result;
+    }
   }
 
-  const saved = result.data.household;
+  const saved = results[0].data.household;
+  const assets = results[1].data.assets;
 
   return {
     ok: true,
     data: {
-      income: saved.income,
-      dependents: saved.dependents,
-      hasLoan: saved.hasLoan,
-      incomeVaries: saved.incomeVaries,
-      essentialCosts: saved.essentialCosts,
+      household: {
+        income: saved.income,
+        dependents: saved.dependents,
+        hasLoan: saved.hasLoan,
+        incomeVaries: saved.incomeVaries,
+        essentialCosts: saved.essentialCosts,
+      },
+      askSavings: assets.length === 0,
     },
   };
 }
@@ -49,5 +58,5 @@ export default function OnboardingPage({ user }) {
   }
 
   // The flow is only mounted once the answers exist, so its state starts from them.
-  return <OnboardingFlow user={user} household={answers.data} />;
+  return <OnboardingFlow user={user} household={answers.data.household} askSavings={answers.data.askSavings} />;
 }

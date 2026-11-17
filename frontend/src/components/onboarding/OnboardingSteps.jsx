@@ -3,6 +3,7 @@ import ChoiceCards from './ChoiceCards';
 import Question from './Question';
 import TextField from '../shared/TextField';
 import { formatRupees } from '../../lib/format';
+import { DEFAULT_EMI } from '../../lib/plan';
 
 /*
   The onboarding questions, one component each. Each receives the household
@@ -16,12 +17,18 @@ export const HIGHEST_INCOME = 250000;
 // at or above the whole income, so the slider never needs to reach it.
 const HIGHEST_COSTS_SHARE = 0.7;
 
-const DEPENDENT_CHOICES = [0, 1, 2, 3];
+// Joint families often support more than three people, so the choices go to 6.
+// Anything larger can be listed person by person on the Family page.
+const DEPENDENT_CHOICES = [0, 1, 2, 3, 4, 5, 6];
+
+// The savings slider. Typing allows any amount above this.
+const HIGHEST_SAVINGS_ON_SLIDER = 1000000;
+const SAVINGS_STEP = 5000;
 
 
 export function NameStep({ name, error, onChange }) {
   return (
-    <Question title="First, what should we call you?" intro="You signed in with your number, so we do not have a name yet.">
+    <Question title="First, what should we call you?" intro="We use it on your dashboard and nowhere else.">
       <div className="max-w-sm">
         <TextField id="name" label="Your name" type="text" value={name} onChange={onChange} error={error} placeholder="Varun Sharma" autoComplete="name" />
       </div>
@@ -54,6 +61,7 @@ export function IncomeStep({ household, onChange }) {
         lowLabel="₹20k"
         highLabel="₹2.5L"
         onChange={handleChange}
+        allowTyping
       />
     </Question>
   );
@@ -141,16 +149,44 @@ export function DependentsStep({ household, onChange }) {
 
 export function LoanStep({ household, onChange }) {
   const options = [
-    { value: true, label: 'Yes, still paying', note: 'We will prioritise clearing it' },
+    { value: true, label: 'Yes, still paying', note: 'Add its rate and EMI after this' },
     { value: false, label: 'No loan', note: 'More room to invest early' },
   ];
 
   return (
     <Question
-      title="Is an education loan still running?"
-      intro="Education loans in India usually charge around 11%. That is more than the market reliably pays, so if one is running we clear it before putting money into investments."
+      title="Is a loan still running?"
+      intro={
+        'An education loan, a personal loan, a card you are paying off. If its rate is above the 11% '
+        + 'the market has paid over long periods, spare money goes towards clearing it. Below that, '
+        + 'investing carries on. Until you add the real EMI, we assume ' + formatRupees(DEFAULT_EMI) + ' a month.'
+      }
     >
       <ChoiceCards options={options} value={household.hasLoan} onChange={(hasLoan) => onChange({ hasLoan: hasLoan })} />
+    </Question>
+  );
+}
+
+
+export function SavingsStep({ savings, onChange }) {
+  return (
+    <Question
+      title="How much could you get to this week?"
+      intro="Cash in your savings account and fixed deposits you could break. Not mutual funds, EPF or gold: they take longer to turn into cash, or lose value if sold in a hurry."
+      footnote="This is your safety net. Until it covers three months of costs, the plan holds money as cash rather than investing it."
+    >
+      <AmountSlider
+        id="savings"
+        label="Cash and FDs"
+        value={savings}
+        min={0}
+        max={HIGHEST_SAVINGS_ON_SLIDER}
+        step={SAVINGS_STEP}
+        lowLabel="Nothing yet"
+        highLabel="₹10L"
+        onChange={onChange}
+        allowTyping
+      />
     </Question>
   );
 }

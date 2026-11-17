@@ -1,4 +1,4 @@
-import { formatRupees } from './format.js';
+import { countMonths, formatRupees } from './format.js';
 import { keepBetween } from './numbers.js';
 
 /*
@@ -21,6 +21,11 @@ export const ASSUMED_YEARLY_INFLATION = 0.06;
 // your salary goes up, and an EMI is set by the loan, not by your pay.
 export const DEFAULT_SUPPORT_PER_PERSON = 7500;
 export const DEFAULT_EMI = 9500;
+
+// Below this many months of costs in cash, nothing is invested yet. Every
+// personal finance rule starts with an emergency fund, and money in an index
+// fund is no help in a month when the salary does not arrive.
+export const SAFETY_FIRST_MONTHS = 3;
 
 /*
   How the split shifts with income. Between two of these points the shift is
@@ -260,6 +265,63 @@ export function buildPlan(household) {
     shortfall: shortfall,
     buckets: buckets,
     reasoning: reasoning,
+  };
+}
+
+
+/*
+  Returns a copy of the plan with the investing money moved into Save, for
+  somebody with less than SAFETY_FIRST_MONTHS of costs in cash.
+
+    plan           from buildPlan
+    cashSavings    cash and FDs they could reach this week
+    monthlyCosts   what one month costs, from monthlyCostsOf
+
+  Spend is not touched. Nothing changes when there is nothing to invest, or
+  when the costs are already bigger than the income: that message matters more.
+*/
+export function putSafetyFirst(plan, cashSavings, monthlyCosts) {
+  const investAmount = bucketAmount(plan, 'invest');
+
+  if (plan.shortfall > 0 || investAmount <= 0 || monthlyCosts <= 0) {
+    return plan;
+  }
+
+  // buildPlan always lists the buckets in this order.
+  const spendBucket = plan.buckets[0];
+  const saveBucket = plan.buckets[1];
+  const investBucket = plan.buckets[2];
+
+  const newSave = saveBucket.amount + investBucket.amount;
+
+  const buckets = [
+    spendBucket,
+    { ...saveBucket, percent: saveBucket.percent + investBucket.percent, amount: newSave },
+    { ...investBucket, percent: 0, amount: 0 },
+  ];
+  const firstTarget = monthlyCosts * SAFETY_FIRST_MONTHS;
+  const stillNeeded = firstTarget - cashSavings;
+
+  // Rounded to one decimal, the same way the dashboard shows it.
+  const monthsNow = Math.round((cashSavings / monthlyCosts) * 10) / 10;
+
+  let text = 'You have ' + monthsNow + ' months of costs in cash. Until that reaches '
+    + SAFETY_FIRST_MONTHS + ' months (' + formatRupees(firstTarget) + '), the investing share goes into Save as well.';
+
+  if (newSave > 0) {
+    const monthsToGo = Math.ceil(stillNeeded / newSave);
+    text = text + ' At ' + formatRupees(newSave) + ' a month that takes about '
+      + countMonths(monthsToGo) + ', then investing starts.';
+  }
+
+  if (plan.emi > 0) {
+    text = text + ' Your ' + formatRupees(plan.emi) + ' EMI keeps running as normal.';
+  }
+
+  return {
+    ...plan,
+    buckets: buckets,
+    reasoning: { tone: 'clay', label: 'Safety net first', text: text },
   };
 }
 

@@ -1,5 +1,5 @@
 import Overline from '../shared/Overline';
-import { formatRupees, monthLabel } from '../../lib/format';
+import { countMonths, formatRupees, monthLabel } from '../../lib/format';
 
 /*
   What the recorded months add up to, from GET /api/insights, where the running
@@ -23,7 +23,7 @@ export default function HistorySummary({ insights }) {
     {
       label: 'Kept in total',
       value: formatRupees(latest.keptRunningTotal, { short: true }),
-      note: 'across ' + summary.monthsRecorded + ' months',
+      note: 'across ' + countMonths(summary.monthsRecorded),
     },
     { label: 'Average kept', value: summary.averageKeptPercent + '%', note: 'of what you earned' },
   ];

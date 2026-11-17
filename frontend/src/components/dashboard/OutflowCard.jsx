@@ -7,7 +7,8 @@ import { formatRupees } from '../../lib/format';
     plan          from summariseFinances
     dependents    how many people are supported
     familyListed  true once the Family page has people on it
-    hasLoan       whether any debt is running
+    hasLoan       whether any EMI is being paid
+    emiEstimated  true when the EMI is the default because no loan is added yet
 */
 
 const barColours = {
@@ -17,7 +18,7 @@ const barColours = {
   accent: 'bg-accent',
 };
 
-export default function OutflowCard({ plan, dependents, familyListed, hasLoan }) {
+export default function OutflowCard({ plan, dependents, familyListed, hasLoan, emiEstimated }) {
   // Work the changing sentences out first, so the JSX below stays readable.
   let supportNote = 'Nobody depends on you yet';
   if (dependents === 1) {
@@ -34,6 +35,9 @@ export default function OutflowCard({ plan, dependents, familyListed, hasLoan })
   let emiNote = 'No loan running';
   if (hasLoan === true) {
     emiNote = 'Paid before anything else, every month';
+  }
+  if (emiEstimated === true) {
+    emiNote = 'Estimated: add the loan on the Debts page for the real EMI';
   }
 
   /*

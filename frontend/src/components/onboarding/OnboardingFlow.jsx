@@ -8,6 +8,7 @@ import {
   IncomeVariesStep,
   LoanStep,
   NameStep,
+  SavingsStep,
 } from './OnboardingSteps';
 import Button from '../shared/Button';
 import Container from '../shared/Container';
@@ -20,19 +21,31 @@ import * as api from '../../lib/api';
   Somebody who signed up with a phone number has no name yet, so the name
   question is added only for them.
 
+  The savings question is asked only when nothing is on the Net worth page
+  yet. Coming back from Settings to change an answer must not add a second
+  "Savings" entry next to the one already there.
+
   Props:
-    user       the signed-in person
-    household  the saved answers, or sensible defaults for a new account
+    user         the signed-in person
+    household    the saved answers, or sensible defaults for a new account
+    askSavings   true when no assets have been added yet
 */
 
 const MIN_NAME_LENGTH = 2;
 
-export default function OnboardingFlow({ user, household: savedHousehold }) {
+// The server refuses anything below this, so the form says so first.
+const MIN_TYPED_INCOME = 1000;
+
+// The name of the Net worth entry the savings answer becomes.
+const SAVINGS_ENTRY_NAME = 'Savings';
+
+export default function OnboardingFlow({ user, household: savedHousehold, askSavings }) {
   const navigate = useNavigate();
 
   const [stepIndex, setStepIndex] = useState(0);
   const [name, setName] = useState(user.name || '');
   const [household, setHousehold] = useState(savedHousehold);
+  const [savings, setSavings] = useState(0);
   const [nameError, setNameError] = useState('');
   const [formError, setFormError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -42,6 +55,9 @@ export default function OnboardingFlow({ user, household: savedHousehold }) {
     steps.push('name');
   }
   steps.push('income', 'costs', 'steady', 'dependents', 'loan');
+  if (askSavings === true) {
+    steps.push('savings');
+  }
 
   const currentStep = steps[stepIndex];
   const isLastStep = stepIndex === steps.length - 1;
@@ -67,13 +83,26 @@ export default function OnboardingFlow({ user, household: savedHousehold }) {
 
     const result = await api.saveHousehold(household);
 
-    setIsSaving(false);
-
     if (result.ok === false) {
+      setIsSaving(false);
       setFormError(result.error);
       return;
     }
 
+    // Saved as a cash entry on the Net worth page, which is where the safety
+    // net is counted from. Zero is saved too: it is a real answer, and it
+    // stops the dashboard asking for savings again.
+    if (steps.includes('savings')) {
+      const savingsResult = await api.addAsset({ name: SAVINGS_ENTRY_NAME, kind: 'cash', value: savings });
+
+      if (savingsResult.ok === false) {
+        setIsSaving(false);
+        setFormError(savingsResult.error);
+        return;
+      }
+    }
+
+    setIsSaving(false);
     navigate('/dashboard');
   }
 
@@ -86,6 +115,12 @@ export default function OnboardingFlow({ user, household: savedHousehold }) {
         return;
       }
       setNameError('');
+    }
+
+    // A typed income can be anything, including empty.
+    if (currentStep === 'income' && household.income < MIN_TYPED_INCOME) {
+      setFormError('Enter your monthly take-home pay.');
+      return;
     }
 
     if (isLastStep === true) {
@@ -108,8 +143,10 @@ export default function OnboardingFlow({ user, household: savedHousehold }) {
     question = <IncomeVariesStep household={household} onChange={changeHousehold} />;
   } else if (currentStep === 'dependents') {
     question = <DependentsStep household={household} onChange={changeHousehold} />;
-  } else {
+  } else if (currentStep === 'loan') {
     question = <LoanStep household={household} onChange={changeHousehold} />;
+  } else {
+    question = <SavingsStep savings={savings} onChange={setSavings} />;
   }
 
   let nextLabel = 'Continue';

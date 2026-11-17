@@ -5,6 +5,7 @@ import Notice from '../shared/Notice';
 import TextField from '../shared/TextField';
 import * as api from '../../lib/api';
 import { bucketAmount } from '../../lib/plan';
+import { monthlyCostsOf } from '../../lib/finances';
 import { currentMonth, formatRupees } from '../../lib/format';
 
 /*
@@ -40,7 +41,13 @@ export default function CheckinForm({ plan, prefill, onSaved }) {
   const [isSaving, setIsSaving] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
 
-  const plannedSpend = bucketAmount(plan, 'spend');
+  // Everything that leaves in a month: rent, family, EMIs and everyday
+  // spending. "Spent" is filled from a whole bank statement, so comparing it
+  // with the Spend bucket alone made every month look like a huge overspend.
+  let plannedSpend = 0;
+  if (plan !== null) {
+    plannedSpend = monthlyCostsOf(plan);
+  }
   const plannedSave = bucketAmount(plan, 'save');
   const plannedInvest = bucketAmount(plan, 'invest');
 
@@ -49,6 +56,13 @@ export default function CheckinForm({ plan, prefill, onSaved }) {
       return '';
     }
     return 'Plan said ' + formatRupees(amount);
+  }
+
+  function spentHint(amount) {
+    if (plan === null) {
+      return '';
+    }
+    return 'Plan said ' + formatRupees(amount) + ', with rent, family and EMIs';
   }
 
   const handleSubmit = async (event) => {
@@ -103,7 +117,7 @@ export default function CheckinForm({ plan, prefill, onSaved }) {
         </div>
 
         <TextField id="ci-income" label="Income that arrived" type="text" value={income} onChange={setIncome} placeholder="62000" prefix="₹" inputMode="numeric" />
-        <TextField id="ci-spent" label="Spent" type="text" value={spent} onChange={setSpent} placeholder={String(plannedSpend)} prefix="₹" inputMode="numeric" hint={planHint(plannedSpend)} />
+        <TextField id="ci-spent" label="Spent in total" type="text" value={spent} onChange={setSpent} placeholder={String(plannedSpend)} prefix="₹" inputMode="numeric" hint={spentHint(plannedSpend)} />
         <TextField id="ci-saved" label="Saved" type="text" value={saved} onChange={setSaved} placeholder={String(plannedSave)} prefix="₹" inputMode="numeric" hint={planHint(plannedSave)} />
         <TextField id="ci-invested" label="Invested" type="text" value={invested} onChange={setInvested} placeholder={String(plannedInvest)} prefix="₹" inputMode="numeric" hint={planHint(plannedInvest)} />
         <TextField id="ci-note" label="Anything worth remembering?" type="text" value={note} onChange={setNote} placeholder="Sister's fees were due" />

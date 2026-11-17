@@ -99,5 +99,5 @@ test('regression: income from a bank statement is not replaced by the planned in
   );
 
   expect(await screen.findByLabelText('Income that arrived')).toHaveValue('91234');
-  expect(screen.getByLabelText('Spent')).toHaveValue('60000');
+  expect(screen.getByLabelText('Spent in total')).toHaveValue('60000');
 });

@@ -211,7 +211,7 @@ export function buildScenarios(options) {
       key: 'debt',
       name: 'Clear the expensive debt first',
       idea: 'Send the investing money, and half the saving, at your '
-        + worstDebt.name.toLowerCase() + ' until it is gone.',
+        + worstDebt.name + ' until it is gone.',
       spend: baseSpend,
       save: baseSave - halfSave,
       invest: 0,
@@ -219,10 +219,12 @@ export function buildScenarios(options) {
     });
   }
 
-  // 3. Fill the emergency fund. Only if it is not already full.
+  // 3. Fill the emergency fund. Only if it is not already full, and only if the
+  // plan still invests something. Below SAFETY_FIRST_MONTHS the recommended plan
+  // already holds the investing money as cash, so this would be a copy of it.
   const fundTarget = options.monthlyCosts * options.monthsTarget;
 
-  if (options.liquidSavings < fundTarget) {
+  if (options.liquidSavings < fundTarget && baseInvest > 0) {
     choices.push({
       key: 'buffer',
       name: 'Build the safety net first',

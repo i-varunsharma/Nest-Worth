@@ -82,7 +82,7 @@ export default function FamilyPage({ user }) {
         </EmptyState>
       ) : null}
 
-      {family.length > 0 ? <FamilySummary finances={finances} peopleCount={family.length} /> : null}
+      {family.length > 0 ? <FamilySummary finances={finances} /> : null}
 
       <HealthCoverWarning finances={finances} family={family} />
 

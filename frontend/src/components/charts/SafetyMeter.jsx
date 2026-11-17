@@ -1,3 +1,4 @@
+import { countMonths } from '../../lib/format';
 /*
   Months of emergency cover against the target, as a meter with a target line.
   One ratio against a limit needs a meter, not a chart. The fill uses the one-hue
@@ -49,7 +50,7 @@ export default function SafetyMeter({ monthsCovered, monthsTarget }) {
     verdict = 'Past the ' + monthsTarget + ' months this household should aim for.';
   } else {
     const short = Math.round((monthsTarget - monthsCovered) * 10) / 10;
-    verdict = short + ' months short of the ' + monthsTarget + ' you should aim for.';
+    verdict = countMonths(short) + ' short of the ' + monthsTarget + ' you should aim for.';
   }
 
   return (

@@ -151,6 +151,12 @@ function countOf(number, singular, plural) {
 }
 
 
+/* 1 -> "1 month", 3 -> "3 months". Stops "1 months" showing up on a page. */
+export function countMonths(number) {
+  return countOf(number, 'month', 'months');
+}
+
+
 /* 52 -> "4 years 4 months", 7 -> "7 months", 0 -> "now". */
 export function formatDuration(months) {
   if (months <= 0) {

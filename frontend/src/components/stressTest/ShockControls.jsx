@@ -1,5 +1,5 @@
 import SliderField from '../shared/SliderField';
-import { monthsText } from './shockSettings';
+import { countMonths } from '../../lib/format';
 import { formatRupees } from '../../lib/format';
 
 /* The sliders for the selected shock. onChange(key, value) updates one setting. */
@@ -15,7 +15,7 @@ const CUT_STEP = 5;
 
 function MonthsSlider({ id, label, value, onChange }) {
   return (
-    <SliderField id={id} label={label} value={value} valueText={monthsText(value)} min={1} max={MAX_MONTHS} step={1} onChange={onChange} />
+    <SliderField id={id} label={label} value={value} valueText={countMonths(value)} min={1} max={MAX_MONTHS} step={1} onChange={onChange} />
   );
 }
 
