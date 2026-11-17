@@ -132,7 +132,6 @@ export function monthlyCostsOf(plan) {
     dependents        how many people the salary supports
     peopleNotListed   counted in onboarding but not on the Family page yet
     loanDetailsMissing  a loan was answered "yes" but no debt is added
-    isSafetyFirst     true while the investing money is held as cash instead
     family            summariseFamily's result
     debtSummary       totals and the debt free date
     netWorth          owned, owed, and the part that is cash
@@ -178,16 +177,8 @@ export function summariseFinances(input) {
   // With less than SAFETY_FIRST_MONTHS of cash, the investing money is held as
   // cash instead. Moving it from Invest to Save leaves Spend alone, so
   // monthlyCosts above is still right.
-  let isSafetyFirst = false;
-
   if (safety.monthsCovered < SAFETY_FIRST_MONTHS) {
-    const saferPlan = putSafetyFirst(recommendedPlan, netWorth.liquidAssets, monthlyCosts);
-
-    // putSafetyFirst hands back the same plan when there was nothing to move.
-    if (saferPlan !== recommendedPlan) {
-      isSafetyFirst = true;
-      recommendedPlan = saferPlan;
-    }
+    recommendedPlan = putSafetyFirst(recommendedPlan, netWorth.liquidAssets, monthlyCosts);
   }
 
   const scenarios = buildScenarios({
@@ -217,7 +208,6 @@ export function summariseFinances(input) {
     dependents: dependents,
     peopleNotListed: notListed,
     loanDetailsMissing: isLoanDetailsMissing(household, debts),
-    isSafetyFirst: isSafetyFirst,
     family: familySummary,
     debtSummary: debtSummary,
     netWorth: netWorth,

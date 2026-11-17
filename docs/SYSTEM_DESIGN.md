@@ -170,7 +170,6 @@ What `summariseFinances` returns:
 | Field | Meaning |
 |---|---|
 | `recommendedPlan` | The split the model suggests. With under 3 months of costs in cash, the investing share is moved into Save (`putSafetyFirst` in `shared/plan.js`) |
-| `isSafetyFirst` | True while that is happening |
 | `plan` | What to show: the chosen plan if one was picked on `/plans`, otherwise the recommendation |
 | `followedScenario` | The chosen plan, or `null` |
 | `scenarios` | Every plan played out fifteen years |

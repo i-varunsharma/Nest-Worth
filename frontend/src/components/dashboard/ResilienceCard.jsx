@@ -69,7 +69,7 @@ export default function ResilienceCard({ summary, familyListed }) {
                 <span aria-hidden="true" className={dotClasses} />
                 {result.title}
               </span>
-              <span className="text-2xs font-semibold text-muted">{verdictWords[result.verdict]}</span>
+              <span className="whitespace-nowrap text-2xs font-semibold text-muted">{verdictWords[result.verdict]}</span>
             </li>
           );
         })}

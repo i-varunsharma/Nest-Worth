@@ -93,7 +93,9 @@ export default function HeadlineStats({ finances, goals, hasDebts, hasAssets }) 
   ];
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    // Two across even on a phone. One per row made the four tiles fill the
+    // whole first screen and pushed the plan below the fold.
+    <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
       {headlines.map((item) => {
         let valueColour = 'text-accent';
         if (item.isNegative === true) {
@@ -109,10 +111,10 @@ export default function HeadlineStats({ finances, goals, hasDebts, hasAssets }) 
           <Link
             key={item.label}
             to={item.to}
-            className="group rounded-[18px] border border-line bg-surface p-5 shadow-card transition-all duration-300 ease-smooth hover:-translate-y-0.5 hover:border-ink/25 hover:shadow-lift"
+            className="group rounded-[18px] border border-line bg-surface p-4 shadow-card sm:p-5 transition-all duration-300 ease-smooth hover:-translate-y-0.5 hover:border-ink/25 hover:shadow-lift"
           >
             <Overline>{item.label}</Overline>
-            <p className={'tnum mt-2.5 font-display text-[28px] leading-none ' + valueColour}>{valueContent}</p>
+            <p className={'tnum mt-2.5 font-display text-[22px] leading-none sm:text-[28px] ' + valueColour}>{valueContent}</p>
             <p className="mt-2 text-2xs text-muted">{item.note}</p>
           </Link>
         );

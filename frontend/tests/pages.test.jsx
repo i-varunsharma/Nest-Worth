@@ -67,9 +67,12 @@ test('the dashboard draws the plan, the headline figures and the stress test', a
   expect(screen.getByText('Safety net')).toBeInTheDocument();
   expect(screen.getByText('shocks survived')).toBeInTheDocument();
 
-  // Papa is listed, so support is the real amount rather than the estimate.
-  expect(screen.getByText('Family support')).toBeInTheDocument();
-  expect(screen.queryByText(/Estimated: add them on the Family page/)).not.toBeInTheDocument();
+  // Onboarding said 2 people and only Papa is listed, so one is still an
+  // estimate. The loan and savings are both entered, so neither is asked for.
+  expect(screen.getByText('Still estimated')).toBeInTheDocument();
+  expect(screen.getByText(/1 person still counted/)).toBeInTheDocument();
+  expect(screen.queryByText('Add your loan')).not.toBeInTheDocument();
+  expect(screen.queryByText('Add your savings')).not.toBeInTheDocument();
 });
 
 

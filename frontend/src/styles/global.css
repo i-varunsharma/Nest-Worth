@@ -43,7 +43,9 @@
     /* ---- Text ---- */
     --color-ink: 18 16 13;
     --color-ink2: 61 55 47;
-    --color-muted: 122 113 104;
+    /* Darkened from 122 113 104, which was 4.4:1 on paper and failed WCAG AA
+       for the small grey notes. This is 4.9:1 on paper, 4.5:1 on paperDeep. */
+    --color-muted: 114 105 96;
 
     /* ---- Lines ---- */
     --color-line: 228 221 210;

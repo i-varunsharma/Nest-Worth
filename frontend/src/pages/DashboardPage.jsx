@@ -6,9 +6,7 @@ import CheckInLink from '../components/dashboard/CheckInLink';
 import CoachCard from '../components/dashboard/CoachCard';
 import ConsistencyCard from '../components/dashboard/ConsistencyCard';
 import FollowedPlanBanner from '../components/dashboard/FollowedPlanBanner';
-import FutureProjection from '../components/dashboard/FutureProjection';
 import HeadlineStats from '../components/dashboard/HeadlineStats';
-import OutflowCard from '../components/dashboard/OutflowCard';
 import PlanCard from '../components/dashboard/PlanCard';
 import PriorityCard from '../components/dashboard/PriorityCard';
 import ResilienceCard from '../components/dashboard/ResilienceCard';
@@ -137,24 +135,8 @@ export default function DashboardPage({ user }) {
       </div>
 
       <div className="mt-6">
-        <OutflowCard
-          plan={plan}
-          dependents={finances.dependents}
-          familyListed={finances.family.hasList}
-          hasLoan={plan.emi > 0}
-          emiEstimated={finances.loanDetailsMissing}
-        />
-      </div>
-
-      <div className="mt-6">
         <ConsistencyCard summary={summariseCheckins(data.checkins, plannedKeptShare)} plannedKeptShare={plannedKeptShare} />
       </div>
-
-      <FutureProjection
-        monthlyInvestment={bucketAmount(plan, 'invest')}
-        isFollowingPlan={finances.followedScenario !== null}
-        isSafetyFirst={finances.isSafetyFirst}
-      />
 
       <p className="mt-14 border-t border-line pt-7 text-2xs text-muted">Educational guidance, not regulated investment advice.</p>
     </AppShell>
