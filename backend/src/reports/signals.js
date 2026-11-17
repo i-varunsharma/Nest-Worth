@@ -41,7 +41,7 @@ function previousMonth(month) {
 
 // Each spending category this month next to the same category last month. A LEFT
 // JOIN, so a category that is new this month still appears, with NULL for last month.
-export function spendingChanges(userId, month) {
+function spendingChanges(userId, month) {
   const rows = db.prepare(`
     SELECT
       now.category                AS category,

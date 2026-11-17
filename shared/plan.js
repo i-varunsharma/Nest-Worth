@@ -494,7 +494,7 @@ export function inTodaysMoney(futureValue, years) {
 // What a monthly investment (SIP) grows into after some years, using the
 // standard formula with ASSUMED_YEARLY_RETURN. Each month's amount is assumed
 // to go in at the start of the month.
-export function projectInvestment(monthly, years) {
+function projectInvestment(monthly, years) {
   if (monthly <= 0) {
     return 0;
   }

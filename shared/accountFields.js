@@ -19,10 +19,10 @@
 const MIN_NAME_LENGTH = 2;
 const MAX_NAME_LENGTH = 80;
 const MAX_EMAIL_LENGTH = 255;
-export const MIN_PASSWORD_LENGTH = 8;
+const MIN_PASSWORD_LENGTH = 8;
 
 // bcrypt only reads the first 72 bytes, so a longer password is no stronger.
-export const MAX_PASSWORD_LENGTH = 72;
+const MAX_PASSWORD_LENGTH = 72;
 
 const PHONE_DIGITS = 10;
 const OTP_DIGITS = 6;

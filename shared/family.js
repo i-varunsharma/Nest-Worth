@@ -21,7 +21,7 @@ export const RELATIONS = [
 
 // The highest monthly support the API accepts for one person. Anything above
 // this is almost always a typo with an extra zero.
-export const MAX_MONTHLY_SUPPORT = 10000000;
+const MAX_MONTHLY_SUPPORT = 10000000;
 
 
 /* The label for a stored relation, or "Someone else" for anything unknown. */

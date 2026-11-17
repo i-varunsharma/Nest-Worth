@@ -41,15 +41,6 @@ if (import.meta.env.DEV) {
 
 
 /*
-  Sends one request and always returns the same shape, so pages check result.ok
-  instead of wrapping every call in try and catch:
-
-    { ok: true,  data }
-    { ok: false, error, field, code, status }
-
-  field names the form input the error belongs to, when the server knows it.
-*/
-/*
   A session that ends while a page is open (a tab left overnight) sends the next
   request back with code 'no_session'. The browser goes to the login page for that
   code only: a wrong password is also a 401 and must stay on its own page. A full
@@ -66,8 +57,18 @@ function goToLoginAfterSessionEnded() {
 }
 
 
-// isAuthCheck is true only for me(), whose job is to ask whether anybody is
-// signed in, so a 401 there is an answer rather than an ended session.
+/*
+  Sends one request and always returns the same shape, so pages check result.ok
+  instead of wrapping every call in try and catch:
+
+    { ok: true,  data }
+    { ok: false, error, field, code, status }
+
+  field names the form input the error belongs to, when the server knows it.
+
+  isAuthCheck is true only for me(), whose job is to ask whether anybody is
+  signed in, so a 401 there is an answer rather than an ended session.
+*/
 async function request(path, method, body, isAuthCheck) {
   const options = {
     method: method,
@@ -384,7 +385,7 @@ export async function askCoach(question, history, onEvent) {
   }
 
   // A refusal is ordinary JSON with an error status, sent before any streaming.
-  if (!response.ok) {
+  if (response.ok === false) {
     let message = 'Something went wrong. Please try again.';
 
     try {

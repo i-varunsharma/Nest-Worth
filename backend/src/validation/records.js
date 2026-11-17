@@ -16,7 +16,7 @@ const MIN_YEAR = 2000;
 const MAX_YEAR = 2100;
 
 export const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
-export const YEAR_PATTERN = /^\d{4}$/;
+const YEAR_PATTERN = /^\d{4}$/;
 
 
 function kindValues(kinds) {

@@ -9,7 +9,7 @@ const MIN_INCOME = 1000;
 const MAX_INCOME = 100000000;
 const MAX_DEPENDENTS = 20;
 
-export const KNOWN_PLANS = ['balanced', 'debt', 'buffer', 'invest'];
+const KNOWN_PLANS = ['balanced', 'debt', 'buffer', 'invest'];
 
 
 export function checkHousehold(body) {
