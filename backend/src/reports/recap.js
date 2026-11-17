@@ -44,7 +44,7 @@ export function monthsCovered(userId, year) {
   only matching rows, so several totals come from one pass. The category lists must
   match shared/categories.js: investing is money moved, not spent.
 */
-export function yearTotals(userId, year) {
+function yearTotals(userId, year) {
   const range = yearRange(year);
 
   const row = db.prepare(`
@@ -76,7 +76,7 @@ export function yearTotals(userId, year) {
 
 
 /* Where the year's money went, biggest first. */
-export function yearCategories(userId, year) {
+function yearCategories(userId, year) {
   const range = yearRange(year);
 
   return db.prepare(`
@@ -94,7 +94,7 @@ export function yearCategories(userId, year) {
 
 // The heaviest and lightest spending months. The WITH clause names the monthly
 // totals once and ORDER BY ... LIMIT 1 takes each end.
-export function heaviestAndLightestMonth(userId, year) {
+function heaviestAndLightestMonth(userId, year) {
   const range = yearRange(year);
 
   const rows = db.prepare(`
@@ -135,7 +135,7 @@ export function heaviestAndLightestMonth(userId, year) {
   is always rent, but forty small orders is news. Rent and loan repayments are left
   out because they are monthly by definition.
 */
-export function mostFrequentPayment(userId, year) {
+function mostFrequentPayment(userId, year) {
   const range = yearRange(year);
 
   const rows = db.prepare(`

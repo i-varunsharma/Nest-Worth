@@ -192,7 +192,7 @@ export function parseAmount(text) {
 
 // Finds the header row: the first line naming a date column and a money column.
 // Everything above it is the bank's preamble.
-export function findColumns(lines) {
+function findColumns(lines) {
   for (let index = 0; index < lines.length; index = index + 1) {
     const cells = splitCsvLine(lines[index]).map(normaliseHeading);
 

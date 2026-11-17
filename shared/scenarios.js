@@ -12,7 +12,7 @@ import { monthsFromNow, orderByRate } from './debt.js';
 
 // How far to play each scenario out. Long enough for the debt-first case to
 // overtake, which is the comparison worth seeing.
-export const SCENARIO_YEARS = 15;
+const SCENARIO_YEARS = 15;
 
 // A month past this and the simulation stops. It is a guard, not a rule: the
 // loop below is bounded by the years above.

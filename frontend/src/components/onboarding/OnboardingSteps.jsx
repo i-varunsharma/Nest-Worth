@@ -14,7 +14,7 @@ export const HIGHEST_INCOME = 250000;
 
 // Living costs can be set up to this share of income. The server refuses costs
 // at or above the whole income, so the slider never needs to reach it.
-export const HIGHEST_COSTS_SHARE = 0.7;
+const HIGHEST_COSTS_SHARE = 0.7;
 
 const DEPENDENT_CHOICES = [0, 1, 2, 3];
 

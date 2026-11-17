@@ -12,9 +12,14 @@ import { useEffect, useState } from 'react';
 // with anything else on the same address during development.
 const STORAGE_KEY = 'nestworth-theme';
 
+// The phone browser bar colour. A meta tag cannot read CSS variables, so these
+// copy --color-paper from global.css (light and dark). Change them together.
+const BROWSER_BAR_LIGHT = '#F7F4EF';
+const BROWSER_BAR_DARK = '#131210';
+
 // The saved choice, or the operating system's. index.html repeats this before
 // React loads, so the page never flashes the wrong theme.
-export function readStoredTheme() {
+function readStoredTheme() {
   const saved = localStorage.getItem(STORAGE_KEY);
 
   if (saved === 'dark' || saved === 'light') {
@@ -40,9 +45,9 @@ function applyTheme(theme) {
 
   if (themeColourTag) {
     if (theme === 'dark') {
-      themeColourTag.setAttribute('content', '#131210');
+      themeColourTag.setAttribute('content', BROWSER_BAR_DARK);
     } else {
-      themeColourTag.setAttribute('content', '#F7F4EF');
+      themeColourTag.setAttribute('content', BROWSER_BAR_LIGHT);
     }
   }
 }

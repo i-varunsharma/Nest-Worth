@@ -41,7 +41,7 @@ const SYSTEM_PROMPT = [
   configured or the call fails: signals.js writes each one as a full sentence for
   exactly this case.
 */
-export async function writeBriefing(signals) {
+async function writeBriefing(signals) {
   const chosen = signals.slice(0, MOST_SIGNALS_TO_USE);
 
   if (chosen.length === 0) {

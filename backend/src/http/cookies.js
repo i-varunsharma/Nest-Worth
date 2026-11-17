@@ -8,7 +8,7 @@ import { config } from '../config.js';
     secure    only sent over HTTPS, once NODE_ENV is production
 */
 
-export const SESSION_COOKIE = 'nestworth_session';
+const SESSION_COOKIE = 'nestworth_session';
 
 export function setSessionCookie(res, session) {
   res.cookie(SESSION_COOKIE, session.token, {

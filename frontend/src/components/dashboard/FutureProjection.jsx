@@ -9,7 +9,7 @@ import { formatRupees } from '../../lib/format';
   to draw, so the section says why instead of showing an empty chart.
 */
 
-export const PROJECTION_YEARS = 15;
+const PROJECTION_YEARS = 15;
 
 export default function FutureProjection({ monthlyInvestment, isFollowingPlan }) {
   if (monthlyInvestment <= 0) {

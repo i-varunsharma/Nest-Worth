@@ -1,7 +1,7 @@
 // Transaction categories, shared so the server and the browser use the same list.
 // Ordered from must-pay to chosen, the order somebody looking for savings reads them.
 
-export const SPENDING_CATEGORIES = [
+const SPENDING_CATEGORIES = [
   { key: 'rent', label: 'Rent' },
   { key: 'bills', label: 'Bills and utilities' },
   { key: 'emi', label: 'Loan repayments' },
@@ -18,7 +18,7 @@ export const SPENDING_CATEGORIES = [
 
 // Money that arrives or only moves. Never counted as spending: a SIP is money moved
 // into something still owned, not money spent.
-export const NON_SPENDING_CATEGORIES = [
+const NON_SPENDING_CATEGORIES = [
   { key: 'income', label: 'Income' },
   { key: 'investment', label: 'Investing and saving' },
   { key: 'transfer', label: 'Transfers between your own accounts' },

@@ -103,6 +103,12 @@ function firstDayOf(monthText) {
 }
 
 
+/* Date -> "18 November 2026". Used to tell the AI coach today's date. */
+export function formatFullDate(date) {
+  return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+
 /* Date -> "March 2029". Used for payoff dates. */
 export function formatMonthYear(date) {
   if (!date) {
